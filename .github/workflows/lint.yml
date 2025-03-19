@@ -1,0 +1,39 @@
+name: Lint
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Use Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: |
+        npm install -g eslint eslint-plugin-json web-ext prettier @typescript-eslint/parser @typescript-eslint/eslint-plugin
+        if [ -f package.json ]; then
+          npm install
+        fi
+
+    - name: Lint JavaScript/TypeScript
+      run: |
+        eslint --ext .js,.ts,.json .
+
+    - name: Validate manifest.json
+      run: |
+        npx web-ext lint
+
+    - name: Check formatting
+      run: |
+        prettier --check "**/*.{js,ts,json,html,css,md}" 

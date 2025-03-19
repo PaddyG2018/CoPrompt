@@ -1,0 +1,65 @@
+name: Build Verification
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Use Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: |
+        npm install -g web-ext
+        if [ -f package.json ]; then
+          npm install
+        fi
+
+    - name: Build extension
+      run: |
+        web-ext build --overwrite-dest
+
+    - name: Verify package structure
+      run: |
+        if [ ! -d "web-ext-artifacts" ]; then
+          echo "Build directory not found!"
+          exit 1
+        fi
+        
+        # Check if the ZIP file exists
+        if [ ! -f "web-ext-artifacts/"*.zip ]; then
+          echo "Extension package not found!"
+          exit 1
+        fi
+        
+        # List contents of the ZIP file
+        unzip -l web-ext-artifacts/*.zip
+        
+        # Verify essential files
+        REQUIRED_FILES=("manifest.json" "background.js" "content.js" "popup.html" "options.html")
+        ZIP_FILE=$(ls web-ext-artifacts/*.zip)
+        
+        for file in "${REQUIRED_FILES[@]}"; do
+          if ! unzip -l "$ZIP_FILE" | grep -q "$file"; then
+            echo "Missing required file: $file"
+            exit 1
+          fi
+        done
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: extension-package
+        path: web-ext-artifacts/*.zip
+        retention-days: 5 

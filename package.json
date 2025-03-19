@@ -1,0 +1,21 @@
+{
+  "name": "coprompt",
+  "version": "1.0.0",
+  "description": "A browser extension that enhances AI interactions",
+  "private": true,
+  "scripts": {
+    "test": "echo \"No tests configured yet\" && exit 0",
+    "lint": "eslint --ext .js,.json .",
+    "format": "prettier --write \"**/*.{js,json,html,css,md}\"",
+    "build": "web-ext build --overwrite-dest",
+    "start": "web-ext run"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "eslint-plugin-json": "^3.0.0",
+    "prettier": "^3.0.0",
+    "web-ext": "^7.0.0"
+  }
+} 

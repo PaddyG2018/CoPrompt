@@ -1,0 +1,85 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 0 * * 0'  # Run weekly
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Use Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: |
+        if [ -f package.json ]; then
+          npm install
+        fi
+
+    # Check for known vulnerabilities in dependencies
+    - name: Run NPM audit
+      run: |
+        if [ -f package.json ]; then
+          npm audit
+        fi
+
+    # CodeQL Analysis
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v2
+      with:
+        languages: javascript
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v2
+
+    # Secret scanning
+    - name: TruffleHog OSS
+      uses: trufflesecurity/trufflehog@main
+      with:
+        path: ./
+        base: ${{ github.event.repository.default_branch }}
+        head: HEAD
+
+    # Check for sensitive data exposure
+    - name: Check for sensitive data
+      run: |
+        # Check for potential API keys
+        if grep -r -E '[a-zA-Z0-9_-]{32,}' . --exclude-dir={.git,node_modules}; then
+          echo "Warning: Potential API key found in code"
+        fi
+        
+        # Check for private keys
+        if grep -r -E '-----BEGIN .* PRIVATE KEY-----' . --exclude-dir={.git,node_modules}; then
+          echo "Error: Private key found in code"
+          exit 1
+        fi
+
+    # Validate CSP in manifest.json
+    - name: Check Content Security Policy
+      run: |
+        if [ -f manifest.json ]; then
+          if ! grep -q "content_security_policy" manifest.json; then
+            echo "Warning: No Content Security Policy found in manifest.json"
+          fi
+        fi
+
+    # Check for outdated dependencies
+    - name: Check for outdated dependencies
+      run: |
+        if [ -f package.json ]; then
+          npm outdated || true
+        fi 
