@@ -16,7 +16,9 @@ CoPrompt is a browser extension that enhances your interactions with AI platform
 ## Installation
 
 ### From Source
+
 1. Clone the repository
+
 ```bash
 git clone https://github.com/yourusername/coprompt.git
 ```
@@ -26,7 +28,8 @@ git clone https://github.com/yourusername/coprompt.git
 4. Click "Load unpacked" and select the CoPrompt directory
 
 ### From Chrome Web Store
-*(Coming soon)*
+
+_(Coming soon)_
 
 ## Usage
 
@@ -52,10 +55,12 @@ coprompt/
 ## Development
 
 ### Prerequisites
+
 - Chrome or Edge browser
 - Basic knowledge of JavaScript and browser extensions
 
 ### Local Development
+
 1. Make changes to the source files
 2. Reload the extension in `chrome://extensions/`
 3. Test changes on supported platforms
@@ -79,4 +84,3 @@ Unauthorized copying, modification, distribution, or use of this software, via a
 - Built for modern AI platforms
 - Uses Chrome Extensions Manifest V3
 - Inspired by the need for better AI interactions
-
