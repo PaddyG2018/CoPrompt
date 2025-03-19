@@ -1,5 +1,6 @@
 name: Build Verification
 
+# This workflow verifies the extension build process
 on:
   push:
     branches: [ main ]
