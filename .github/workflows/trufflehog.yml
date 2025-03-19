@@ -2,25 +2,19 @@ name: TruffleHog OSS
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   pull_request:
-    branches: [ main ]
 
 jobs:
-  scan:
-    name: Scan repo
+  test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0  # Required for TruffleHog to scan git history
-          fetch-tags: true
-
-      - name: TruffleHog OSS
-        uses: trufflesecurity/trufflehog@main
-        with:
-          path: ./
-          head: ${{ github.event.pull_request.head.sha || github.sha }}
-          base: ${{ github.event.pull_request.base.sha || github.event.before || 'HEAD~1' }}
-          extra_args: --only-verified --no-verification 
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    - name: Secret Scanning
+      uses: trufflesecurity/trufflehog@main
+      with:
+        extra_args: --results=verified,unknown 
