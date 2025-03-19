@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CoPrompt</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            width: 300px;
+            padding: 15px;
+        }
+        h1 {
+            color: #007bff;
+            font-size: 20px;
+            margin-top: 0;
+        }
+        p {
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        .button {
+            display: block;
+            background-color: #007bff;
+            color: white;
+            text-align: center;
+            padding: 8px 12px;
+            border-radius: 4px;
+            text-decoration: none;
+            margin-top: 15px;
+            cursor: pointer;
+        }
+        .button:hover {
+            background-color: #0056b3;
+        }
+        .status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <h1>CoPrompt</h1>
+    
+    <p>Enhance your AI prompts with a single click!</p>
+    
+    <div id="apiKeyStatus" class="status"></div>
+    
+    <a id="optionsButton" class="button">Settings</a>
+    
+    <script src="popup.js"></script>
+</body>
+</html> 
