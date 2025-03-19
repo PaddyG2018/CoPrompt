@@ -1,50 +1,48 @@
 {
-    "manifest_version": 3,
-    "name": "CoPrompt",
-    "version": "1.0",
-    "description": "Enhances AI prompts in real-time for better responses.",
-    "background": {
+  "manifest_version": 3,
+  "name": "CoPrompt",
+  "version": "1.0",
+  "description": "Enhances AI prompts in real-time for better responses.",
+  "background": {
     "service_worker": "background.js",
     "type": "module"
-    },
-    "permissions": ["storage", "activeTab"],
-    "host_permissions": [
-      "https://chat.openai.com/*",
-      "https://chatgpt.com/*",
-      "https://claude.ai/*",
-      "https://gemini.google.com/*",
-      "https://api.openai.com/*"
-    ],
-    "content_security_policy": {
+  },
+  "permissions": ["storage", "activeTab"],
+  "host_permissions": [
+    "https://chat.openai.com/*",
+    "https://chatgpt.com/*",
+    "https://claude.ai/*",
+    "https://gemini.google.com/*",
+    "https://api.openai.com/*"
+  ],
+  "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self';",
     "connect-src": "https://api.openai.com https://chat.openai.com"
-    },
-    "content_scripts": [
-      {
-        "matches": [
-          "https://chat.openai.com/*",
-          "https://chatgpt.com/*",
-          "https://claude.ai/*",
-          "https://gemini.google.com/*"
-        ],
-        "js": ["content.js"],
-        "run_at": "document_end"
-      }
-    ],
-    "action": {
-      "default_icon": "icons/icon.png",
-      "default_popup": "popup.html"
-    },
-    "options_ui": {
-      "page": "options.html",
-      "open_in_tab": false
-    },
-    "web_accessible_resources": [
-      {
-        "resources": ["injected.js"],
-        "matches": ["<all_urls>"]
-      }
-    ]
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chat.openai.com/*",
+        "https://chatgpt.com/*",
+        "https://claude.ai/*",
+        "https://gemini.google.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "action": {
+    "default_icon": "icons/icon.png",
+    "default_popup": "popup.html"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": false
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["injected.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }
-
-  
