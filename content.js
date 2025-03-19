@@ -1,3 +1,16 @@
+// Add at the top of the file with other global variables
+const DRAG_THRESHOLD = 5; // pixels
+const CLICK_DELAY = 100; // milliseconds
+
+let isDragging = false;
+let dragStartX = 0;
+let dragStartY = 0;
+let dragDistance = 0;
+let isButtonDragging = false;
+let dragStartTime = 0;
+let lastDragEndTime = -CLICK_DELAY; // Initialize to a value that won't trigger the delay check
+let hasDragged = false; // New flag to track if actual dragging occurred
+
 // Inject `injected.js` into the page properly
 const script = document.createElement("script");
 script.src = chrome.runtime.getURL("injected.js");
@@ -645,14 +658,7 @@ setInterval(() => {
   }
 }, 5000); // Check every 5 seconds
 
-// Add at the top of the file with other global variables
-let isDragging = false;
-let dragStartX = 0;
-let dragStartY = 0;
-let dragDistance = 0;
-let isButtonDragging = false;
-
-// Make element draggable
+// Update the makeDraggable function
 function makeDraggable(element) {
   let pos1 = 0,
     pos2 = 0,
@@ -677,6 +683,8 @@ function makeDraggable(element) {
     pos4 = e.clientY;
     startX = e.clientX;
     startY = e.clientY;
+    dragStartTime = Date.now();
+    hasDragged = false; // Reset drag flag
 
     // Set dragging state
     isButtonDragging = true;
@@ -708,17 +716,22 @@ function makeDraggable(element) {
     const dy = e.clientY - startY;
     dragDistance = Math.sqrt(dx * dx + dy * dy);
 
+    // Set hasDragged flag if we've moved beyond the threshold
+    if (dragDistance > DRAG_THRESHOLD) {
+        hasDragged = true;
+    }
+
     // Set the element's new position
     const newTop = element.offsetTop - pos2;
     const newLeft = element.offsetLeft - pos1;
 
     // Ensure the button stays within the viewport
     if (newTop > 0 && newTop < window.innerHeight - 50) {
-      element.style.top = newTop + "px";
+        element.style.top = newTop + "px";
     }
 
     if (newLeft > 0 && newLeft < window.innerWidth - 50) {
-      element.style.left = newLeft + "px";
+        element.style.left = newLeft + "px";
     }
 
     // When using top/left, we need to set bottom/right to auto
@@ -735,23 +748,28 @@ function makeDraggable(element) {
     element.classList.remove("coprompt-dragging");
     if (button) button.style.cursor = "pointer";
 
-    // Reset dragging state immediately
+    // Reset dragging state and distance
     isButtonDragging = false;
-    dragDistance = 0;
+    dragDistance = 0;  // Reset drag distance
+    
+    // Only update lastDragEndTime if we actually dragged
+    if (hasDragged) {
+        lastDragEndTime = Date.now();
+    }
 
     // Save position to localStorage
     const rect = element.getBoundingClientRect();
     try {
-      localStorage.setItem(
-        "coPromptButtonPosition",
-        JSON.stringify({
-          top: rect.top,
-          left: rect.left,
-        }),
-      );
-      console.log("Saved button position:", rect.top, rect.left);
+        localStorage.setItem(
+            "coPromptButtonPosition",
+            JSON.stringify({
+                top: rect.top,
+                left: rect.left,
+            }),
+        );
+        console.log("Saved button position:", rect.top, rect.left);
     } catch (e) {
-      console.error("Failed to save button position:", e);
+        console.error("Failed to save button position:", e);
     }
   }
 
@@ -768,6 +786,8 @@ function makeDraggable(element) {
     pos4 = touch.clientY;
     startX = touch.clientX;
     startY = touch.clientY;
+    dragStartTime = Date.now();
+    hasDragged = false; // Reset drag flag
 
     // Reset drag distance on new drag
     dragDistance = 0;
@@ -795,6 +815,11 @@ function makeDraggable(element) {
     const dy = touch.clientY - startY;
     dragDistance = Math.sqrt(dx * dx + dy * dy);
 
+    // Set hasDragged flag if we've moved beyond the threshold
+    if (dragDistance > DRAG_THRESHOLD) {
+        hasDragged = true;
+    }
+
     // Set the element's new position
     const newTop = element.offsetTop - pos2;
     const newLeft = element.offsetLeft - pos1;
@@ -819,10 +844,10 @@ function makeDraggable(element) {
     element.classList.remove("coprompt-dragging");
     if (button) button.style.cursor = "pointer";
 
-    // Reset dragging state immediately
+    // Reset dragging state and distance
     isButtonDragging = false;
-    dragDistance = 0;
-
+    dragDistance = 0;  // Reset drag distance
+    
     // Reset drag distance attribute
     if (button) {
       button.setAttribute("data-drag-distance", "0");
@@ -844,7 +869,7 @@ function makeDraggable(element) {
   }
 }
 
-// Fallback: Create a floating button if inline injection fails
+// Update the click handler in createFloatingButton
 function createFloatingButton() {
   console.log("Creating floating CoPrompt button");
 
@@ -955,24 +980,41 @@ function createFloatingButton() {
   };
 
   // Add click handler
-  enhanceButton.addEventListener("click", (event) => {
+  enhanceButton.addEventListener("click", function(event) {
     event.preventDefault();
     event.stopPropagation();
-    console.log("Button clicked, checking drag state:", { isButtonDragging, dragDistance });
+    console.log("Button clicked, checking drag state:", { 
+        isButtonDragging, 
+        dragDistance,
+        hasDragged,
+        timeSinceLastDrag: Date.now() - lastDragEndTime
+    });
 
-    // Only proceed if we haven't dragged the button significantly
-    if (dragDistance < 5) {
-      const activeElement = document.activeElement;
-      console.log("Active element:", activeElement);
-      
-      if (activeElement && (activeElement.tagName === "TEXTAREA" || activeElement.getAttribute("contenteditable") === "true")) {
-        console.log("Found valid input element, calling handleEnhanceClick");
-        handleEnhanceClick(activeElement);
-      } else {
-        console.warn("No active input element found");
-      }
+    // Check if this is a click after a drag
+    const isClickAfterDrag = hasDragged && Date.now() - lastDragEndTime < CLICK_DELAY;
+    
+    // Only proceed if:
+    // 1. We're not currently dragging
+    // 2. The drag distance was small (if any)
+    // 3. It's not immediately after a drag
+    if (!isButtonDragging && dragDistance < DRAG_THRESHOLD && !isClickAfterDrag) {
+        const activeElement = document.activeElement;
+        console.log("Active element:", activeElement);
+        
+        if (activeElement && (activeElement.tagName === "TEXTAREA" || activeElement.getAttribute("contenteditable") === "true")) {
+            console.log("Found valid input element, calling handleEnhanceClick");
+            handleEnhanceClick(activeElement);
+        } else {
+            console.warn("No active input element found");
+        }
     } else {
-      console.log("Ignoring click due to significant drag distance:", dragDistance);
+        console.log("Ignoring click due to:", {
+            isButtonDragging,
+            dragDistance,
+            hasDragged,
+            isClickAfterDrag,
+            timeSinceLastDrag: Date.now() - lastDragEndTime
+        });
     }
   });
 
