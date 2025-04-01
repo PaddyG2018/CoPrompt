@@ -1,4 +1,8 @@
-console.log("CoPrompt injected.js loaded successfully");
+// Simple flag - injected scripts don't have easy access to manifest
+// Assume production logging unless specifically enabled for debug builds
+const DEBUG = false; 
+
+if (DEBUG) console.log("CoPrompt injected.js loaded successfully");
 
 // Modified to use message passing instead of direct API calls
 async function determinePromptCategory(prompt) {
@@ -53,7 +57,7 @@ async function getAPIKeyFromContentScript() {
 
 // Modified to use message passing for API calls
 window.enhancePrompt = async function (prompt) {
-  console.log("Sending prompt to AI for enhancement:", prompt);
+  if (DEBUG) console.log("Sending prompt to AI for enhancement:", prompt);
 
   try {
     // Get API key through content.js
@@ -65,7 +69,7 @@ window.enhancePrompt = async function (prompt) {
 
     // Detect category using regex only (no API call)
     const category = await determinePromptCategory(prompt);
-    console.log("Detected category:", category);
+    if (DEBUG) console.log("Detected category:", category);
 
     // Define tailored instructions based on category
     let systemInstruction = `You are an expert prompt engineer. Your task is to transform basic prompts into comprehensive, detailed prompts that will get excellent results from AI assistants.
@@ -161,7 +165,7 @@ Enhanced: "Write a fantasy short story about dragons with the following specific
 
       // Track when the request was sent
       const requestStartTime = Date.now();
-      console.log("Sending enhancement request at:", new Date().toISOString());
+      if (DEBUG) console.log("Sending enhancement request at:", new Date().toISOString());
 
       const handleEnhanceResponse = (event) => {
         if (
@@ -172,7 +176,7 @@ Enhanced: "Write a fantasy short story about dragons with the following specific
 
         // Calculate response time
         const responseTime = (Date.now() - requestStartTime) / 1000;
-        console.log(
+        if (DEBUG) console.log(
           `Received enhancement response after ${responseTime.toFixed(2)} seconds`,
         );
 
@@ -187,7 +191,7 @@ Enhanced: "Write a fantasy short story about dragons with the following specific
           console.error("Error enhancing prompt:", event.data.error);
           resolve(prompt); // Return original on error
         } else {
-          console.log("AI-enhanced prompt received from background script");
+          if (DEBUG) console.log("AI-enhanced prompt received from background script");
 
           // Verify we got a meaningful enhancement
           const enhancedPrompt = event.data.enhancedPrompt || prompt;
@@ -215,7 +219,6 @@ Enhanced: "Write a fantasy short story about dragons with the following specific
           type: "CoPromptEnhanceRequest",
           prompt: prompt,
           systemInstruction: systemInstruction,
-          apiKey: apiKey,
         },
         "*",
       );
@@ -228,7 +231,7 @@ Enhanced: "Write a fantasy short story about dragons with the following specific
         }
 
         const waitTime = (Date.now() - requestStartTime) / 1000;
-        console.log(
+        if (DEBUG) console.log(
           `Still waiting for enhancement response after ${waitTime.toFixed(0)} seconds...`,
         );
 
@@ -250,25 +253,29 @@ Enhanced: "Write a fantasy short story about dragons with the following specific
 window.addEventListener("message", async (event) => {
   if (event.source !== window || event.data.type !== "CoPromptEnhance") return;
 
-  console.log("Received prompt enhancement request:", event.data.prompt);
+  if (DEBUG) console.log("Received prompt enhancement request:", event.data.prompt);
 
   const originalPrompt = event.data.prompt;
-  if (!originalPrompt) return;
+  const callbackId = event.data.callbackId;
 
-  // ✅ Fix: Wait for the AI-enhanced prompt before posting back
+  if (!originalPrompt || !callbackId) {
+    console.error("Missing prompt or callbackId in CoPromptEnhance message");
+    return;
+  }
+
+  // Perform the enhancement
   try {
     const improvedPrompt = await window.enhancePrompt(originalPrompt);
-    console.log("Enhanced prompt:", improvedPrompt);
+    if (DEBUG) console.log("Enhanced prompt:", improvedPrompt);
 
     // Add a small delay to ensure the message is processed correctly
     setTimeout(() => {
-      // Send the enhanced prompt back to content.js
-      console.log("Sending enhanced prompt back to content.js");
+      if (DEBUG) console.log("Sending enhanced prompt back to content.js");
       window.postMessage(
         {
-          type: "CoPromptEnhanced",
-          improvedPrompt: improvedPrompt,
-          originalPrompt: originalPrompt, // Include original for comparison
+          type: "CoPromptEnhanceResponse",
+          enhancedPrompt: improvedPrompt,
+          callbackId: callbackId,
         },
         "*",
       );
@@ -277,9 +284,9 @@ window.addEventListener("message", async (event) => {
     console.error("Error in prompt enhancement process:", error);
     window.postMessage(
       {
-        type: "CoPromptEnhanced",
-        improvedPrompt: originalPrompt, // Fall back to original prompt
-        error: error.message,
+        type: "CoPromptEnhanceResponse",
+        error: `Enhancement failed: ${error.message}`,
+        callbackId: callbackId,
       },
       "*",
     );

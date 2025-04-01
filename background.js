@@ -1,3 +1,6 @@
+// Simple flag for production builds (assuming non-'dev' version is production)
+const DEBUG = chrome.runtime.getManifest().version.includes('dev');
+
 // 🔐 Improved API key security using Web Crypto API
 async function encryptAPIKey(apiKey) {
   // Use a consistent encryption key derived from browser fingerprint or extension ID
@@ -106,10 +109,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           sendResponse({ key: decryptedKey });
         } catch (error) {
           console.error("Error decrypting API key:", error);
-          sendResponse({ error: "Failed to decrypt API key" });
+          // Send generic error to content script
+          sendResponse({ error: "Error accessing stored API key." });
         }
       } else {
-        sendResponse({ error: "No API key found" });
+        // Send generic error to content script
+        sendResponse({ error: "No API key found in storage." });
       }
     });
     return true; // Keeps the async response channel open
@@ -122,24 +127,27 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         chrome.storage.local.set({ openai_api_key: encryptedKey }, () => {
           if (chrome.runtime.lastError) {
             console.error("Error saving API key:", chrome.runtime.lastError);
+            // Send generic error to content script
             sendResponse({
               success: false,
-              error: chrome.runtime.lastError.message,
+              error: "Failed to save API key to storage.",
             });
           } else {
+            if (DEBUG) console.log("API key saved successfully.");
             sendResponse({ success: true });
           }
         });
       } catch (error) {
         console.error("Error encrypting API key:", error);
-        sendResponse({ success: false, error: "Failed to encrypt API key" });
+        // Send generic error to content script
+        sendResponse({ success: false, error: "Failed to secure API key for storage." });
       }
     })();
     return true;
   }
 
   if (request.type === "ENHANCE_PROMPT") {
-    console.log("Background: Enhancing prompt:", request.prompt);
+    if (DEBUG) console.log("Background: Enhancing prompt:", request.prompt);
 
     // Track when the request started
     const startTime = Date.now();
@@ -173,25 +181,27 @@ Enhanced: "Create a comprehensive blog post about artificial intelligence with t
     );
     const hasContext =
       formattedContext !== "No previous conversation context available.";
-    console.log("Using conversation context:", formattedContext);
+    if (DEBUG) console.log("Using conversation context:", formattedContext);
 
     // 🔐 Securely fetch & decrypt API key
     chrome.storage.local.get("openai_api_key", async (data) => {
       if (!data.openai_api_key) {
         console.error("No OpenAI API key set.");
-        sendResponse({ error: "API key missing" });
+        // Send user-friendly error
+        sendResponse({ error: "OpenAI API key not configured. Please set it in the extension options." });
         return;
       }
 
       try {
-        console.log("Background: Decrypting API key...");
+        if (DEBUG) console.log("Background: Decrypting API key...");
         const apiKey = await decryptAPIKey(data.openai_api_key);
         if (!apiKey) {
           console.error("Failed to decrypt API key");
-          sendResponse({ error: "Failed to decrypt API key" });
+          // Send user-friendly error - could indicate corruption or bad key
+          sendResponse({ error: "Invalid API key stored. Please re-enter your API key in options." });
           return;
         }
-        console.log("Background: API key decrypted successfully");
+        if (DEBUG) console.log("Background: API key decrypted successfully");
 
         // Create a prompt that works with or without context
         let contextAwarePrompt;
@@ -213,8 +223,8 @@ User's original prompt: "${request.prompt}"
 This is a fresh conversation with no previous context. Transform this into a comprehensive, detailed prompt that will get excellent results. Remember to make reasonable assumptions rather than asking questions, and create a complete, ready-to-use prompt.`;
         }
 
-        console.log("Background: Sending request to OpenAI API...");
-        console.log("Background: Using model: gpt-4-turbo");
+        if (DEBUG) console.log("Background: Sending request to OpenAI API...");
+        if (DEBUG) console.log("Background: Using model: gpt-4-turbo");
 
         try {
           // Add a timeout for the fetch request using AbortController
@@ -244,49 +254,53 @@ This is a fresh conversation with no previous context. Transform this into a com
           // Clear the timeout since we got a response
           clearTimeout(timeoutId);
 
-          console.log(`Background: API response status: ${response.status}`);
+          if (DEBUG) console.log(`Background: API response status: ${response.status}`);
 
           if (!response.ok) {
-            const errorText = await response.text();
+            const errorText = await response.text(); // Keep for internal log
             console.error(`API error (${response.status}):`, errorText);
-            throw new Error(
-              `API responded with status ${response.status}: ${errorText}`,
-            );
+            // Send generic error, potentially hinting at key/quota issue
+            let userErrorMessage = "API request failed. Please check your network connection.";
+            if (response.status === 401) { // Unauthorized
+                userErrorMessage = "API request failed (Unauthorized). Please check your API key.";
+            } else if (response.status === 429) { // Rate limit / Quota
+                userErrorMessage = "API request failed (Rate Limit/Quota Exceeded). Please check your OpenAI account.";
+            }
+            sendResponse({ error: userErrorMessage });
+            // No need to throw here if we sent response
+            return;
           }
 
           const result = await response.json();
           if (!result.choices || !result.choices[0]?.message?.content) {
             console.error("Invalid API response structure:", result);
-            throw new Error("Invalid API response structure");
+            // Send generic error
+            sendResponse({ error: "Received an invalid response from the API." });
+            return;
           }
 
           const enhancedPrompt = result.choices[0].message.content;
           const elapsedTime = (Date.now() - startTime) / 1000;
-          console.log(
+          if (DEBUG) console.log(
             `Background: Enhancement completed in ${elapsedTime.toFixed(2)} seconds`,
           );
-          console.log("Background: Enhanced prompt:", enhancedPrompt);
+          if (DEBUG) console.log("Background: Enhanced prompt:", enhancedPrompt);
 
           sendResponse({ enhancedPrompt: enhancedPrompt });
         } catch (fetchError) {
           console.error("Fetch error:", fetchError);
-
+          let userErrorMessage = "API request failed. Please check your network connection.";
           // Provide more specific error messages based on the error type
           if (fetchError.name === "AbortError") {
-            sendResponse({ error: "API request timed out after 50 seconds" });
-          } else if (fetchError.message.includes("Failed to fetch")) {
-            sendResponse({
-              error: "Network error: Check your internet connection",
-            });
-          } else {
-            sendResponse({
-              error: `API request failed: ${fetchError.message}`,
-            });
+            userErrorMessage = "API request timed out (50s). Please try again.";
           }
+          // Send generic error based on fetch error type
+          sendResponse({ error: userErrorMessage });
         }
       } catch (error) {
-        console.error("Error in enhancement process:", error);
-        sendResponse({ error: `Failed to enhance prompt: ${error.message}` });
+        console.error("Error in enhancement process:", error); // Catch errors during key decryption etc.
+        // Send generic internal error
+        sendResponse({ error: "An internal error occurred during prompt enhancement." });
       }
     });
 

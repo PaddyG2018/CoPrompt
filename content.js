@@ -1,3 +1,11 @@
+// REMOVED import { createLogger } from './utils/logger.js';
+
+// REMOVED const logger = createLogger('content');
+
+// Re-add simple DEBUG flag (assuming background.js check is sufficient)
+// We might need a way to get this from background if not in manifest
+const DEBUG = false; // Set to false for production manually for now
+
 // Add at the top of the file with other global variables
 const DRAG_THRESHOLD = 5; // pixels
 const CLICK_DELAY = 100; // milliseconds
@@ -35,12 +43,9 @@ function debounce(func, wait) {
 // Track if we've already injected the button
 let buttonInjected = false;
 
-// Add debug function to help troubleshoot
+// Re-add simple debugLog function (or use DEBUG directly)
 function debugLog(message, obj = null) {
-  // Only log if debug mode is enabled
-  const debugMode = false; // Set to false to disable most logs
-
-  if (debugMode) {
+  if (DEBUG) {
     const prefix = "[CoPrompt Debug]";
     if (obj) {
       console.log(prefix, message, obj);
@@ -54,13 +59,13 @@ function debugLog(message, obj = null) {
 function checkButtonVisibility() {
   const button = document.getElementById("coprompt-button");
   if (!button) {
-    debugLog("Button not found in DOM");
+    debugLog("Button not found in DOM"); // Use restored debugLog
     buttonInjected = false;
     return false;
   }
 
   const rect = button.getBoundingClientRect();
-  debugLog("Button dimensions:", {
+  debugLog("Button dimensions:", { // Use restored debugLog
     width: rect.width,
     height: rect.height,
     top: rect.top,
@@ -70,7 +75,7 @@ function checkButtonVisibility() {
 
   // Check if button is actually visible
   const style = window.getComputedStyle(button);
-  debugLog("Button computed style:", {
+  debugLog("Button computed style:", { // Use restored debugLog
     display: style.display,
     visibility: style.visibility,
     opacity: style.opacity,
@@ -85,7 +90,7 @@ function checkButtonVisibility() {
     style.visibility === "hidden" ||
     style.opacity === "0"
   ) {
-    console.log("Button exists but is not visible, attempting to fix...");
+    console.log("Button exists but is not visible, attempting to fix..."); // Reverted to console.log (info level)
 
     // Apply stronger styling
     button.style.display = "flex !important";
@@ -126,7 +131,7 @@ const getChatGPTInputField = () => {
   for (const strategy of strategies) {
     const element = strategy();
     if (element && element.offsetParent !== null) {
-      debugLog("Found input field using strategy:", strategy.toString());
+      debugLog("Found input field using strategy:", strategy.toString()); // Use restored debugLog
       return element;
     }
   }
@@ -165,21 +170,21 @@ function getConversationContext() {
 
 // Update the handleEnhanceClick function
 function handleEnhanceClick(inputElement) {
-  console.log("handleEnhanceClick called with element:", inputElement);
+  debugLog("handleEnhanceClick called with element:", inputElement); // Use restored debugLog
   
   // Get text from input element using multiple approaches
   let originalPrompt = "";
 
   // For contenteditable divs
   if (inputElement.getAttribute("contenteditable") === "true") {
-    console.log("Handling contenteditable element");
+    debugLog("Handling contenteditable element"); // Use restored debugLog
     // Try innerText first
     originalPrompt = inputElement.innerText || inputElement.textContent;
-    console.log("Initial prompt from innerText:", originalPrompt);
+    debugLog("Initial prompt from innerText:", originalPrompt); // Use restored debugLog
 
     // If that fails, try getting text from child nodes
     if (!originalPrompt) {
-      console.log("No text found, trying child nodes");
+      debugLog("No text found, trying child nodes"); // Use restored debugLog
       const textNodes = [];
       const walker = document.createTreeWalker(
         inputElement,
@@ -190,37 +195,37 @@ function handleEnhanceClick(inputElement) {
         textNodes.push(node.nodeValue);
       }
       originalPrompt = textNodes.join(" ");
-      console.log("Prompt from child nodes:", originalPrompt);
+      debugLog("Prompt from child nodes:", originalPrompt); // Use restored debugLog
     }
   }
   // For textareas
   else if (inputElement.tagName === "TEXTAREA") {
-    console.log("Handling textarea element");
+    debugLog("Handling textarea element"); // Use restored debugLog
     originalPrompt = inputElement.value;
-    console.log("Prompt from textarea:", originalPrompt);
+    debugLog("Prompt from textarea:", originalPrompt); // Use restored debugLog
   }
   // Fallback
   else {
-    console.log("Using fallback text extraction");
+    debugLog("Using fallback text extraction"); // Use restored debugLog
     originalPrompt =
       inputElement.textContent ||
       inputElement.innerText ||
       inputElement.value ||
       "";
-    console.log("Prompt from fallback:", originalPrompt);
+    debugLog("Prompt from fallback:", originalPrompt); // Use restored debugLog
   }
 
   if (!originalPrompt) {
-    console.warn("No prompt text found in input element");
+    console.warn("No prompt text found in input element"); // Reverted to console.warn
     return;
   }
 
-  console.log("Sending enhance request with prompt:", originalPrompt);
+  console.log("Sending enhance request with prompt:", originalPrompt); // Reverted to console.log (info level)
 
   // Visual feedback with animation
   const button = document.querySelector("#coprompt-button");
   if (button) {
-    console.log("Updating button with loading animation");
+    debugLog("Updating button with loading animation"); // Use restored debugLog
     // Create and add the loading animation
     button.innerHTML = "";
 
@@ -289,26 +294,26 @@ IMPORTANT GUIDELINES:
     },
     "*",
   );
-  console.log("Sent CoPromptEnhanceRequest message");
+  console.log("Sent CoPromptEnhanceRequest message"); // Reverted to console.log (info level)
 }
 
 // Consolidate all message event listeners into one
 window.addEventListener("message", async (event) => {
   if (event.source !== window) return;
-  console.log("Received message:", event.data.type);
+  console.log("Received message:", event.data.type); // Reverted to console.log (info level)
 
   // Handle API key request
   if (event.data.type === "CoPromptGetAPIKey") {
-    console.log("Handling API key request");
+    console.log("Handling API key request"); // Reverted to console.log (info level)
     chrome.runtime.sendMessage({ type: "GET_API_KEY" }, (response) => {
       if (response?.key) {
-        console.log("Got API key, sending response");
+        console.log("Got API key, sending response"); // Reverted to console.log (info level)
         window.postMessage(
           { type: "CoPromptAPIKeyResponse", key: response.key },
           "*",
         );
       } else {
-        console.error("API key retrieval failed in content.js");
+        console.error("API key retrieval failed in content.js"); // Reverted to console.error
         window.postMessage({ type: "CoPromptAPIKeyResponse", key: null }, "*");
       }
     });
@@ -319,24 +324,24 @@ window.addEventListener("message", async (event) => {
     console.log(
       "Content script: Relaying prompt enhancement request to background script",
       event.data
-    );
+    ); // Reverted to console.log (info level)
 
     // Get conversation context
     const conversationContext = getConversationContext();
-    console.log("Conversation context:", conversationContext);
+    console.log("Conversation context:", conversationContext); // Reverted to console.log (info level)
 
     // Track when the request was sent
     const requestStartTime = Date.now();
     console.log(
       "Content script: Sending request to background script at",
       new Date().toISOString(),
-    );
+    ); // Reverted to console.log (info level)
 
     // Set up a timeout for the background script response
     const timeoutId = setTimeout(() => {
       console.error(
         "Content script: Background script response timed out after 55 seconds",
-      );
+      ); // Reverted to console.error
       window.postMessage(
         {
           type: "CoPromptEnhanceResponse",
@@ -355,7 +360,7 @@ window.addEventListener("message", async (event) => {
         conversationContext: conversationContext,
       },
       (response) => {
-        console.log("Received response from background script:", response);
+        console.log("Received response from background script:", response); // Reverted to console.log (info level)
         // Clear the timeout since we got a response
         clearTimeout(timeoutId);
 
@@ -363,12 +368,12 @@ window.addEventListener("message", async (event) => {
         const requestTime = (Date.now() - requestStartTime) / 1000;
         console.log(
           `Content script: Received response from background script after ${requestTime.toFixed(2)} seconds`,
-        );
+        ); // Reverted to console.log (info level)
 
         if (!response) {
           console.error(
             "Content script: No response received from background script (possible timeout)",
-          );
+          ); // Reverted to console.error
           window.postMessage(
             {
               type: "CoPromptEnhanceResponse",
@@ -383,7 +388,7 @@ window.addEventListener("message", async (event) => {
           console.error(
             "Content script: Error from background script:",
             response.error,
-          );
+          ); // Reverted to console.error
           window.postMessage(
             {
               type: "CoPromptEnhanceResponse",
@@ -394,7 +399,7 @@ window.addEventListener("message", async (event) => {
         } else if (response?.enhancedPrompt) {
           console.log(
             "Content script: Received enhanced prompt from background",
-          );
+          ); // Reverted to console.log (info level)
           window.postMessage(
             {
               type: "CoPromptEnhanceResponse",
@@ -406,7 +411,7 @@ window.addEventListener("message", async (event) => {
           console.error(
             "Content script: Invalid response from background script",
             response,
-          );
+          ); // Reverted to console.error
           window.postMessage(
             {
               type: "CoPromptEnhanceResponse",
@@ -421,7 +426,7 @@ window.addEventListener("message", async (event) => {
 
   // Handle enhanced prompt response
   if (event.data.type === "CoPromptEnhanceResponse") {
-    console.log("Received enhanced prompt response:", event.data);
+    console.log("Received enhanced prompt response:", event.data); // Reverted to console.log (info level)
     const button = document.querySelector("#coprompt-button");
     if (button) {
       // Update with icon + text
@@ -441,11 +446,11 @@ window.addEventListener("message", async (event) => {
     // Get the improved prompt from the event data
     const improvedPrompt = event.data.enhancedPrompt;
     if (!improvedPrompt) {
-      console.log("No improved prompt received");
+      console.log("No improved prompt received"); // Reverted to console.log (info level)
       return;
     }
 
-    console.log("Received enhanced prompt, updating input field");
+    console.log("Received enhanced prompt, updating input field"); // Reverted to console.log (info level)
 
     // Find the input field using multiple strategies
     let inputField = null;
@@ -505,7 +510,7 @@ window.addEventListener("message", async (event) => {
     }
 
     if (!inputField) {
-      console.log("Could not find input field to update with enhanced prompt");
+      console.log("Could not find input field to update with enhanced prompt"); // Reverted to console.log (info level)
       alert(
         "Could not find the input field to update. The enhanced prompt has been copied to your clipboard.",
       );
@@ -521,46 +526,47 @@ window.addEventListener("message", async (event) => {
     try {
       // For contenteditable divs (new ChatGPT interface)
       if (inputField.getAttribute("contenteditable") === "true") {
-        console.log("Updating contenteditable input field");
+        console.log("Updating contenteditable input field"); // Reverted to console.log (info level)
 
         // Try multiple approaches to update the contenteditable
         try {
-          // Approach 1: Direct innerHTML update
-          inputField.innerHTML = "";
-          const p = document.createElement("p");
-          p.textContent = improvedPrompt;
-          inputField.appendChild(p);
-
-          // Create and dispatch input event
-          const inputEvent = new InputEvent("input", {
-            bubbles: true,
-            cancelable: true,
-          });
-          inputField.dispatchEvent(inputEvent);
-        } catch (error) {
-          console.error("Error updating contenteditable:", error);
+          // Best approach: Simulate user input event
+          inputField.focus();
+          document.execCommand("selectAll", false, null);
+          document.execCommand("insertText", false, improvedPrompt);
+        } catch (error1) {
+          console.error("Error updating contenteditable with execCommand:", error1); // Reverted
+          try {
+            // Fallback 1: Set innerText
+            inputField.innerText = improvedPrompt;
+            // Trigger input event manually
+            const inputEvent = new Event("input", { bubbles: true });
+            inputField.dispatchEvent(inputEvent);
+          } catch (error2) {
+            console.error("Error updating contenteditable with innerText:", error2); // Reverted
+          }
         }
       }
       // For regular textareas (legacy interface)
       else if (inputField.tagName === "TEXTAREA") {
-        console.log("Updating textarea input field");
+        console.log("Updating textarea input field"); // Reverted to console.log (info level)
         inputField.value = improvedPrompt;
         inputField.dispatchEvent(new Event("input", { bubbles: true }));
         inputField.dispatchEvent(new Event("change", { bubbles: true }));
         inputField.focus();
-        console.log("Successfully updated textarea input field");
+        console.log("Successfully updated textarea input field"); // Reverted to console.log (info level)
       } else {
-        console.log("Unknown input field type:", inputField.tagName);
+        console.log("Unknown input field type:", inputField.tagName); // Reverted
       }
     } catch (error) {
-      console.error("Error updating input field with enhanced prompt:", error);
+      console.error("Error updating input field with enhanced prompt:", error); // Reverted
 
       // Copy to clipboard as a fallback
       navigator.clipboard.writeText(improvedPrompt).catch((e) => {
-        console.error("Failed to copy to clipboard:", e);
+        console.error("Failed to copy to clipboard:", e); // Reverted
       });
       alert(
-        "There was an error updating the input field. The enhanced prompt has been copied to your clipboard.",
+        "Could not update the input field. The enhanced prompt has been copied to your clipboard.",
       );
     }
   }
@@ -601,7 +607,7 @@ setInterval(() => {
   const container = document.getElementById("coprompt-container");
 
   if (!existingButton || !container) {
-    console.log("Button not found, recreating");
+    debugLog("Button not found, recreating");
     buttonInjected = false;
     createFloatingButton();
     return;
@@ -619,7 +625,7 @@ setInterval(() => {
     style.opacity === "0" ||
     parseFloat(style.opacity) < 0.1
   ) {
-    console.log("Button exists but is not visible, forcing visibility");
+    debugLog("Button exists but is not visible, forcing visibility");
 
     // Force visibility with !important flags
     container.style.cssText += `
@@ -646,7 +652,7 @@ setInterval(() => {
       rect.top > window.innerHeight ||
       rect.left > window.innerWidth
     ) {
-      console.log("Button outside viewport, resetting position");
+      debugLog("Button outside viewport, resetting position");
       container.style.top = "auto";
       container.style.left = "auto";
       container.style.bottom = "80px"; // Position higher to avoid input box
@@ -767,9 +773,9 @@ function makeDraggable(element) {
                 left: rect.left,
             }),
         );
-        console.log("Saved button position:", rect.top, rect.left);
+        debugLog("Saved button position:", rect.top, rect.left);
     } catch (e) {
-        console.error("Failed to save button position:", e);
+        debugLog("Failed to save button position:", e);
     }
   }
 
@@ -864,14 +870,14 @@ function makeDraggable(element) {
         }),
       );
     } catch (e) {
-      console.error("Failed to save button position:", e);
+      debugLog("Failed to save button position:", e);
     }
   }
 }
 
 // Update the click handler in createFloatingButton
 function createFloatingButton() {
-  console.log("Creating floating CoPrompt button");
+  debugLog("Creating floating CoPrompt button");
 
   // Remove any existing floating button
   const existingContainer = document.getElementById("coprompt-container");
@@ -921,7 +927,7 @@ function createFloatingButton() {
         buttonContainer.style.right = "auto";
       }
     } catch (e) {
-      console.error("Error restoring button position:", e);
+      debugLog("Error restoring button position:", e);
       // Use default position if parsing fails
     }
   }
@@ -983,7 +989,7 @@ function createFloatingButton() {
   enhanceButton.addEventListener("click", function(event) {
     event.preventDefault();
     event.stopPropagation();
-    console.log("Button clicked, checking drag state:", { 
+    debugLog("Button clicked, checking drag state:", { 
         isButtonDragging, 
         dragDistance,
         hasDragged,
@@ -999,16 +1005,16 @@ function createFloatingButton() {
     // 3. It's not immediately after a drag
     if (!isButtonDragging && dragDistance < DRAG_THRESHOLD && !isClickAfterDrag) {
         const activeElement = document.activeElement;
-        console.log("Active element:", activeElement);
+        debugLog("Active element:", activeElement);
         
         if (activeElement && (activeElement.tagName === "TEXTAREA" || activeElement.getAttribute("contenteditable") === "true")) {
-            console.log("Found valid input element, calling handleEnhanceClick");
+            debugLog("Found valid input element, calling handleEnhanceClick");
             handleEnhanceClick(activeElement);
         } else {
-            console.warn("No active input element found");
+            debugLog("No active input element found");
         }
     } else {
-        console.log("Ignoring click due to:", {
+        debugLog("Ignoring click due to:", {
             isButtonDragging,
             dragDistance,
             hasDragged,
@@ -1023,7 +1029,7 @@ function createFloatingButton() {
   makeDraggable(buttonContainer);
 
   buttonInjected = true;
-  console.log("CoPrompt floating button created and attached");
+  debugLog("CoPrompt floating button created and attached");
 
   // Force the button to be visible after a short delay
   setTimeout(() => {
@@ -1046,9 +1052,9 @@ function createFloatingButton() {
                 z-index: 99999 !important;
             `;
 
-      console.log("Forced button visibility");
+      debugLog("Forced button visibility");
     } else {
-      console.log("Button not found after delay, recreating");
+      debugLog("Button not found after delay, recreating");
       buttonInjected = false;
       createFloatingButton();
     }
