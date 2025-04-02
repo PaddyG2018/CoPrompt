@@ -1,5 +1,5 @@
-// Simple flag for production builds (assuming non-'dev' version is production)
-const DEBUG = chrome.runtime.getManifest().version.includes('dev');
+// Simple flag for production builds - Hardcoded to false for stability
+const DEBUG = false;
 
 // 🔐 Improved API key security using Web Crypto API
 async function encryptAPIKey(apiKey) {
