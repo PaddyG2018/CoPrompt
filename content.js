@@ -139,15 +139,48 @@ const getChatGPTInputField = () => {
   return null;
 };
 
-// Function to extract conversation context
+// Function to get conversation context from the page
 function getConversationContext() {
-  // Get conversation elements from the page
-  const conversationElements = document.querySelectorAll(
-    "[data-message-author-role]",
-  );
+  let conversationElements = [];
+  let roleAttribute = "";
+  let assistantRoleValue = "assistant";
+  let userRoleValue = "user";
+  const hostname = window.location.hostname;
 
-  // Extract the last few messages (up to 6)
-  const contextLimit = 6;
+  debugLog("Getting context for hostname:", hostname); // Use restored debugLog
+
+  // Platform-specific selectors and attributes
+  if (hostname.includes("claude.ai")) {
+    // Selector for Claude: combines user and assistant messages
+    conversationElements = document.querySelectorAll(
+      '[data-testid="user-message"], .font-claude-message'
+    );
+    // Role determination for Claude is done by checking which selector matched
+  } else if (hostname.includes("openai.com") || hostname.includes("chatgpt.com")) {
+    // Selector for ChatGPT
+    roleAttribute = "data-message-author-role";
+    conversationElements = document.querySelectorAll(`[${roleAttribute}]`);
+    // Role values are standard 'user' and 'assistant' from the attribute
+  } else if (hostname.includes("gemini.google.com")) {
+    // Selector for Gemini: combines user queries and model responses
+    conversationElements = document.querySelectorAll(
+      ".query-content, .response-content",
+    );
+    // Role determination for Gemini is done by checking the class
+  } else {
+    debugLog("Unsupported hostname for context extraction:", hostname); // Use restored debugLog
+    return []; // Return empty for other unsupported platforms
+  }
+
+  // Check if elements were found
+  if (!conversationElements || conversationElements.length === 0) {
+    debugLog("No conversation elements found with the selector for:", hostname); // Use restored debugLog
+    return [];
+  }
+
+  debugLog(`Found ${conversationElements.length} potential message elements for ${hostname}.`); // Use restored debugLog
+
+  const contextLimit = 6; // Keep existing limit
   const recentMessages = [];
 
   // Process messages from newest to oldest
@@ -157,14 +190,58 @@ function getConversationContext() {
     i--
   ) {
     const element = conversationElements[i];
-    const role = element.getAttribute("data-message-author-role");
+    let role = "";
+    let content = "";
 
-    recentMessages.unshift({
-      role: role === "assistant" ? "assistant" : "user",
-      content: element.textContent.trim(),
-    });
+    try {
+      // Determine role based on platform
+      if (hostname.includes("claude.ai")) {
+        if (element.matches('[data-testid="user-message"]')) {
+          role = userRoleValue; // 'user'
+        } else if (element.matches(".font-claude-message")) {
+          role = assistantRoleValue; // 'assistant'
+        }
+      } else if (hostname.includes("openai.com") || hostname.includes("chatgpt.com")) {
+        // Existing ChatGPT logic
+        role = element.getAttribute(roleAttribute);
+      } else if (hostname.includes("gemini.google.com")) {
+        if (element.matches(".query-content")) {
+          role = userRoleValue; // 'user'
+          content = element.textContent ? element.textContent.trim() : "";
+        } else if (element.matches(".response-content")) {
+          role = assistantRoleValue; // 'assistant'
+          // Extract text specifically from the 'message-content' child element
+          const messageContentElement = element.querySelector("message-content");
+          content = messageContentElement?.textContent
+            ? messageContentElement.textContent.trim()
+            : "";
+        }
+      }
+
+      // Extract content (using textContent should work generally)
+      // -- Removed generic content extraction line, handled within platform logic now --
+      // content = element.textContent ? element.textContent.trim() : "";
+
+      // Add to context if valid role and content found
+      if (role && content) {
+        // Normalize role value just in case (e.g., "User" vs "user")
+        const normalizedRole = role.toLowerCase() === assistantRoleValue ? "assistant" : "user";
+        recentMessages.unshift({
+          role: normalizedRole,
+          content: content,
+        });
+        debugLog(`Added message: Role=${normalizedRole}, Index=${i}, Host=${hostname}`); // Use restored debugLog
+      } else {
+         // Log skipped elements for debugging potential selector issues
+         debugLog(`Skipped element at index ${i} on ${hostname}: Role='${role}', Content='${content.substring(0, 50)}...'`); // Use restored debugLog
+      }
+    } catch (error) {
+      // Log errors during processing individual messages
+      console.error("CoPrompt Error processing message element:", element, error); // Keep as console.error
+    }
   }
 
+  debugLog("Final recentMessages:", recentMessages); // Use restored debugLog
   return recentMessages;
 }
 
@@ -281,16 +358,23 @@ function handleEnhanceClick(inputElement) {
     {
       type: "CoPromptEnhanceRequest",
       prompt: originalPrompt,
-      systemInstruction: `You are an expert prompt engineer. Your task is to transform basic prompts into comprehensive, detailed prompts that will get excellent results from AI assistants.
+      systemInstruction: `You are an advanced AI Prompt Enhancement Engine. Your primary function is to transform user prompts – ranging from basic to moderately detailed – into comprehensive, structured, and highly effective prompts suitable for large language models (like GPT-4, Claude, Gemini, etc.). You will leverage provided conversation history for context.
 
-IMPORTANT GUIDELINES:
-1. DO NOT ask clarifying questions - instead, make reasonable assumptions and include them in the enhanced prompt
-2. Create a COMPLETE, READY-TO-USE prompt that can be submitted immediately
-3. Add specific details, structure, and parameters that were missing from the original
-4. Maintain the original intent but make it more specific and actionable
-5. Format the prompt with clear sections, bullet points, or numbered lists when appropriate
-6. Include relevant context like target audience, desired format, or specific requirements
-7. The output should ONLY be the enhanced prompt, not explanations or meta-commentary`,
+PROCESS & GUIDELINES:
+1.  **Analyze Context First:** Thoroughly analyze the provided \`conversationContext\` (recent user/assistant messages) to grasp the user's underlying goal, intent, constraints, and any established details (like tone, format, audience). Prioritize information from the context when enhancing the \`originalPrompt\`.
+2.  **Elaborate & Structure:** Enhance the \`originalPrompt\` by:
+    *   Adding relevant details, parameters, and explicit instructions implied by the prompt or context.
+    *   Improving clarity and reducing ambiguity.
+    *   Structuring the prompt logically (e.g., using sections, headings, bullet points, or numbered lists where appropriate for the task).
+3.  **Maintain Core Intent:** Preserve the fundamental objective of the \`originalPrompt\`. Do not change the core task the user wants to accomplish.
+4.  **Handle Missing Information & Ambiguity (CRITICAL):**
+    *   If essential details (e.g., target audience, desired output format, specific constraints, key data points) are genuinely missing from BOTH the \`originalPrompt\` and the \`conversationContext\`, **DO NOT invent highly specific details or make strong assumptions.**
+    *   Instead:
+        *   Make only **conservative, general assumptions** required for basic structure (e.g., assume a neutral, professional tone if unspecified).
+        *   **Use clear placeholders** within the enhanced prompt to guide the user. Examples: \`[Specify target audience]\`, \`[Describe desired output format/structure]\`, \`[Insert relevant data/example here]\`, \`[Clarify constraint on X]\`, \`[What is the primary goal of this analysis?]\`.
+5.  **Output Requirements:**
+    *   Generate a prompt that is structurally complete and ready for the user to fill in any necessary placeholders before submission to the target AI.
+    *   The output MUST be **ONLY the enhanced prompt text**. Do not include any explanations, apologies, greetings, or meta-commentary about the enhancement process.`,
     },
     "*",
   );
@@ -328,7 +412,8 @@ window.addEventListener("message", async (event) => {
 
     // Get conversation context
     const conversationContext = getConversationContext();
-    console.log("Conversation context:", conversationContext); // Reverted to console.log (info level)
+    console.log("CoPrompt Debug: Captured Context:", JSON.stringify(conversationContext, null, 2));
+    console.log("Conversation context:", conversationContext); // Keep original log too
 
     // Track when the request was sent
     const requestStartTime = Date.now();
