@@ -187,7 +187,6 @@ Enhanced: "Create a comprehensive blog post about artificial intelligence with t
     chrome.storage.local.get("openai_api_key", async (data) => {
       if (!data.openai_api_key) {
         console.error("No OpenAI API key set.");
-        // Send user-friendly error
         sendResponse({ error: "OpenAI API key not configured. Please set it in the extension options." });
         return;
       }
@@ -197,7 +196,6 @@ Enhanced: "Create a comprehensive blog post about artificial intelligence with t
         const apiKey = await decryptAPIKey(data.openai_api_key);
         if (!apiKey) {
           console.error("Failed to decrypt API key");
-          // Send user-friendly error - could indicate corruption or bad key
           sendResponse({ error: "Invalid API key stored. Please re-enter your API key in options." });
           return;
         }
@@ -226,10 +224,12 @@ This is a fresh conversation with no previous context. Transform this into a com
         if (DEBUG) console.log("Background: Sending request to OpenAI API...");
         if (DEBUG) console.log("Background: Using model: gpt-4-turbo");
 
+        // --- Outer try...catch for fetch and processing ---
         try {
-          // Add a timeout for the fetch request using AbortController
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 50000); // 50 second timeout
+          let timeoutId = setTimeout(() => {
+            controller.abort();
+          }, 50000); // 50 second timeout
 
           const response = await fetch(
             "https://api.openai.com/v1/chat/completions",
@@ -251,59 +251,76 @@ This is a fresh conversation with no previous context. Transform this into a com
             },
           );
 
-          // Clear the timeout since we got a response
-          clearTimeout(timeoutId);
+          clearTimeout(timeoutId); // Clear timeout regardless of response status
 
           if (DEBUG) console.log(`Background: API response status: ${response.status}`);
 
+          // --- Handle Non-OK responses ---
           if (!response.ok) {
-            const errorText = await response.text(); // Keep for internal log
-            console.error(`API error (${response.status}):`, errorText);
-            // Send generic error, potentially hinting at key/quota issue
-            let userErrorMessage = "API request failed. Please check your network connection.";
-            if (response.status === 401) { // Unauthorized
+            let errorText = "Unknown API error"; // Default error text
+            // --- Add try...catch for response.text() ---
+            try {
+              errorText = await response.text();
+              console.error(`API error (${response.status}):`, errorText);
+            } catch (parseError) {
+              console.error(`API error (${response.status}), but failed to parse error response body:`, parseError);
+              errorText = `Status ${response.status}, failed to read error body.`; // Update error text
+            }
+            // --- End try...catch for response.text() ---
+
+            let userErrorMessage = `API request failed (${errorText}). Check network or API key.`;
+            if (response.status === 401) {
                 userErrorMessage = "API request failed (Unauthorized). Please check your API key.";
-            } else if (response.status === 429) { // Rate limit / Quota
+            } else if (response.status === 429) {
                 userErrorMessage = "API request failed (Rate Limit/Quota Exceeded). Please check your OpenAI account.";
             }
             sendResponse({ error: userErrorMessage });
-            // No need to throw here if we sent response
-            return;
+            return; // Exit after sending error
           }
 
-          const result = await response.json();
-          if (!result.choices || !result.choices[0]?.message?.content) {
-            console.error("Invalid API response structure:", result);
-            // Send generic error
-            sendResponse({ error: "Received an invalid response from the API." });
-            return;
+          // --- Handle OK responses ---
+          // --- Add try...catch for response.json() and processing ---
+          try {
+            const result = await response.json(); // This might fail if body isn't valid JSON
+
+            if (!result.choices || !result.choices[0]?.message?.content) {
+              console.error("Invalid API response structure:", result);
+              sendResponse({ error: "Received an invalid response structure from the API." });
+              return; // Exit after sending error
+            }
+
+            const enhancedPrompt = result.choices[0].message.content;
+            const elapsedTime = (Date.now() - startTime) / 1000;
+            if (DEBUG) console.log(`Background: Enhancement completed in ${elapsedTime.toFixed(2)} seconds`);
+            if (DEBUG) console.log("Background: Enhanced prompt:", enhancedPrompt);
+
+            sendResponse({ enhancedPrompt: enhancedPrompt }); // Send success response
+
+          } catch (jsonError) {
+            // Catch errors specifically from response.json() or subsequent processing
+            console.error("Failed to parse successful API response as JSON or process result:", jsonError);
+            sendResponse({ error: "Failed to process API response. Please try again." });
           }
+          // --- End try...catch for response.json() ---
 
-          const enhancedPrompt = result.choices[0].message.content;
-          const elapsedTime = (Date.now() - startTime) / 1000;
-          if (DEBUG) console.log(
-            `Background: Enhancement completed in ${elapsedTime.toFixed(2)} seconds`,
-          );
-          if (DEBUG) console.log("Background: Enhanced prompt:", enhancedPrompt);
-
-          sendResponse({ enhancedPrompt: enhancedPrompt });
         } catch (fetchError) {
+          // Catches network errors, AbortError (timeout), etc.
           console.error("Fetch error:", fetchError);
           let userErrorMessage = "API request failed. Please check your network connection.";
-          // Provide more specific error messages based on the error type
           if (fetchError.name === "AbortError") {
             userErrorMessage = "API request timed out (50s). Please try again.";
           }
-          // Send generic error based on fetch error type
           sendResponse({ error: userErrorMessage });
         }
-      } catch (error) {
-        console.error("Error in enhancement process:", error); // Catch errors during key decryption etc.
-        // Send generic internal error
-        sendResponse({ error: "An internal error occurred during prompt enhancement." });
-      }
-    });
+        // --- End outer try...catch for fetch ---
 
-    return true; // ✅ Keeps the message channel open for async response
-  }
+      } catch (error) {
+        // Catches errors from key decryption or other setup before fetch
+        console.error("Error in enhancement setup phase:", error);
+        sendResponse({ error: "An internal error occurred before sending the API request." });
+      }
+    }); // End chrome.storage.local.get callback
+
+    return true; // Keep message port open for async response
+  } // End ENHANCE_PROMPT handler
 });

@@ -191,19 +191,26 @@ function getConversationContext() {
   ) {
     const element = conversationElements[i];
     let role = "";
-    let content = "";
+    let content = ""; // Initialize content
 
     try {
-      // Determine role based on platform
+      // Determine role and content based on platform
       if (hostname.includes("claude.ai")) {
         if (element.matches('[data-testid="user-message"]')) {
           role = userRoleValue; // 'user'
+          content = element.textContent ? element.textContent.trim() : ""; // Extract content for Claude user
         } else if (element.matches(".font-claude-message")) {
           role = assistantRoleValue; // 'assistant'
+          content = element.textContent ? element.textContent.trim() : ""; // Extract content for Claude assistant
         }
       } else if (hostname.includes("openai.com") || hostname.includes("chatgpt.com")) {
-        // Existing ChatGPT logic
+        // Existing ChatGPT logic to get role
         role = element.getAttribute(roleAttribute);
+        // --- FIX: Add content extraction for ChatGPT ---
+        // Look for common content wrappers, fall back to textContent
+        const contentWrapper = element.querySelector('.markdown') || element.querySelector('div[class*="prose"]');
+        content = contentWrapper ? contentWrapper.textContent?.trim() : (element.textContent ? element.textContent.trim() : "");
+        // ----------------------------------------------
       } else if (hostname.includes("gemini.google.com")) {
         if (element.matches(".query-content")) {
           role = userRoleValue; // 'user'
@@ -370,7 +377,7 @@ PROCESS & GUIDELINES:
 4.  **Handle Missing Information & Ambiguity (CRITICAL):**
     *   If essential details (e.g., target audience, desired output format, specific constraints, key data points) are genuinely missing from BOTH the \`originalPrompt\` and the \`conversationContext\`, **DO NOT invent highly specific details or make strong assumptions.**
     *   Instead:
-        *   Make only **conservative, general assumptions** required for basic structure (e.g., assume a neutral, professional tone if unspecified).
+        *   Make only **reasonable, general assumptions** required for basic structure (e.g., assume a neutral, professional tone if unspecified).
         *   **Use clear placeholders** within the enhanced prompt to guide the user. Examples: \`[Specify target audience]\`, \`[Describe desired output format/structure]\`, \`[Insert relevant data/example here]\`, \`[Clarify constraint on X]\`, \`[What is the primary goal of this analysis?]\`.
 5.  **Output Requirements:**
     *   Generate a prompt that is structurally complete and ready for the user to fill in any necessary placeholders before submission to the target AI.
@@ -423,7 +430,8 @@ window.addEventListener("message", async (event) => {
     ); // Reverted to console.log (info level)
 
     // Set up a timeout for the background script response
-    const timeoutId = setTimeout(() => {
+    const controller = new AbortController();
+    let timeoutId = setTimeout(() => {
       console.error(
         "Content script: Background script response timed out after 55 seconds",
       ); // Reverted to console.error
@@ -437,76 +445,125 @@ window.addEventListener("message", async (event) => {
       );
     }, 55000);
 
-    chrome.runtime.sendMessage(
-      {
-        type: "ENHANCE_PROMPT",
-        prompt: event.data.prompt,
-        systemInstruction: event.data.systemInstruction,
-        conversationContext: conversationContext,
-      },
-      (response) => {
-        console.log("Received response from background script:", response); // Reverted to console.log (info level)
-        // Clear the timeout since we got a response
-        clearTimeout(timeoutId);
+    // --- Add try...catch around sendMessage ---
+    try {
+      chrome.runtime.sendMessage( // This call might throw an error immediately
+        {
+          type: "ENHANCE_PROMPT",
+          prompt: event.data.prompt,
+          systemInstruction: event.data.systemInstruction,
+          conversationContext: conversationContext,
+        },
+        (response) => { // This callback only runs if sendMessage *succeeds* initially
+          // Clear the timeout as soon as the callback is invoked,
+          // but only if it hasn't already been cleared by the catch block
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null; // Ensure it's nullified
+          }
 
-        // Calculate how long the request took
-        const requestTime = (Date.now() - requestStartTime) / 1000;
-        console.log(
-          `Content script: Received response from background script after ${requestTime.toFixed(2)} seconds`,
-        ); // Reverted to console.log (info level)
+          // Check for runtime errors (like context invalidated) FIRST
+          // This will catch errors that occur *after* the connection is established
+          if (chrome.runtime.lastError) {
+            console.error("Content script: chrome.runtime.sendMessage callback error:", chrome.runtime.lastError.message); // Reverted
+            let errorMessage = "An error occurred after connecting to the background service.";
+            if (chrome.runtime.lastError.message?.includes("Extension context invalidated")) {
+                errorMessage = "Connection to background service lost after initial contact. Please try again.";
+            }
+            window.postMessage(
+              {
+                type: "CoPromptEnhanceResponse",
+                error: errorMessage,
+              },
+              "*",
+            );
+            return; // Stop further processing
+          }
 
-        if (!response) {
-          console.error(
-            "Content script: No response received from background script (possible timeout)",
-          ); // Reverted to console.error
-          window.postMessage(
-            {
-              type: "CoPromptEnhanceResponse",
-              error: "No response from background script (possible timeout)",
-            },
-            "*",
-          );
-          return;
-        }
+          // --- Original response handling logic starts here ---
+          console.log("Received response from background script:", response); // Reverted to console.log (info level)
 
-        if (response?.error) {
-          console.error(
-            "Content script: Error from background script:",
-            response.error,
-          ); // Reverted to console.error
-          window.postMessage(
-            {
-              type: "CoPromptEnhanceResponse",
-              error: response.error,
-            },
-            "*",
-          );
-        } else if (response?.enhancedPrompt) {
+          // Calculate how long the request took
+          const requestTime = (Date.now() - requestStartTime) / 1000;
           console.log(
-            "Content script: Received enhanced prompt from background",
+            `Content script: Received response from background script after ${requestTime.toFixed(2)} seconds`,
           ); // Reverted to console.log (info level)
-          window.postMessage(
-            {
-              type: "CoPromptEnhanceResponse",
-              enhancedPrompt: response.enhancedPrompt,
-            },
-            "*",
-          );
-        } else {
-          console.error(
-            "Content script: Invalid response from background script",
-            response,
-          ); // Reverted to console.error
-          window.postMessage(
-            {
-              type: "CoPromptEnhanceResponse",
-              error: "Invalid response from background script",
-            },
-            "*",
-          );
+
+          if (!response) {
+            console.error(
+              "Content script: No response received from background script (but no runtime error)",
+            ); // Reverted to console.error
+            window.postMessage(
+              {
+                type: "CoPromptEnhanceResponse",
+                error: "Empty response received from background script.",
+              },
+              "*",
+            );
+            return;
+          }
+
+          if (response?.error) {
+            console.error(
+              "Content script: Error from background script:",
+              response.error,
+            ); // Reverted to console.error
+            window.postMessage(
+              {
+                type: "CoPromptEnhanceResponse",
+                error: response.error, // Forward the specific error from background
+              },
+              "*",
+            );
+          } else if (response?.enhancedPrompt) {
+            console.log(
+              "Content script: Received enhanced prompt from background",
+            ); // Reverted to console.log (info level)
+            window.postMessage(
+              {
+                type: "CoPromptEnhanceResponse",
+                enhancedPrompt: response.enhancedPrompt,
+              },
+              "*",
+            );
+          } else {
+            console.error(
+              "Content script: Invalid response format from background script",
+              response,
+            ); // Reverted to console.error
+            window.postMessage(
+              {
+                type: "CoPromptEnhanceResponse",
+                error: "Invalid response format received from background script.",
+              },
+              "*",
+            );
+          }
+        },
+      );
+    } catch (error) {
+        // Catch synchronous errors, most likely "Extension context invalidated"
+        console.error("Content script: chrome.runtime.sendMessage synchronous error:", error);
+        // Clear the timeout immediately since the message failed to send
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null; // Prevent the callback from trying to clear it again
         }
-      },
-    );
+
+        let errorMessage = "Failed to send request to background service.";
+        // Check the error message for the specific context invalidated text
+        if (error.message && error.message.includes("Extension context invalidated")) {
+            errorMessage = "Connection to background service failed (it may be inactive). Please try clicking the button again.";
+        }
+
+        window.postMessage(
+          {
+            type: "CoPromptEnhanceResponse",
+            error: errorMessage,
+          },
+          "*",
+        );
+    }
   }
 
   // Handle enhanced prompt response
