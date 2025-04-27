@@ -221,13 +221,14 @@ User's original prompt: "${request.prompt}"
 This is a fresh conversation with no previous context. Transform this into a comprehensive, detailed prompt that will get excellent results. Remember to make reasonable assumptions rather than asking questions, and create a complete, ready-to-use prompt.`;
         }
 
-        if (DEBUG) console.log("Background: Sending request to OpenAI API...");
+        console.log("Background: Sending request to OpenAI API...");
         if (DEBUG) console.log("Background: Using model: gpt-4-turbo");
 
         // --- Outer try...catch for fetch and processing ---
         try {
           const controller = new AbortController();
           let timeoutId = setTimeout(() => {
+            console.log("Background: Aborting fetch due to timeout.");
             controller.abort();
           }, 50000); // 50 second timeout
 
@@ -252,8 +253,7 @@ This is a fresh conversation with no previous context. Transform this into a com
           );
 
           clearTimeout(timeoutId); // Clear timeout regardless of response status
-
-          if (DEBUG) console.log(`Background: API response status: ${response.status}`);
+          console.log(`Background: OpenAI API response status: ${response.status}`);
 
           // --- Handle Non-OK responses ---
           if (!response.ok) {
@@ -274,6 +274,7 @@ This is a fresh conversation with no previous context. Transform this into a com
             } else if (response.status === 429) {
                 userErrorMessage = "API request failed (Rate Limit/Quota Exceeded). Please check your OpenAI account.";
             }
+            console.log("Background: Sending non-OK error response.");
             sendResponse({ error: userErrorMessage });
             return; // Exit after sending error
           }
@@ -285,6 +286,7 @@ This is a fresh conversation with no previous context. Transform this into a com
 
             if (!result.choices || !result.choices[0]?.message?.content) {
               console.error("Invalid API response structure:", result);
+              console.log("Background: Sending invalid structure error response.");
               sendResponse({ error: "Received an invalid response structure from the API." });
               return; // Exit after sending error
             }
@@ -294,11 +296,13 @@ This is a fresh conversation with no previous context. Transform this into a com
             if (DEBUG) console.log(`Background: Enhancement completed in ${elapsedTime.toFixed(2)} seconds`);
             if (DEBUG) console.log("Background: Enhanced prompt:", enhancedPrompt);
 
+            console.log("Background: Sending success response.");
             sendResponse({ enhancedPrompt: enhancedPrompt }); // Send success response
 
           } catch (jsonError) {
             // Catch errors specifically from response.json() or subsequent processing
             console.error("Failed to parse successful API response as JSON or process result:", jsonError);
+            console.log("Background: Sending JSON parse error response.");
             sendResponse({ error: "Failed to process API response. Please try again." });
           }
           // --- End try...catch for response.json() ---
@@ -310,6 +314,7 @@ This is a fresh conversation with no previous context. Transform this into a com
           if (fetchError.name === "AbortError") {
             userErrorMessage = "API request timed out (50s). Please try again.";
           }
+          console.log("Background: Sending fetch error response.");
           sendResponse({ error: userErrorMessage });
         }
         // --- End outer try...catch for fetch ---
@@ -317,10 +322,20 @@ This is a fresh conversation with no previous context. Transform this into a com
       } catch (error) {
         // Catches errors from key decryption or other setup before fetch
         console.error("Error in enhancement setup phase:", error);
+        console.log("Background: Sending setup error response.");
         sendResponse({ error: "An internal error occurred before sending the API request." });
       }
     }); // End chrome.storage.local.get callback
 
     return true; // Keep message port open for async response
   } // End ENHANCE_PROMPT handler
+
+  // --- Add listener for FEEDBACK_SUBMITTED --- 
+  if (request.type === "FEEDBACK_SUBMITTED") {
+    console.log("Background: Received FEEDBACK_SUBMITTED", request.payload);
+    // TODO: Phase 2 - Send this data to a backend endpoint
+
+    // Acknowledge receipt (optional)
+    sendResponse({ success: true });
+  }
 });

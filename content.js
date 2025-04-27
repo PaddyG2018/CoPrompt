@@ -4,7 +4,7 @@
 
 // Re-add simple DEBUG flag (assuming background.js check is sufficient)
 // We might need a way to get this from background if not in manifest
-const DEBUG = false; // Set to false for production manually for now
+const DEBUG = true; // Set to false for production manually for now
 
 // Add at the top of the file with other global variables
 const DRAG_THRESHOLD = 5; // pixels
@@ -18,6 +18,9 @@ let isButtonDragging = false;
 let dragStartTime = 0;
 let lastDragEndTime = -CLICK_DELAY; // Initialize to a value that won't trigger the delay check
 let hasDragged = false; // New flag to track if actual dragging occurred
+
+// Add variable to store original prompt for feedback
+let originalPromptForFeedback = "";
 
 // Inject `injected.js` into the page properly
 const script = document.createElement("script");
@@ -252,10 +255,135 @@ function getConversationContext() {
   return recentMessages;
 }
 
+// --- Feedback UI Functions (Phase 1, Step 1) ---
+function removeFeedbackUI() {
+  document.getElementById('coprompt-feedback-container')?.remove();
+}
+
+// Update signature to accept prompts
+function createFeedbackUI(targetElement, originalPrompt, enhancedPrompt) {
+  removeFeedbackUI(); // Ensure any old UI is gone first
+
+  if (!targetElement || !targetElement.parentNode) {
+    console.warn("Cannot create feedback UI: target element or parent not found.");
+    return;
+  }
+
+  const feedbackContainer = document.createElement('div');
+  feedbackContainer.id = 'coprompt-feedback-container';
+  feedbackContainer.style.display = 'flex';
+  feedbackContainer.style.alignItems = 'center';
+  feedbackContainer.style.gap = '8px';
+  feedbackContainer.style.marginTop = '5px'; // Add some space above
+  feedbackContainer.style.fontSize = '12px';
+  feedbackContainer.style.color = '#666'; // Neutral text color
+
+  // Store prompts as data attributes for later use in event listeners
+  feedbackContainer.dataset.originalPrompt = originalPrompt;
+  feedbackContainer.dataset.enhancedPrompt = enhancedPrompt;
+
+  const label = document.createElement('span');
+  label.textContent = 'Was this enhancement helpful?';
+  feedbackContainer.appendChild(label);
+
+  const positiveButton = document.createElement('button');
+  positiveButton.id = 'coprompt-feedback-positive';
+  positiveButton.textContent = '👍'; // Simple text emoji
+  positiveButton.title = 'Good Enhancement';
+  applyFeedbackButtonStyle(positiveButton);
+  feedbackContainer.appendChild(positiveButton);
+
+  const negativeButton = document.createElement('button');
+  negativeButton.id = 'coprompt-feedback-negative';
+  negativeButton.textContent = '👎'; // Simple text emoji
+  negativeButton.title = 'Bad Enhancement';
+  applyFeedbackButtonStyle(negativeButton);
+  feedbackContainer.appendChild(negativeButton);
+
+  // Insert after the target element
+  targetElement.parentNode.insertBefore(feedbackContainer, targetElement.nextSibling);
+  // --- Add Event Listeners & Data Capture --- 
+  const handleFeedbackClick = (feedbackType) => {
+    // Retrieve data from container
+    const originalPrompt = feedbackContainer.dataset.originalPrompt;
+    const enhancedPrompt = feedbackContainer.dataset.enhancedPrompt;
+    const timestamp = Date.now();
+    // Access manifest directly - ensure it's allowed in content scripts (it is)
+    const extensionVersion = chrome.runtime.getManifest().version;
+
+    const feedbackData = {
+        feedbackType,
+        originalPrompt,
+        enhancedPrompt,
+        timestamp,
+        extensionVersion,
+        // TODO: Add contextUsed flag later if needed
+    };
+
+    debugLog("Feedback Clicked - Data Captured:", feedbackData); 
+
+    // TODO - Step 4: Send to background script
+    chrome.runtime.sendMessage({ type: 'FEEDBACK_SUBMITTED', payload: feedbackData }, (response) => {
+        if (chrome.runtime.lastError) {
+            console.error("Error sending feedback:", chrome.runtime.lastError.message);
+            // Handle error - maybe briefly show an error state on the UI?
+            // For now, we'll still remove the UI even if sending fails
+        } else {
+            debugLog("Feedback sent successfully (received ack from background).", response);
+            // Optionally provide confirmation feedback to user here if needed
+        }
+        // Remove the feedback UI after attempting to send and getting response/error
+        removeFeedbackUI(); 
+    });
+
+    // TODO - Step 4: Remove the feedback UI after click
+
+    // Optional: Immediate visual feedback (could add a temporary "sending..." state)
+    positiveButton.disabled = true; // Disable buttons immediately
+    negativeButton.disabled = true;
+    feedbackContainer.style.opacity = '0.5';
+  };
+
+  positiveButton.addEventListener('click', () => {
+    console.log("Positive button clicked!"); // LOG: Direct listener check
+    // Disable buttons immediately on click for better UX
+    positiveButton.disabled = true;
+    negativeButton.disabled = true;
+    feedbackContainer.style.opacity = '0.5';
+    handleFeedbackClick('positive');
+  });
+  negativeButton.addEventListener('click', () => {
+    console.log("Negative button clicked!"); // LOG: Direct listener check
+    // Disable buttons immediately on click for better UX
+    positiveButton.disabled = true;
+    negativeButton.disabled = true;
+    feedbackContainer.style.opacity = '0.5';
+    handleFeedbackClick('negative');
+  });
+  // ------------------------------------
+}
+
+function applyFeedbackButtonStyle(button) {
+    button.style.background = 'none';
+    button.style.border = '1px solid #ccc';
+    button.style.borderRadius = '4px';
+    button.style.padding = '2px 6px';
+    button.style.cursor = 'pointer';
+    button.style.fontSize = '14px'; // Make emoji slightly larger
+    button.style.lineHeight = '1';
+    button.style.transition = 'background-color 0.2s ease';
+
+    button.onmouseover = () => { button.style.backgroundColor = '#f0f0f0'; };
+    button.onmouseout = () => { button.style.backgroundColor = 'transparent'; };
+}
+// --- End Feedback UI Functions ---
+
 // Update the handleEnhanceClick function
 function handleEnhanceClick(inputElement) {
   debugLog("handleEnhanceClick called with element:", inputElement); // Use restored debugLog
   
+  removeFeedbackUI(); // Remove any previous feedback UI immediately
+
   // Get text from input element using multiple approaches
   let originalPrompt = "";
 
@@ -304,60 +432,25 @@ function handleEnhanceClick(inputElement) {
     return;
   }
 
+  // Store original prompt for feedback UI context
+  originalPromptForFeedback = originalPrompt;
+
   console.log("Sending enhance request with prompt:", originalPrompt); // Reverted to console.log (info level)
 
-  // Visual feedback with animation
+  // Visual feedback with animation - Modify button content, don't replace
   const button = document.querySelector("#coprompt-button");
   if (button) {
     debugLog("Updating button with loading animation"); // Use restored debugLog
-    // Create and add the loading animation
-    button.innerHTML = "";
+    const icon = button.querySelector("#coprompt-button-icon");
+    const text = button.querySelector("#coprompt-button-text");
+    const loading = button.querySelector("#coprompt-button-loading");
 
-    // Add the dots container
-    const dotsContainer = document.createElement("div");
-    dotsContainer.style.cssText = `
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
-            margin-right: 8px;
-        `;
+    if (icon) icon.style.display = 'none';
+    if (text) text.style.display = 'none';
+    if (loading) loading.style.display = 'flex'; // Show loading
 
-    // Create the three dots
-    for (let i = 0; i < 3; i++) {
-      const dot = document.createElement("div");
-      dot.style.cssText = `
-                width: 4px;
-                height: 4px;
-                background-color: white;
-                border-radius: 50%;
-                opacity: 0.7;
-                animation: copromptDotPulse 1.4s infinite ease-in-out;
-                animation-delay: ${i * 0.2}s;
-            `;
-      dotsContainer.appendChild(dot);
-    }
-
-    // Add the text
-    const textSpan = document.createElement("span");
-    textSpan.textContent = "Enhancing";
-
-    // Add the animation keyframes to the document if they don't exist
-    if (!document.getElementById("coprompt-animations")) {
-      const style = document.createElement("style");
-      style.id = "coprompt-animations";
-      style.textContent = `
-                @keyframes copromptDotPulse {
-                    0%, 80%, 100% { transform: scale(0.8); opacity: 0.7; }
-                    40% { transform: scale(1.2); opacity: 1; }
-                }
-            `;
-      document.head.appendChild(style);
-    }
-
-    button.appendChild(dotsContainer);
-    button.appendChild(textSpan);
-    button.style.opacity = "0.9";
+    button.disabled = true; // Disable button during processing
+    button.style.opacity = "0.7"; // Indicate disabled state
   }
 
   // Send the enhance request to the background script
@@ -569,26 +662,42 @@ window.addEventListener("message", async (event) => {
   // Handle enhanced prompt response
   if (event.data.type === "CoPromptEnhanceResponse") {
     console.log("Received enhanced prompt response:", event.data); // Reverted to console.log (info level)
+
+    // Restore button state - Modify content, don't replace innerHTML
     const button = document.querySelector("#coprompt-button");
     if (button) {
-      // Update with icon + text
-      button.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sparkles" style="margin-right: 6px;">
-                    <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"></path>
-                    <path d="M20 3v4"></path>
-                    <path d="M22 5h-4"></path>
-                    <path d="M4 17v2"></path>
-                    <path d="M5 18H3"></path>
-                </svg>
-                Improve Prompt
-            `;
-      button.style.opacity = "0.9";
+      const icon = button.querySelector("#coprompt-button-icon");
+      const text = button.querySelector("#coprompt-button-text");
+      const loading = button.querySelector("#coprompt-button-loading");
+
+      if (loading) loading.style.display = 'none'; // Hide loading
+      if (icon) icon.style.display = 'inline-block'; // Restore icon (adjust display as needed)
+      if (text) text.style.display = 'inline'; // Restore text
+
+      button.disabled = false; // Re-enable button
+      button.style.opacity = "0.9"; // Restore opacity
+    }
+
+    // Handle potential errors from the response first
+    if (event.data.error) {
+      console.error(
+        "Content script: Error from background script:",
+        event.data.error,
+      ); // Reverted to console.error
+      // Restore button state even on error (already handled above, just need to ensure it's enabled)
+      const buttonOnError = document.querySelector("#coprompt-button");
+      if (buttonOnError) {
+         buttonOnError.disabled = false;
+         buttonOnError.style.opacity = "0.9";
+      }
+      return; // Stop processing if there was an error
     }
 
     // Get the improved prompt from the event data
     const improvedPrompt = event.data.enhancedPrompt;
     if (!improvedPrompt) {
       console.log("No improved prompt received"); // Reverted to console.log (info level)
+      removeFeedbackUI(); // Remove feedback UI if no prompt
       return;
     }
 
@@ -656,13 +765,13 @@ window.addEventListener("message", async (event) => {
       alert(
         "Could not find the input field to update. The enhanced prompt has been copied to your clipboard.",
       );
-
-      // Copy to clipboard as a fallback
-      navigator.clipboard.writeText(improvedPrompt).catch((e) => {
-        console.error("Failed to copy to clipboard:", e);
-      });
+      removeFeedbackUI(); // Remove feedback UI if input field not found
       return;
     }
+
+    // Get the original prompt that was stored before enhancement
+    // Note: Using the stored 'originalPromptForFeedback' variable
+    const originalPromptContext = originalPromptForFeedback;
 
     // Update the input field with the enhanced prompt
     try {
@@ -676,6 +785,8 @@ window.addEventListener("message", async (event) => {
           inputField.focus();
           document.execCommand("selectAll", false, null);
           document.execCommand("insertText", false, improvedPrompt);
+          // Pass prompts to feedback UI
+          createFeedbackUI(inputField, originalPromptContext, improvedPrompt);
         } catch (error1) {
           console.error("Error updating contenteditable with execCommand:", error1); // Reverted
           try {
@@ -684,8 +795,11 @@ window.addEventListener("message", async (event) => {
             // Trigger input event manually
             const inputEvent = new Event("input", { bubbles: true });
             inputField.dispatchEvent(inputEvent);
+            // Pass prompts to feedback UI
+            createFeedbackUI(inputField, originalPromptContext, improvedPrompt);
           } catch (error2) {
             console.error("Error updating contenteditable with innerText:", error2); // Reverted
+            removeFeedbackUI(); // Remove feedback UI on error
           }
         }
       }
@@ -697,11 +811,15 @@ window.addEventListener("message", async (event) => {
         inputField.dispatchEvent(new Event("change", { bubbles: true }));
         inputField.focus();
         console.log("Successfully updated textarea input field"); // Reverted to console.log (info level)
+        // Pass prompts to feedback UI
+        createFeedbackUI(inputField, originalPromptContext, improvedPrompt);
       } else {
         console.log("Unknown input field type:", inputField.tagName); // Reverted
+        removeFeedbackUI(); // Remove feedback UI if type is unknown
       }
     } catch (error) {
       console.error("Error updating input field with enhanced prompt:", error); // Reverted
+      removeFeedbackUI(); // Remove feedback UI on error
 
       // Copy to clipboard as a fallback
       navigator.clipboard.writeText(improvedPrompt).catch((e) => {
@@ -710,6 +828,7 @@ window.addEventListener("message", async (event) => {
       alert(
         "Could not update the input field. The enhanced prompt has been copied to your clipboard.",
       );
+      removeFeedbackUI(); // Remove feedback UI on error
     }
   }
 });
@@ -720,7 +839,7 @@ const debouncedObserverCallback = debounce((mutations) => {
 
   const inputField = getChatGPTInputField();
   if (inputField) {
-    injectButton(inputField);
+    // injectButton(inputField); // Commented out: Function is undefined and likely redundant due to floating button logic
   }
 }, 100);
 
@@ -1077,16 +1196,6 @@ function createFloatingButton() {
   // Create the button
   const enhanceButton = document.createElement("button");
   enhanceButton.id = "coprompt-button";
-  enhanceButton.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sparkles" style="margin-right: 6px;">
-            <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"></path>
-            <path d="M20 3v4"></path>
-            <path d="M22 5h-4"></path>
-            <path d="M4 17v2"></path>
-            <path d="M5 18H3"></path>
-        </svg>
-        Improve Prompt
-    `;
   enhanceButton.type = "button";
   enhanceButton.style.cssText = `
         padding: 8px 12px !important;
@@ -1113,6 +1222,69 @@ function createFloatingButton() {
         position: relative !important;
         pointer-events: auto !important;
     `;
+
+  // Create and add Icon
+  const iconSpan = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  iconSpan.id = "coprompt-button-icon";
+  iconSpan.setAttribute("width", "16");
+  iconSpan.setAttribute("height", "16");
+  iconSpan.setAttribute("viewBox", "0 0 24 24");
+  iconSpan.setAttribute("fill", "none");
+  iconSpan.setAttribute("stroke", "currentColor");
+  iconSpan.setAttribute("stroke-width", "2");
+  iconSpan.setAttribute("stroke-linecap", "round");
+  iconSpan.setAttribute("stroke-linejoin", "round");
+  iconSpan.setAttribute("class", "lucide lucide-sparkles");
+  iconSpan.style.marginRight = "6px";
+  iconSpan.innerHTML = `<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"></path><path d="M20 3v4"></path><path d="M22 5h-4"></path><path d="M4 17v2"></path><path d="M5 18H3"></path>`;
+  enhanceButton.appendChild(iconSpan);
+
+  // Create and add Text
+  const textSpan = document.createElement("span");
+  textSpan.id = "coprompt-button-text";
+  textSpan.textContent = "Improve Prompt";
+  enhanceButton.appendChild(textSpan);
+
+  // Create and add Loading Indicator (initially hidden)
+  const loadingSpan = document.createElement("span");
+  loadingSpan.id = "coprompt-button-loading";
+  loadingSpan.style.display = 'none'; // Hidden by default
+  loadingSpan.style.alignItems = 'center';
+  loadingSpan.style.justifyContent = 'center'; // Center items
+  loadingSpan.style.display = 'none'; // Ensure it starts hidden
+  // loadingSpan.textContent = "Enhancing..."; // REMOVED simple text
+
+  // Build the animated loading indicator structure
+  const dotsContainer = document.createElement("div");
+  dotsContainer.style.cssText = `display: flex; align-items: center; justify-content: center; gap: 4px; margin-right: 8px;`;
+  for (let i = 0; i < 3; i++) {
+    const dot = document.createElement("div");
+    dot.style.cssText = `width: 4px; height: 4px; background-color: white; border-radius: 50%; opacity: 0.7; animation: copromptDotPulse 1.4s infinite ease-in-out; animation-delay: ${i * 0.2}s;`;
+    dotsContainer.appendChild(dot);
+  }
+
+  const loadingTextSpan = document.createElement("span");
+  loadingTextSpan.textContent = "Enhancing";
+
+  loadingSpan.appendChild(dotsContainer);
+  loadingSpan.appendChild(loadingTextSpan);
+
+  // Append the structured loading indicator
+  enhanceButton.appendChild(loadingSpan);
+
+  // Add the animation keyframes to the document if they don't exist
+  // Moved this check here to ensure styles are ready
+  if (!document.getElementById("coprompt-animations")) {
+    const styleElement = document.createElement("style");
+    styleElement.id = "coprompt-animations";
+    styleElement.textContent = `
+              @keyframes copromptDotPulse {
+                  0%, 80%, 100% { transform: scale(0.8); opacity: 0.7; }
+                  40% { transform: scale(1.2); opacity: 1; }
+              }
+          `;
+    document.head.appendChild(styleElement);
+  }
 
   // Hover effect
   enhanceButton.onmouseover = function () {
