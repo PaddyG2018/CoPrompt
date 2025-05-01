@@ -22,6 +22,7 @@ let hasDragged = false; // New flag to track if actual dragging occurred
 // Inject `injected.js` into the page properly
 const script = document.createElement("script");
 script.src = chrome.runtime.getURL("injected.js");
+script.type = 'module'; // Ensure it's loaded as a module
 script.onload = function () {
   this.remove();
 }; // Remove once loaded
@@ -253,51 +254,9 @@ function getConversationContext() {
 }
 
 // Update the handleEnhanceClick function
-function handleEnhanceClick(inputElement) {
+async function handleEnhanceClick(inputElement) {
   debugLog("handleEnhanceClick called with element:", inputElement); // Use restored debugLog
-  
-  // Get text from input element using multiple approaches
-  let originalPrompt = "";
-
-  // For contenteditable divs
-  if (inputElement.getAttribute("contenteditable") === "true") {
-    debugLog("Handling contenteditable element"); // Use restored debugLog
-    // Try innerText first
-    originalPrompt = inputElement.innerText || inputElement.textContent;
-    debugLog("Initial prompt from innerText:", originalPrompt); // Use restored debugLog
-
-    // If that fails, try getting text from child nodes
-    if (!originalPrompt) {
-      debugLog("No text found, trying child nodes"); // Use restored debugLog
-      const textNodes = [];
-      const walker = document.createTreeWalker(
-        inputElement,
-        NodeFilter.SHOW_TEXT,
-      );
-      let node;
-      while ((node = walker.nextNode())) {
-        textNodes.push(node.nodeValue);
-      }
-      originalPrompt = textNodes.join(" ");
-      debugLog("Prompt from child nodes:", originalPrompt); // Use restored debugLog
-    }
-  }
-  // For textareas
-  else if (inputElement.tagName === "TEXTAREA") {
-    debugLog("Handling textarea element"); // Use restored debugLog
-    originalPrompt = inputElement.value;
-    debugLog("Prompt from textarea:", originalPrompt); // Use restored debugLog
-  }
-  // Fallback
-  else {
-    debugLog("Using fallback text extraction"); // Use restored debugLog
-    originalPrompt =
-      inputElement.textContent ||
-      inputElement.innerText ||
-      inputElement.value ||
-      "";
-    debugLog("Prompt from fallback:", originalPrompt); // Use restored debugLog
-  }
+  const originalPrompt = inputElement.value || inputElement.innerText;
 
   if (!originalPrompt) {
     console.warn("No prompt text found in input element"); // Reverted to console.warn
@@ -360,28 +319,15 @@ function handleEnhanceClick(inputElement) {
     button.style.opacity = "0.9";
   }
 
+  // Dynamically import the constant when needed
+  const { MAIN_SYSTEM_INSTRUCTION } = await import(chrome.runtime.getURL('utils/constants.js'));
+
   // Send the enhance request to the background script
   window.postMessage(
     {
       type: "CoPromptEnhanceRequest",
       prompt: originalPrompt,
-      systemInstruction: `You are an advanced AI Prompt Enhancement Engine. Your primary function is to transform user prompts – ranging from basic to moderately detailed – into comprehensive, structured, and highly effective prompts suitable for large language models (like GPT-4, Claude, Gemini, etc.). You will leverage provided conversation history for context.
-
-PROCESS & GUIDELINES:
-1.  **Analyze Context First:** Thoroughly analyze the provided \`conversationContext\` (recent user/assistant messages) to grasp the user's underlying goal, intent, constraints, and any established details (like tone, format, audience). Prioritize information from the context when enhancing the \`originalPrompt\`.
-2.  **Elaborate & Structure:** Enhance the \`originalPrompt\` by:
-    *   Adding relevant details, parameters, and explicit instructions implied by the prompt or context.
-    *   Improving clarity and reducing ambiguity.
-    *   Structuring the prompt logically (e.g., using sections, headings, bullet points, or numbered lists where appropriate for the task).
-3.  **Maintain Core Intent:** Preserve the fundamental objective of the \`originalPrompt\`. Do not change the core task the user wants to accomplish.
-4.  **Handle Missing Information & Ambiguity (CRITICAL):**
-    *   If essential details (e.g., target audience, desired output format, specific constraints, key data points) are genuinely missing from BOTH the \`originalPrompt\` and the \`conversationContext\`, **DO NOT invent highly specific details or make strong assumptions.**
-    *   Instead:
-        *   Make only **reasonable, general assumptions** required for basic structure (e.g., assume a neutral, professional tone if unspecified).
-        *   **Use clear placeholders** within the enhanced prompt to guide the user. Examples: \`[Specify target audience]\`, \`[Describe desired output format/structure]\`, \`[Insert relevant data/example here]\`, \`[Clarify constraint on X]\`, \`[What is the primary goal of this analysis?]\`.
-5.  **Output Requirements:**
-    *   Generate a prompt that is structurally complete and ready for the user to fill in any necessary placeholders before submission to the target AI.
-    *   The output MUST be **ONLY the enhanced prompt text**. Do not include any explanations, apologies, greetings, or meta-commentary about the enhancement process.`,
+      systemInstruction: MAIN_SYSTEM_INSTRUCTION,
     },
     "*",
   );

@@ -1,3 +1,5 @@
+import { DEFAULT_SYSTEM_INSTRUCTION } from './utils/constants.js';
+
 // Simple flag for production builds - Hardcoded to false for stability
 const DEBUG = false;
 
@@ -152,28 +154,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // Track when the request started
     const startTime = Date.now();
 
-    // Updated system instruction to create complete, actionable prompts
+    // Use imported constant as fallback
     const systemInstruction =
-      request.systemInstruction ||
-      `You are an expert prompt engineer. Your task is to transform basic prompts into comprehensive, detailed prompts that will get excellent results from AI assistants.
-
-IMPORTANT GUIDELINES:
-1. DO NOT ask clarifying questions - instead, make reasonable assumptions and include them in the enhanced prompt
-2. Create a COMPLETE, READY-TO-USE prompt that can be submitted immediately
-3. Add specific details, structure, and parameters that were missing from the original
-4. Maintain the original intent but make it more specific and actionable
-5. Format the prompt with clear sections, bullet points, or numbered lists when appropriate
-6. Include relevant context like target audience, desired format, or specific requirements
-7. The output should ONLY be the enhanced prompt, not explanations or meta-commentary
-
-Example transformation:
-Original: "help me write a blog post about AI"
-Enhanced: "Create a comprehensive blog post about artificial intelligence with the following specifications:
-- Target audience: tech professionals with basic AI knowledge
-- Include sections on recent advancements, practical applications, and ethical considerations
-- Incorporate 2-3 compelling examples or case studies
-- Suggest a clear structure with headings and subheadings
-- Conclude with forward-looking insights and discussion points"`;
+      request.systemInstruction || DEFAULT_SYSTEM_INSTRUCTION;
 
     // Format conversation context
     const formattedContext = formatConversationContext(
@@ -240,7 +223,7 @@ This is a fresh conversation with no previous context. Transform this into a com
                 Authorization: `Bearer ${apiKey}`,
               },
               body: JSON.stringify({
-                model: "gpt-4-turbo",
+                model: "gpt-4.1-mini",
                 messages: [
                   { role: "system", content: systemInstruction },
                   { role: "user", content: contextAwarePrompt },
