@@ -53,7 +53,9 @@
       "resources": [
         "injected.js", 
         "utils/constants.js", 
-        "utils/domUtils.js"
+        "utils/domUtils.js",
+        "content/contextExtractor.js",
+        "utils/logger.js"
       ],
       "matches": [
         "https://chat.openai.com/*",

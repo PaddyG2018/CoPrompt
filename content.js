@@ -112,119 +112,6 @@ function checkButtonVisibility() {
   return true;
 }
 
-// Function to get conversation context from the page
-function getConversationContext() {
-  let conversationElements = [];
-  let roleAttribute = "";
-  let assistantRoleValue = "assistant";
-  let userRoleValue = "user";
-  const hostname = window.location.hostname;
-
-  debugLog("Getting context for hostname:", hostname); // Use restored debugLog
-
-  // Platform-specific selectors and attributes
-  if (hostname.includes("claude.ai")) {
-    // Selector for Claude: combines user and assistant messages
-    conversationElements = document.querySelectorAll(
-      '[data-testid="user-message"], .font-claude-message'
-    );
-    // Role determination for Claude is done by checking which selector matched
-  } else if (hostname.includes("openai.com") || hostname.includes("chatgpt.com")) {
-    // Selector for ChatGPT
-    roleAttribute = "data-message-author-role";
-    conversationElements = document.querySelectorAll(`[${roleAttribute}]`);
-    // Role values are standard 'user' and 'assistant' from the attribute
-  } else if (hostname.includes("gemini.google.com")) {
-    // Selector for Gemini: combines user queries and model responses
-    conversationElements = document.querySelectorAll(
-      ".query-content, .response-content",
-    );
-    // Role determination for Gemini is done by checking the class
-  } else {
-    debugLog("Unsupported hostname for context extraction:", hostname); // Use restored debugLog
-    return []; // Return empty for other unsupported platforms
-  }
-
-  // Check if elements were found
-  if (!conversationElements || conversationElements.length === 0) {
-    debugLog("No conversation elements found with the selector for:", hostname); // Use restored debugLog
-    return [];
-  }
-
-  debugLog(`Found ${conversationElements.length} potential message elements for ${hostname}.`); // Use restored debugLog
-
-  const contextLimit = 6; // Keep existing limit
-  const recentMessages = [];
-
-  // Process messages from newest to oldest
-  for (
-    let i = conversationElements.length - 1;
-    i >= 0 && recentMessages.length < contextLimit;
-    i--
-  ) {
-    const element = conversationElements[i];
-    let role = "";
-    let content = ""; // Initialize content
-
-    try {
-      // Determine role and content based on platform
-      if (hostname.includes("claude.ai")) {
-        if (element.matches('[data-testid="user-message"]')) {
-          role = userRoleValue; // 'user'
-          content = element.textContent ? element.textContent.trim() : ""; // Extract content for Claude user
-        } else if (element.matches(".font-claude-message")) {
-          role = assistantRoleValue; // 'assistant'
-          content = element.textContent ? element.textContent.trim() : ""; // Extract content for Claude assistant
-        }
-      } else if (hostname.includes("openai.com") || hostname.includes("chatgpt.com")) {
-        // Existing ChatGPT logic to get role
-        role = element.getAttribute(roleAttribute);
-        // --- FIX: Add content extraction for ChatGPT ---
-        // Look for common content wrappers, fall back to textContent
-        const contentWrapper = element.querySelector('.markdown') || element.querySelector('div[class*="prose"]');
-        content = contentWrapper ? contentWrapper.textContent?.trim() : (element.textContent ? element.textContent.trim() : "");
-        // ----------------------------------------------
-      } else if (hostname.includes("gemini.google.com")) {
-        if (element.matches(".query-content")) {
-          role = userRoleValue; // 'user'
-          content = element.textContent ? element.textContent.trim() : "";
-        } else if (element.matches(".response-content")) {
-          role = assistantRoleValue; // 'assistant'
-          // Extract text specifically from the 'message-content' child element
-          const messageContentElement = element.querySelector("message-content");
-          content = messageContentElement?.textContent
-            ? messageContentElement.textContent.trim()
-            : "";
-        }
-      }
-
-      // Extract content (using textContent should work generally)
-      // -- Removed generic content extraction line, handled within platform logic now --
-      // content = element.textContent ? element.textContent.trim() : "";
-
-      // Add to context if valid role and content found
-      if (role && content) {
-        // Normalize role value just in case (e.g., "User" vs "user")
-        const normalizedRole = role.toLowerCase() === assistantRoleValue ? "assistant" : "user";
-        recentMessages.unshift({
-          role: normalizedRole,
-          content: content,
-        });
-        debugLog(`Added message: Role=${normalizedRole}, Index=${i}, Host=${hostname}`); // Use restored debugLog
-      } else {
-         // Log skipped elements for debugging potential selector issues
-         debugLog(`Skipped element at index ${i} on ${hostname}: Role='${role}', Content='${content.substring(0, 50)}...'`); // Use restored debugLog
-      }
-    } catch (error) {
-      // Log errors during processing individual messages
-      console.error("CoPrompt Error processing message element:", element, error); // Keep as console.error
-    }
-  }
-
-  debugLog("Final recentMessages:", recentMessages); // Use restored debugLog
-  return recentMessages;
-}
-
 // Update the handleEnhanceClick function
 async function handleEnhanceClick(inputElement) {
   debugLog("handleEnhanceClick called with element:", inputElement);
@@ -295,13 +182,19 @@ window.addEventListener("message", async (event) => {
     console.log(
       "Content script: Relaying prompt enhancement request to background script",
       event.data
-    ); // Reverted to console.log (info level)
+    );
 
-    // Get conversation context
-    const conversationContext = getConversationContext();
-    console.log("CoPrompt Debug: Captured Context:", JSON.stringify(conversationContext, null, 2));
-    console.log("Conversation context:", conversationContext); // Keep original log too
-
+    // Dynamically import and call the new context extractor
+    let conversationContext = [];
+    try {
+        const contextExtractorModule = await import(chrome.runtime.getURL('content/contextExtractor.js'));
+        conversationContext = contextExtractorModule.getConversationContext();
+        console.log("CoPrompt Debug: Captured Context (from module):", JSON.stringify(conversationContext, null, 2));
+    } catch (error) {
+        console.error("Failed to load or run context extractor module:", error);
+        // Proceed without context if module fails
+    }
+    
     // Track when the request was sent
     const requestStartTime = Date.now();
     console.log(
