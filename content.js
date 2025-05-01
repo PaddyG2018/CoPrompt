@@ -112,34 +112,6 @@ function checkButtonVisibility() {
   return true;
 }
 
-const getChatGPTInputField = () => {
-  // Only search for the input if we haven't injected the button yet
-  if (buttonInjected && checkButtonVisibility()) return null;
-
-  // Try multiple strategies to find the input field
-  const strategies = [
-    // Strategy 1: New ChatGPT contenteditable div
-    () =>
-      document.querySelector(
-        "div.ProseMirror[contenteditable='true']#prompt-textarea",
-      ),
-    // Strategy 2: Any contenteditable with prompt-textarea ID
-    () => document.querySelector("#prompt-textarea[contenteditable='true']"),
-    // Strategy 3: Legacy textarea
-    () => document.querySelector("textarea:not([style*='display: none'])"),
-  ];
-
-  for (const strategy of strategies) {
-    const element = strategy();
-    if (element && element.offsetParent !== null) {
-      debugLog("Found input field using strategy:", strategy.toString()); // Use restored debugLog
-      return element;
-    }
-  }
-
-  return null;
-};
-
 // Function to get conversation context from the page
 function getConversationContext() {
   let conversationElements = [];
@@ -495,142 +467,46 @@ window.addEventListener("message", async (event) => {
       `;
     }
 
+    const { findActiveInputElement, updateInputElement } = await import(chrome.runtime.getURL('utils/domUtils.js'));
+
     // Get the improved prompt from the event data
     const improvedPrompt = event.data.enhancedPrompt;
     if (!improvedPrompt) {
-      console.log("No improved prompt received"); // Reverted to console.log (info level)
+      debugLog("No improved prompt received");
       return;
     }
 
-    console.log("Received enhanced prompt, updating input field"); // Reverted to console.log (info level)
-
-    // Find the input field using multiple strategies
-    let inputField = null;
-
-    // Strategy 1: Direct ID selector for contenteditable
-    inputField = document.querySelector(
-      "#prompt-textarea[contenteditable='true']",
-    );
-
-    // Strategy 2: Direct ID selector for textarea
-    if (!inputField) {
-      inputField = document.querySelector("textarea#prompt-textarea");
-    }
-
-    // Strategy 3: Look for ProseMirror contenteditable
-    if (!inputField) {
-      inputField = document.querySelector(
-        "div.ProseMirror[contenteditable='true']",
-      );
-    }
-
-    // Strategy 4: Any visible textarea
-    if (!inputField) {
-      const textareas = document.querySelectorAll("textarea");
-      for (const textarea of textareas) {
-        if (textarea.offsetParent !== null) {
-          inputField = textarea;
-          break;
-        }
-      }
-    }
-
-    // Strategy 5: Any contenteditable div
-    if (!inputField) {
-      const contenteditables = document.querySelectorAll(
-        "div[contenteditable='true']",
-      );
-      for (const div of contenteditables) {
-        if (div.offsetParent !== null) {
-          inputField = div;
-          break;
-        }
-      }
-    }
-
-    // Strategy 6: Look for the form and find the input within it
-    if (!inputField) {
-      const form = document.querySelector("form");
-      if (form) {
-        const formInput = form.querySelector(
-          "[contenteditable='true'], textarea",
-        );
-        if (formInput) {
-          inputField = formInput;
-        }
-      }
-    }
+    debugLog("Received enhanced prompt, finding input field to update...");
+    console.log("[ContentScript] Before findActiveInputElement call"); // ADDED
+    // Find the input field using the utility function
+    const inputField = findActiveInputElement();
+    console.log("[ContentScript] After findActiveInputElement call. Result:", inputField); // ADDED
 
     if (!inputField) {
-      console.log("Could not find input field to update with enhanced prompt"); // Reverted to console.log (info level)
-      alert(
-        "Could not find the input field to update. The enhanced prompt has been copied to your clipboard.",
-      );
-
-      // Copy to clipboard as a fallback
-      navigator.clipboard.writeText(improvedPrompt).catch((e) => {
-        console.error("Failed to copy to clipboard:", e);
-      });
+      debugLog("Could not find input field to update with enhanced prompt");
+      console.log("[ContentScript] Input field not found, calling updateInputElement(null) for fallback."); // ADDED
+      // Use the clipboard fallback logic now encapsulated within updateInputElement
+      // Alerting and clipboard logic is handled by updateInputElement if element is null or update fails
+      updateInputElement(null, improvedPrompt); // Pass null to trigger fallback explicitly
       return;
     }
 
-    // Update the input field with the enhanced prompt
-    try {
-      // For contenteditable divs (new ChatGPT interface)
-      if (inputField.getAttribute("contenteditable") === "true") {
-        console.log("Updating contenteditable input field"); // Reverted to console.log (info level)
-
-        // Try multiple approaches to update the contenteditable
-        try {
-          // Best approach: Simulate user input event
-          inputField.focus();
-          document.execCommand("selectAll", false, null);
-          document.execCommand("insertText", false, improvedPrompt);
-        } catch (error1) {
-          console.error("Error updating contenteditable with execCommand:", error1); // Reverted
-          try {
-            // Fallback 1: Set innerText
-            inputField.innerText = improvedPrompt;
-            // Trigger input event manually
-            const inputEvent = new Event("input", { bubbles: true });
-            inputField.dispatchEvent(inputEvent);
-          } catch (error2) {
-            console.error("Error updating contenteditable with innerText:", error2); // Reverted
-          }
-        }
-      }
-      // For regular textareas (legacy interface)
-      else if (inputField.tagName === "TEXTAREA") {
-        console.log("Updating textarea input field"); // Reverted to console.log (info level)
-        inputField.value = improvedPrompt;
-        inputField.dispatchEvent(new Event("input", { bubbles: true }));
-        inputField.dispatchEvent(new Event("change", { bubbles: true }));
-        inputField.focus();
-        console.log("Successfully updated textarea input field"); // Reverted to console.log (info level)
-      } else {
-        console.log("Unknown input field type:", inputField.tagName); // Reverted
-      }
-    } catch (error) {
-      console.error("Error updating input field with enhanced prompt:", error); // Reverted
-
-      // Copy to clipboard as a fallback
-      navigator.clipboard.writeText(improvedPrompt).catch((e) => {
-        console.error("Failed to copy to clipboard:", e); // Reverted
-      });
-      alert(
-        "Could not update the input field. The enhanced prompt has been copied to your clipboard.",
-      );
-    }
+    // Update the input field using the utility function
+    updateInputElement(inputField, improvedPrompt);
   }
 });
 
 // Debounced observer callback
-const debouncedObserverCallback = debounce((mutations) => {
+const debouncedObserverCallback = debounce(async (mutations) => { // Make async
   if (buttonInjected && checkButtonVisibility()) return;
 
-  const inputField = getChatGPTInputField();
-  if (inputField) {
-    injectButton(inputField);
+  // Use dynamic import here as well
+  const { findActiveInputElement } = await import(chrome.runtime.getURL('utils/domUtils.js'));
+  const inputField = findActiveInputElement();
+  if (inputField && !buttonInjected) { // Only create if not already injected
+    // If an input field is found and button isn't there, create it
+    debugLog("Input field found by observer, creating floating button.");
+    createFloatingButton(); 
   }
 }, 100);
 
