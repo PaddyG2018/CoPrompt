@@ -255,68 +255,30 @@ function getConversationContext() {
 
 // Update the handleEnhanceClick function
 async function handleEnhanceClick(inputElement) {
-  debugLog("handleEnhanceClick called with element:", inputElement); // Use restored debugLog
+  debugLog("handleEnhanceClick called with element:", inputElement);
   const originalPrompt = inputElement.value || inputElement.innerText;
 
   if (!originalPrompt) {
-    console.warn("No prompt text found in input element"); // Reverted to console.warn
+    console.error("Prompt is empty, cannot enhance.");
     return;
   }
 
-  console.log("Sending enhance request with prompt:", originalPrompt); // Reverted to console.log (info level)
-
-  // Visual feedback with animation
+  // Visual feedback: Add loading class to button
   const button = document.querySelector("#coprompt-button");
   if (button) {
-    debugLog("Updating button with loading animation"); // Use restored debugLog
-    // Create and add the loading animation
-    button.innerHTML = "";
+    debugLog("Updating button to loading state");
+    button.classList.add("coprompt-loading");
+    button.disabled = true; // Disable button during loading
 
-    // Add the dots container
-    const dotsContainer = document.createElement("div");
-    dotsContainer.style.cssText = `
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
-            margin-right: 8px;
-        `;
-
-    // Create the three dots
-    for (let i = 0; i < 3; i++) {
-      const dot = document.createElement("div");
-      dot.style.cssText = `
-                width: 4px;
-                height: 4px;
-                background-color: white;
-                border-radius: 50%;
-                opacity: 0.7;
-                animation: copromptDotPulse 1.4s infinite ease-in-out;
-                animation-delay: ${i * 0.2}s;
-            `;
-      dotsContainer.appendChild(dot);
-    }
-
-    // Add the text
-    const textSpan = document.createElement("span");
-    textSpan.textContent = "Enhancing";
-
-    // Add the animation keyframes to the document if they don't exist
-    if (!document.getElementById("coprompt-animations")) {
-      const style = document.createElement("style");
-      style.id = "coprompt-animations";
-      style.textContent = `
-                @keyframes copromptDotPulse {
-                    0%, 80%, 100% { transform: scale(0.8); opacity: 0.7; }
-                    40% { transform: scale(1.2); opacity: 1; }
-                }
-            `;
-      document.head.appendChild(style);
-    }
-
-    button.appendChild(dotsContainer);
-    button.appendChild(textSpan);
-    button.style.opacity = "0.9";
+    // Set loading content (dots + text)
+    button.innerHTML = `
+      <div class="coprompt-loading-dots-container">
+        <div class="coprompt-loading-dot"></div>
+        <div class="coprompt-loading-dot"></div>
+        <div class="coprompt-loading-dot"></div>
+      </div>
+      <span>Enhancing</span>
+    `;
   }
 
   // Dynamically import the constant when needed
@@ -514,21 +476,23 @@ window.addEventListener("message", async (event) => {
 
   // Handle enhanced prompt response
   if (event.data.type === "CoPromptEnhanceResponse") {
-    console.log("Received enhanced prompt response:", event.data); // Reverted to console.log (info level)
+    debugLog("Received enhanced prompt response:", event.data);
     const button = document.querySelector("#coprompt-button");
     if (button) {
-      // Update with icon + text
+      // Restore button state: Remove loading class, re-enable
+      button.classList.remove("coprompt-loading");
+      button.disabled = false;
+      // Restore original button content
       button.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sparkles" style="margin-right: 6px;">
-                    <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"></path>
-                    <path d="M20 3v4"></path>
-                    <path d="M22 5h-4"></path>
-                    <path d="M4 17v2"></path>
-                    <path d="M5 18H3"></path>
-                </svg>
-                Improve Prompt
-            `;
-      button.style.opacity = "0.9";
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sparkles">
+          <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"></path>
+          <path d="M20 3v4"></path>
+          <path d="M22 5h-4"></path>
+          <path d="M4 17v2"></path>
+          <path d="M5 18H3"></path>
+        </svg>
+        Improve Prompt
+      `;
     }
 
     // Get the improved prompt from the event data
@@ -701,54 +665,38 @@ setInterval(() => {
     return;
   }
 
-  // Check if button is visible
+  // Check if button is visible (getBoundingClientRect is sufficient)
   const rect = existingButton.getBoundingClientRect();
   const style = window.getComputedStyle(existingButton);
 
+  // Check basic visibility properties handled by CSS
   if (
     rect.width === 0 ||
     rect.height === 0 ||
     style.display === "none" ||
     style.visibility === "hidden" ||
-    style.opacity === "0" ||
-    parseFloat(style.opacity) < 0.1
+    parseFloat(style.opacity) < 0.1 // Check opacity if needed
   ) {
-    debugLog("Button exists but is not visible, forcing visibility");
+    debugLog("Button exists but computed style indicates it's not visible. CSS should handle this with !important.");
+    // Removed direct style manipulation here
+  }
 
-    // Force visibility with !important flags
-    container.style.cssText += `
-            display: block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-            z-index: 99999 !important;
-            position: fixed !important;
-        `;
+  // If button is outside viewport, reset position
+  // Keep this logic as it relates to position, not just visibility
+  if (
+    rect.top < 0 ||
+    rect.left < 0 ||
+    rect.top > window.innerHeight ||
+    rect.left > window.innerWidth
+  ) {
+    debugLog("Button outside viewport, resetting position");
+    container.style.top = "auto";
+    container.style.left = "auto";
+    container.style.bottom = "80px"; // Position higher to avoid input box
+    container.style.right = "20px";
 
-    existingButton.style.cssText += `
-            display: flex !important;
-            visibility: visible !important;
-            opacity: 0.9 !important;
-            z-index: 99999 !important;
-            background: #0070F3 !important;
-            box-shadow: 0 2px 8px rgba(0, 112, 243, 0.3) !important;
-        `;
-
-    // If button is outside viewport, reset position
-    if (
-      rect.top < 0 ||
-      rect.left < 0 ||
-      rect.top > window.innerHeight ||
-      rect.left > window.innerWidth
-    ) {
-      debugLog("Button outside viewport, resetting position");
-      container.style.top = "auto";
-      container.style.left = "auto";
-      container.style.bottom = "80px"; // Position higher to avoid input box
-      container.style.right = "20px";
-
-      // Clear saved position
-      localStorage.removeItem("coPromptButtonPosition");
-    }
+    // Clear saved position
+    localStorage.removeItem("coPromptButtonPosition");
   }
 }, 5000); // Check every 5 seconds
 
@@ -786,7 +734,6 @@ function makeDraggable(element) {
 
     // Add dragging class for visual feedback
     element.classList.add("coprompt-dragging");
-    if (button) button.style.cursor = "grabbing";
 
     // Set up event listeners for drag and end
     document.onmouseup = closeDragElement;
@@ -840,7 +787,6 @@ function makeDraggable(element) {
 
     // Remove dragging class
     element.classList.remove("coprompt-dragging");
-    if (button) button.style.cursor = "pointer";
 
     // Reset dragging state and distance
     isButtonDragging = false;
@@ -887,7 +833,6 @@ function makeDraggable(element) {
     dragDistance = 0;
 
     element.classList.add("coprompt-dragging");
-    if (button) button.style.cursor = "grabbing";
 
     isButtonDragging = true;
   }
@@ -936,7 +881,6 @@ function makeDraggable(element) {
     e.preventDefault();
 
     element.classList.remove("coprompt-dragging");
-    if (button) button.style.cursor = "pointer";
 
     // Reset dragging state and distance
     isButtonDragging = false;
@@ -967,111 +911,62 @@ function makeDraggable(element) {
 function createFloatingButton() {
   debugLog("Creating floating CoPrompt button");
 
-  // Remove any existing floating button
-  const existingContainer = document.getElementById("coprompt-container");
-  if (existingContainer) {
-    existingContainer.remove();
+  // Check if container already exists
+  let buttonContainer = document.getElementById("coprompt-container");
+  if (buttonContainer) {
+    debugLog("Container already exists");
+    // Ensure it's visible if it was hidden
+    buttonContainer.style.display = "block";
+    const btn = buttonContainer.querySelector("#coprompt-button");
+    if (btn) btn.style.display = "flex";
+    return;
   }
 
-  // Create a container for the floating button
-  const buttonContainer = document.createElement("div");
+  // Create container div
+  buttonContainer = document.createElement("div");
   buttonContainer.id = "coprompt-container";
-  buttonContainer.style.cssText = `
-        position: fixed !important;
-        z-index: 99999 !important;
-        bottom: 80px !important; 
-        right: 20px !important;
-        cursor: move !important;
-        background-color: transparent !important;
-        box-shadow: none !important;
-        user-select: none !important;
-        -webkit-user-select: none !important;
-        pointer-events: auto !important;
-        width: auto !important;
-        height: auto !important;
-        min-width: 120px !important;
-        min-height: 36px !important;
-        display: block !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-    `;
+  // Apply container styles via CSS using ID selector
 
-  // Try to restore previous position
-  let savedPosition = localStorage.getItem("coPromptButtonPosition");
-  if (savedPosition) {
-    try {
-      savedPosition = JSON.parse(savedPosition);
-      // Only use saved position if it's within the viewport
-      if (
-        savedPosition.top > 0 &&
-        savedPosition.top < window.innerHeight - 100 &&
-        savedPosition.left > 0 &&
-        savedPosition.left < window.innerWidth - 100
-      ) {
-        buttonContainer.style.top = savedPosition.top + "px";
-        buttonContainer.style.left = savedPosition.left + "px";
-        // Remove bottom/right if we're using top/left
-        buttonContainer.style.bottom = "auto";
-        buttonContainer.style.right = "auto";
+  // Restore position from localStorage if available
+  try {
+    const savedPosition = localStorage.getItem("coPromptButtonPosition");
+    if (savedPosition) {
+      const { top, left } = JSON.parse(savedPosition);
+      if (top !== null && left !== null) {
+         // Basic check to ensure it's within reasonable bounds
+         if (top > 0 && left > 0 && top < window.innerHeight - 50 && left < window.innerWidth - 50) {
+            buttonContainer.style.top = `${top}px`;
+            buttonContainer.style.left = `${left}px`;
+            buttonContainer.style.bottom = 'auto';
+            buttonContainer.style.right = 'auto';
+            debugLog("Restored button position:", top, left);
+         } else {
+             debugLog("Saved position out of bounds, using default.");
+         }
       }
-    } catch (e) {
-      debugLog("Error restoring button position:", e);
-      // Use default position if parsing fails
     }
+  } catch (e) {
+    debugLog("Failed to parse saved button position:", e);
+    // Use default position if parsing fails
   }
 
   // Create the button
   const enhanceButton = document.createElement("button");
   enhanceButton.id = "coprompt-button";
+  // Button styles applied via CSS using ID selector
+
+  // Set initial content (icon + text)
   enhanceButton.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sparkles" style="margin-right: 6px;">
-            <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"></path>
-            <path d="M20 3v4"></path>
-            <path d="M22 5h-4"></path>
-            <path d="M4 17v2"></path>
-            <path d="M5 18H3"></path>
-        </svg>
-        Improve Prompt
-    `;
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sparkles">
+      <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"></path>
+      <path d="M20 3v4"></path>
+      <path d="M22 5h-4"></path>
+      <path d="M4 17v2"></path>
+      <path d="M5 18H3"></path>
+    </svg>
+    Improve Prompt
+  `;
   enhanceButton.type = "button";
-  enhanceButton.style.cssText = `
-        padding: 8px 12px !important;
-        background: #0070F3 !important;
-        color: white !important;
-        border: none !important;
-        border-radius: 18px !important;
-        box-shadow: 0 2px 8px rgba(0, 112, 243, 0.3) !important;
-        font-weight: 500 !important;
-        font-size: 14px !important;
-        cursor: pointer !important;
-        transition: all 0.2s ease !important;
-        min-width: 120px !important;
-        min-height: 36px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        z-index: 99999 !important;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
-        letter-spacing: 0.3px !important;
-        text-transform: none !important;
-        visibility: visible !important;
-        opacity: 0.9 !important;
-        position: relative !important;
-        pointer-events: auto !important;
-    `;
-
-  // Hover effect
-  enhanceButton.onmouseover = function () {
-    this.style.transform = "scale(1.03)";
-    this.style.boxShadow = "0 3px 10px rgba(0, 112, 243, 0.4)";
-    this.style.opacity = "1";
-  };
-
-  enhanceButton.onmouseout = function () {
-    this.style.transform = "scale(1)";
-    this.style.boxShadow = "0 2px 8px rgba(0, 112, 243, 0.3)";
-    this.style.opacity = "0.9";
-  };
 
   // Add click handler
   enhanceButton.addEventListener("click", function(event) {
@@ -1125,22 +1020,8 @@ function createFloatingButton() {
     const container = document.getElementById("coprompt-container");
 
     if (button && container) {
-      // Force visibility with !important flags
-      container.style.cssText += `
-                display: block !important;
-                visibility: visible !important;
-                opacity: 1 !important;
-                z-index: 99999 !important;
-            `;
-
-      button.style.cssText += `
-                display: flex !important;
-                visibility: visible !important;
-                opacity: 0.9 !important;
-                z-index: 99999 !important;
-            `;
-
-      debugLog("Forced button visibility");
+        // Ensure classes are present if needed (though IDs should suffice)
+        debugLog("Button exists, CSS should handle visibility.");
     } else {
       debugLog("Button not found after delay, recreating");
       buttonInjected = false;

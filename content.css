@@ -1,0 +1,102 @@
+/* Styles for the CoPrompt floating button and related elements */
+
+#coprompt-container {
+  position: fixed !important;
+  bottom: 80px !important; /* Default position, higher to avoid input box */
+  right: 20px !important;
+  z-index: 9999 !important; /* High z-index, but slightly lower than button itself */
+  cursor: grab !important;
+  display: block !important; /* Ensure visible */
+  visibility: visible !important; /* Ensure visible */
+  opacity: 1 !important; /* Ensure visible */
+  /* Reset potentially interfering properties */
+  width: auto !important;
+  height: auto !important;
+  background: transparent !important;
+}
+
+#coprompt-button {
+  padding: 8px 12px !important;
+  background: #0070F3 !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 18px !important;
+  box-shadow: 0 2px 8px rgba(0, 112, 243, 0.3) !important;
+  font-weight: 500 !important;
+  font-size: 14px !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  min-width: 120px !important;
+  min-height: 36px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 99999 !important; /* Highest z-index */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+  letter-spacing: 0.3px !important;
+  text-transform: none !important;
+  visibility: visible !important;
+  opacity: 0.9 !important;
+  position: relative !important; /* Needed for potential internal absolute positioning */
+  pointer-events: auto !important;
+}
+
+#coprompt-button:hover {
+  transform: scale(1.03) !important;
+  box-shadow: 0 3px 10px rgba(0, 112, 243, 0.4) !important;
+  opacity: 1 !important;
+}
+
+#coprompt-container.coprompt-dragging {
+  cursor: grabbing !important;
+  /* Add any other visual feedback for dragging, e.g., slightly lower opacity */
+  /* opacity: 0.8; */
+}
+
+/* Loading State Styles */
+#coprompt-button.coprompt-loading {
+  opacity: 0.9 !important;
+  /* Prevent hover effects during loading */
+  pointer-events: none !important;
+  cursor: default !important;
+}
+
+#coprompt-button.coprompt-loading:hover {
+  transform: none !important;
+  box-shadow: 0 2px 8px rgba(0, 112, 243, 0.3) !important;
+  opacity: 0.9 !important;
+}
+
+.coprompt-loading-dots-container {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  margin-right: 8px !important;
+}
+
+.coprompt-loading-dot {
+  width: 4px !important;
+  height: 4px !important;
+  background-color: white !important;
+  border-radius: 50% !important;
+  opacity: 0.7 !important;
+  animation: copromptDotPulse 1.4s infinite ease-in-out !important;
+}
+
+/* Assign animation delays via nth-child */
+.coprompt-loading-dot:nth-child(1) { animation-delay: 0s; }
+.coprompt-loading-dot:nth-child(2) { animation-delay: 0.2s; }
+.coprompt-loading-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes copromptDotPulse {
+  0%, 80%, 100% { transform: scale(0.8); opacity: 0.7; }
+  40% { transform: scale(1.2); opacity: 1; }
+}
+
+/* Styles for the SVG icon inside the button */
+#coprompt-button svg {
+  margin-right: 6px !important;
+  width: 16px !important; /* Ensure consistent size */
+  height: 16px !important; /* Ensure consistent size */
+} 
