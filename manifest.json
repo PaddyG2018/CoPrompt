@@ -55,7 +55,8 @@
         "utils/constants.js", 
         "utils/domUtils.js",
         "content/contextExtractor.js",
-        "utils/logger.js"
+        "utils/logger.js",
+        "content/messageHandler.js"
       ],
       "matches": [
         "https://chat.openai.com/*",

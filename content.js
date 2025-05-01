@@ -155,240 +155,6 @@ async function handleEnhanceClick(inputElement) {
   console.log("Sent CoPromptEnhanceRequest message"); // Reverted to console.log (info level)
 }
 
-// Consolidate all message event listeners into one
-window.addEventListener("message", async (event) => {
-  if (event.source !== window) return;
-  console.log("Received message:", event.data.type); // Reverted to console.log (info level)
-
-  // Handle API key request
-  if (event.data.type === "CoPromptGetAPIKey") {
-    console.log("Handling API key request"); // Reverted to console.log (info level)
-    chrome.runtime.sendMessage({ type: "GET_API_KEY" }, (response) => {
-      if (response?.key) {
-        console.log("Got API key, sending response"); // Reverted to console.log (info level)
-        window.postMessage(
-          { type: "CoPromptAPIKeyResponse", key: response.key },
-          "*",
-        );
-      } else {
-        console.error("API key retrieval failed in content.js"); // Reverted to console.error
-        window.postMessage({ type: "CoPromptAPIKeyResponse", key: null }, "*");
-      }
-    });
-  }
-
-  // Handle enhance prompt request
-  if (event.data.type === "CoPromptEnhanceRequest") {
-    console.log(
-      "Content script: Relaying prompt enhancement request to background script",
-      event.data
-    );
-
-    // Dynamically import and call the new context extractor
-    let conversationContext = [];
-    try {
-        const contextExtractorModule = await import(chrome.runtime.getURL('content/contextExtractor.js'));
-        conversationContext = contextExtractorModule.getConversationContext();
-        console.log("CoPrompt Debug: Captured Context (from module):", JSON.stringify(conversationContext, null, 2));
-    } catch (error) {
-        console.error("Failed to load or run context extractor module:", error);
-        // Proceed without context if module fails
-    }
-    
-    // Track when the request was sent
-    const requestStartTime = Date.now();
-    console.log(
-      "Content script: Sending request to background script at",
-      new Date().toISOString(),
-    ); // Reverted to console.log (info level)
-
-    // Set up a timeout for the background script response
-    const controller = new AbortController();
-    let timeoutId = setTimeout(() => {
-      console.error(
-        "Content script: Background script response timed out after 55 seconds",
-      ); // Reverted to console.error
-      window.postMessage(
-        {
-          type: "CoPromptEnhanceResponse",
-          error:
-            "Background script response timed out (55s). Please try again or check your API key.",
-        },
-        "*",
-      );
-    }, 55000);
-
-    // --- Add try...catch around sendMessage ---
-    try {
-      chrome.runtime.sendMessage( // This call might throw an error immediately
-        {
-          type: "ENHANCE_PROMPT",
-          prompt: event.data.prompt,
-          systemInstruction: event.data.systemInstruction,
-          conversationContext: conversationContext,
-        },
-        (response) => { // This callback only runs if sendMessage *succeeds* initially
-          // Clear the timeout as soon as the callback is invoked,
-          // but only if it hasn't already been cleared by the catch block
-          if (timeoutId) {
-            clearTimeout(timeoutId);
-            timeoutId = null; // Ensure it's nullified
-          }
-
-          // Check for runtime errors (like context invalidated) FIRST
-          // This will catch errors that occur *after* the connection is established
-          if (chrome.runtime.lastError) {
-            console.error("Content script: chrome.runtime.sendMessage callback error:", chrome.runtime.lastError.message); // Reverted
-            let errorMessage = "An error occurred after connecting to the background service.";
-            if (chrome.runtime.lastError.message?.includes("Extension context invalidated")) {
-                errorMessage = "Connection to background service lost after initial contact. Please try again.";
-            }
-            window.postMessage(
-              {
-                type: "CoPromptEnhanceResponse",
-                error: errorMessage,
-              },
-              "*",
-            );
-            return; // Stop further processing
-          }
-
-          // --- Original response handling logic starts here ---
-          console.log("Received response from background script:", response); // Reverted to console.log (info level)
-
-          // Calculate how long the request took
-          const requestTime = (Date.now() - requestStartTime) / 1000;
-          console.log(
-            `Content script: Received response from background script after ${requestTime.toFixed(2)} seconds`,
-          ); // Reverted to console.log (info level)
-
-          if (!response) {
-            console.error(
-              "Content script: No response received from background script (but no runtime error)",
-            ); // Reverted to console.error
-            window.postMessage(
-              {
-                type: "CoPromptEnhanceResponse",
-                error: "Empty response received from background script.",
-              },
-              "*",
-            );
-            return;
-          }
-
-          if (response?.error) {
-            console.error(
-              "Content script: Error from background script:",
-              response.error,
-            ); // Reverted to console.error
-            window.postMessage(
-              {
-                type: "CoPromptEnhanceResponse",
-                error: response.error, // Forward the specific error from background
-              },
-              "*",
-            );
-          } else if (response?.enhancedPrompt) {
-            console.log(
-              "Content script: Received enhanced prompt from background",
-            ); // Reverted to console.log (info level)
-            window.postMessage(
-              {
-                type: "CoPromptEnhanceResponse",
-                enhancedPrompt: response.enhancedPrompt,
-              },
-              "*",
-            );
-          } else {
-            console.error(
-              "Content script: Invalid response format from background script",
-              response,
-            ); // Reverted to console.error
-            window.postMessage(
-              {
-                type: "CoPromptEnhanceResponse",
-                error: "Invalid response format received from background script.",
-              },
-              "*",
-            );
-          }
-        },
-      );
-    } catch (error) {
-        // Catch synchronous errors, most likely "Extension context invalidated"
-        console.error("Content script: chrome.runtime.sendMessage synchronous error:", error);
-        // Clear the timeout immediately since the message failed to send
-        if (timeoutId) {
-            clearTimeout(timeoutId);
-            timeoutId = null; // Prevent the callback from trying to clear it again
-        }
-
-        let errorMessage = "Failed to send request to background service.";
-        // Check the error message for the specific context invalidated text
-        if (error.message && error.message.includes("Extension context invalidated")) {
-            errorMessage = "Connection to background service failed (it may be inactive). Please try clicking the button again.";
-        }
-
-        window.postMessage(
-          {
-            type: "CoPromptEnhanceResponse",
-            error: errorMessage,
-          },
-          "*",
-        );
-    }
-  }
-
-  // Handle enhanced prompt response
-  if (event.data.type === "CoPromptEnhanceResponse") {
-    debugLog("Received enhanced prompt response:", event.data);
-    const button = document.querySelector("#coprompt-button");
-    if (button) {
-      // Restore button state: Remove loading class, re-enable
-      button.classList.remove("coprompt-loading");
-      button.disabled = false;
-      // Restore original button content
-      button.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sparkles">
-          <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"></path>
-          <path d="M20 3v4"></path>
-          <path d="M22 5h-4"></path>
-          <path d="M4 17v2"></path>
-          <path d="M5 18H3"></path>
-        </svg>
-        Improve Prompt
-      `;
-    }
-
-    const { findActiveInputElement, updateInputElement } = await import(chrome.runtime.getURL('utils/domUtils.js'));
-
-    // Get the improved prompt from the event data
-    const improvedPrompt = event.data.enhancedPrompt;
-    if (!improvedPrompt) {
-      debugLog("No improved prompt received");
-      return;
-    }
-
-    debugLog("Received enhanced prompt, finding input field to update...");
-    console.log("[ContentScript] Before findActiveInputElement call"); // ADDED
-    // Find the input field using the utility function
-    const inputField = findActiveInputElement();
-    console.log("[ContentScript] After findActiveInputElement call. Result:", inputField); // ADDED
-
-    if (!inputField) {
-      debugLog("Could not find input field to update with enhanced prompt");
-      console.log("[ContentScript] Input field not found, calling updateInputElement(null) for fallback."); // ADDED
-      // Use the clipboard fallback logic now encapsulated within updateInputElement
-      // Alerting and clipboard logic is handled by updateInputElement if element is null or update fails
-      updateInputElement(null, improvedPrompt); // Pass null to trigger fallback explicitly
-      return;
-    }
-
-    // Update the input field using the utility function
-    updateInputElement(inputField, improvedPrompt);
-  }
-});
-
 // Debounced observer callback
 const debouncedObserverCallback = debounce(async (mutations) => { // Make async
   if (buttonInjected && checkButtonVisibility()) return;
@@ -798,3 +564,18 @@ function createFloatingButton() {
     }
   }, 500);
 }
+
+// --- Register the new message handler --- 
+(async () => {
+  try {
+    const messageHandlerModule = await import(chrome.runtime.getURL('content/messageHandler.js'));
+    if (messageHandlerModule.handleWindowMessage) {
+      window.addEventListener("message", messageHandlerModule.handleWindowMessage);
+      console.log("CoPrompt: Message handler registered successfully.");
+    } else {
+      console.error("CoPrompt: Failed to find handleWindowMessage in the loaded module.");
+    }
+  } catch (error) {
+    console.error("CoPrompt: Failed to load or register message handler module:", error);
+  }
+})();
