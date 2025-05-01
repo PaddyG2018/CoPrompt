@@ -94,11 +94,9 @@ window.enhancePrompt = async function (prompt) {
       // Increase timeout to 60 seconds (from 30)
       const timeoutId = setTimeout(() => {
         console.error("Enhance prompt request timed out after 60 seconds");
+        window.removeEventListener("message", handleEnhanceResponse);
         resolve(prompt); // Return original prompt on timeout
       }, 60000);
-
-      // Track if we've received a response
-      let responseReceived = false;
 
       // Track when the request was sent
       const requestStartTime = Date.now();
@@ -116,9 +114,6 @@ window.enhancePrompt = async function (prompt) {
         if (DEBUG) console.log(
           `Received enhancement response after ${responseTime.toFixed(2)} seconds`,
         );
-
-        // Mark that we've received a response
-        responseReceived = true;
 
         // Clean up
         clearTimeout(timeoutId);
@@ -159,73 +154,9 @@ window.enhancePrompt = async function (prompt) {
         },
         "*",
       );
-
-      // Add more frequent status checks
-      const checkInterval = setInterval(() => {
-        if (responseReceived) {
-          clearInterval(checkInterval);
-          return;
-        }
-
-        const waitTime = (Date.now() - requestStartTime) / 1000;
-        if (DEBUG) console.log(
-          `Still waiting for enhancement response after ${waitTime.toFixed(0)} seconds...`,
-        );
-
-        // After 30 seconds, warn the user that it's taking longer than expected
-        if (waitTime > 30 && waitTime < 31) {
-          console.warn(
-            "Enhancement request is taking longer than expected. This might be due to high API traffic or a slow connection.",
-          );
-        }
-      }, 10000); // Check every 10 seconds
     });
   } catch (error) {
     console.error("Error in enhancePrompt:", error);
     return prompt; // Fallback: return original prompt if anything fails
   }
 };
-
-// ✅ Fix: Ensure `postMessage()` correctly waits for the AI-enhanced prompt
-window.addEventListener("message", async (event) => {
-  if (event.source !== window || event.data.type !== "CoPromptEnhance") return;
-
-  if (DEBUG) console.log("Received prompt enhancement request:", event.data.prompt);
-
-  const originalPrompt = event.data.prompt;
-  const callbackId = event.data.callbackId;
-
-  if (!originalPrompt || !callbackId) {
-    console.error("Missing prompt or callbackId in CoPromptEnhance message");
-    return;
-  }
-
-  // Perform the enhancement
-  try {
-    const improvedPrompt = await window.enhancePrompt(originalPrompt);
-    if (DEBUG) console.log("Enhanced prompt:", improvedPrompt);
-
-    // Add a small delay to ensure the message is processed correctly
-    setTimeout(() => {
-      if (DEBUG) console.log("Sending enhanced prompt back to content.js");
-      window.postMessage(
-        {
-          type: "CoPromptEnhanceResponse",
-          enhancedPrompt: improvedPrompt,
-          callbackId: callbackId,
-        },
-        "*",
-      );
-    }, 100);
-  } catch (error) {
-    console.error("Error in prompt enhancement process:", error);
-    window.postMessage(
-      {
-        type: "CoPromptEnhanceResponse",
-        error: `Enhancement failed: ${error.message}`,
-        callbackId: callbackId,
-      },
-      "*",
-    );
-  }
-});

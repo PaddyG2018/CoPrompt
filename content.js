@@ -7,17 +7,17 @@
 const DEBUG = false; // Set to false for production manually for now
 
 // Add at the top of the file with other global variables
-const DRAG_THRESHOLD = 5; // pixels
-const CLICK_DELAY = 100; // milliseconds
+// const DRAG_THRESHOLD = 5; // pixels
+// const CLICK_DELAY = 100; // milliseconds
 
-let isDragging = false;
-let dragStartX = 0;
-let dragStartY = 0;
-let dragDistance = 0;
-let isButtonDragging = false;
-let dragStartTime = 0;
-let lastDragEndTime = -CLICK_DELAY; // Initialize to a value that won't trigger the delay check
-let hasDragged = false; // New flag to track if actual dragging occurred
+// let isDragging = false;
+// let dragStartX = 0;
+// let dragStartY = 0;
+// let dragDistance = 0;
+// let isButtonDragging = false;
+// let dragStartTime = 0;
+// let lastDragEndTime = -CLICK_DELAY; // Initialize to a value that won't trigger the delay check
+// let hasDragged = false; // New flag to track if actual dragging occurred
 
 // Inject `injected.js` into the page properly
 const script = document.createElement("script");
@@ -235,214 +235,7 @@ setInterval(() => {
   }
 }, 5000); // Check every 5 seconds
 
-// Update the makeDraggable function
-function makeDraggable(element) {
-  let pos1 = 0,
-    pos2 = 0,
-    pos3 = 0,
-    pos4 = 0;
-  let startX = 0,
-    startY = 0;
-
-  // Get the button inside the container
-  const button = element.querySelector("#coprompt-button");
-  if (!button) return;
-
-  // Handle mouse events
-  element.onmousedown = dragMouseDown;
-
-  function dragMouseDown(e) {
-    e.preventDefault();
-    e.stopPropagation();
-
-    // Get the mouse cursor position at startup
-    pos3 = e.clientX;
-    pos4 = e.clientY;
-    startX = e.clientX;
-    startY = e.clientY;
-    dragStartTime = Date.now();
-    hasDragged = false; // Reset drag flag
-
-    // Set dragging state
-    isButtonDragging = true;
-    dragDistance = 0;
-
-    // Add dragging class for visual feedback
-    element.classList.add("coprompt-dragging");
-
-    // Set up event listeners for drag and end
-    document.onmouseup = closeDragElement;
-    document.onmousemove = elementDrag;
-  }
-
-  function elementDrag(e) {
-    if (!isButtonDragging) return;
-
-    e.preventDefault();
-    e.stopPropagation();
-
-    // Calculate the new cursor position
-    pos1 = pos3 - e.clientX;
-    pos2 = pos4 - e.clientY;
-    pos3 = e.clientX;
-    pos4 = e.clientY;
-
-    // Calculate total drag distance
-    const dx = e.clientX - startX;
-    const dy = e.clientY - startY;
-    dragDistance = Math.sqrt(dx * dx + dy * dy);
-
-    // Set hasDragged flag if we've moved beyond the threshold
-    if (dragDistance > DRAG_THRESHOLD) {
-        hasDragged = true;
-    }
-
-    // Set the element's new position
-    const newTop = element.offsetTop - pos2;
-    const newLeft = element.offsetLeft - pos1;
-
-    // Ensure the button stays within the viewport
-    if (newTop > 0 && newTop < window.innerHeight - 50) {
-        element.style.top = newTop + "px";
-    }
-
-    if (newLeft > 0 && newLeft < window.innerWidth - 50) {
-        element.style.left = newLeft + "px";
-    }
-
-    // When using top/left, we need to set bottom/right to auto
-    element.style.bottom = "auto";
-    element.style.right = "auto";
-  }
-
-  function closeDragElement() {
-    // Stop moving when mouse button is released
-    document.onmouseup = null;
-    document.onmousemove = null;
-
-    // Remove dragging class
-    element.classList.remove("coprompt-dragging");
-
-    // Reset dragging state and distance
-    isButtonDragging = false;
-    dragDistance = 0;  // Reset drag distance
-    
-    // Only update lastDragEndTime if we actually dragged
-    if (hasDragged) {
-        lastDragEndTime = Date.now();
-    }
-
-    // Save position to localStorage
-    const rect = element.getBoundingClientRect();
-    try {
-        localStorage.setItem(
-            "coPromptButtonPosition",
-            JSON.stringify({
-                top: rect.top,
-                left: rect.left,
-            }),
-        );
-        debugLog("Saved button position:", rect.top, rect.left);
-    } catch (e) {
-        debugLog("Failed to save button position:", e);
-    }
-  }
-
-  // Handle touch events for mobile
-  element.addEventListener("touchstart", handleTouchStart, { passive: false });
-  element.addEventListener("touchmove", handleTouchMove, { passive: false });
-  element.addEventListener("touchend", handleTouchEnd, { passive: false });
-
-  function handleTouchStart(e) {
-    e.preventDefault();
-
-    const touch = e.touches[0];
-    pos3 = touch.clientX;
-    pos4 = touch.clientY;
-    startX = touch.clientX;
-    startY = touch.clientY;
-    dragStartTime = Date.now();
-    hasDragged = false; // Reset drag flag
-
-    // Reset drag distance on new drag
-    dragDistance = 0;
-
-    element.classList.add("coprompt-dragging");
-
-    isButtonDragging = true;
-  }
-
-  function handleTouchMove(e) {
-    if (!isButtonDragging) return;
-
-    e.preventDefault();
-
-    const touch = e.touches[0];
-
-    pos1 = pos3 - touch.clientX;
-    pos2 = pos4 - touch.clientY;
-    pos3 = touch.clientX;
-    pos4 = touch.clientY;
-
-    // Calculate total drag distance
-    const dx = touch.clientX - startX;
-    const dy = touch.clientY - startY;
-    dragDistance = Math.sqrt(dx * dx + dy * dy);
-
-    // Set hasDragged flag if we've moved beyond the threshold
-    if (dragDistance > DRAG_THRESHOLD) {
-        hasDragged = true;
-    }
-
-    // Set the element's new position
-    const newTop = element.offsetTop - pos2;
-    const newLeft = element.offsetLeft - pos1;
-
-    // Ensure the button stays within the viewport
-    if (newTop > 0 && newTop < window.innerHeight - 50) {
-      element.style.top = newTop + "px";
-    }
-
-    if (newLeft > 0 && newLeft < window.innerWidth - 50) {
-      element.style.left = newLeft + "px";
-    }
-
-    // When using top/left, we need to set bottom/right to auto
-    element.style.bottom = "auto";
-    element.style.right = "auto";
-  }
-
-  function handleTouchEnd(e) {
-    e.preventDefault();
-
-    element.classList.remove("coprompt-dragging");
-
-    // Reset dragging state and distance
-    isButtonDragging = false;
-    dragDistance = 0;  // Reset drag distance
-    
-    // Reset drag distance attribute
-    if (button) {
-      button.setAttribute("data-drag-distance", "0");
-    }
-
-    // Save position to localStorage
-    const rect = element.getBoundingClientRect();
-    try {
-      localStorage.setItem(
-        "coPromptButtonPosition",
-        JSON.stringify({
-          top: rect.top,
-          left: rect.left,
-        }),
-      );
-    } catch (e) {
-      debugLog("Failed to save button position:", e);
-    }
-  }
-}
-
-// Update the click handler in createFloatingButton
+// Create Floating Button function
 function createFloatingButton() {
   debugLog("Creating floating CoPrompt button");
 
@@ -503,48 +296,47 @@ function createFloatingButton() {
   `;
   enhanceButton.type = "button";
 
-  // Add click handler
-  enhanceButton.addEventListener("click", function(event) {
-    event.preventDefault();
-    event.stopPropagation();
-    debugLog("Button clicked, checking drag state:", { 
-        isButtonDragging, 
-        dragDistance,
-        hasDragged,
-        timeSinceLastDrag: Date.now() - lastDragEndTime
-    });
-
-    // Check if this is a click after a drag
-    const isClickAfterDrag = hasDragged && Date.now() - lastDragEndTime < CLICK_DELAY;
-    
-    // Only proceed if:
-    // 1. We're not currently dragging
-    // 2. The drag distance was small (if any)
-    // 3. It's not immediately after a drag
-    if (!isButtonDragging && dragDistance < DRAG_THRESHOLD && !isClickAfterDrag) {
-        const activeElement = document.activeElement;
-        debugLog("Active element:", activeElement);
-        
-        if (activeElement && (activeElement.tagName === "TEXTAREA" || activeElement.getAttribute("contenteditable") === "true")) {
-            debugLog("Found valid input element, calling handleEnhanceClick");
-            handleEnhanceClick(activeElement);
-        } else {
-            debugLog("No active input element found");
-        }
-    } else {
-        debugLog("Ignoring click due to:", {
-            isButtonDragging,
-            dragDistance,
-            hasDragged,
-            isClickAfterDrag,
-            timeSinceLastDrag: Date.now() - lastDragEndTime
-        });
-    }
-  });
-
   buttonContainer.appendChild(enhanceButton);
   document.body.appendChild(buttonContainer);
-  makeDraggable(buttonContainer);
+  
+  // Define the click handler logic to pass as a callback
+  const handleButtonClick = async (event) => {
+    // REMOVED handleButtonClick called log
+    try {
+        const { findActiveInputElement } = await import(chrome.runtime.getURL('utils/domUtils.js'));
+        const activeElement = findActiveInputElement();
+        // Keep debugLog for active element
+        debugLog("Active element on click:", activeElement);
+        
+        if (activeElement) {
+            // Keep debugLog for calling enhance
+            debugLog("Valid click and active input found, calling handleEnhanceClick");
+            handleEnhanceClick(activeElement); 
+        } else {
+            // Keep debugLog for no active input
+            debugLog("Valid click, but no active input element found.");
+        }
+    } catch(err) {
+        console.error("[ContentScript] Error during button click handling:", err); // Keep error
+    }
+  };
+
+  // Dynamically import and apply the new makeDraggable, passing the click handler
+  (async () => {
+    // REMOVED Attempting to import log
+    try {
+        const interactionModule = await import(chrome.runtime.getURL('content/interactionHandler.js'));
+        // REMOVED imported successfully log
+        if (interactionModule.makeDraggable) {
+            interactionModule.makeDraggable(buttonContainer, handleButtonClick, enhanceButton);
+            // REMOVED Applied makeDraggable log
+        } else {
+            console.error("[ContentScript] makeDraggable function not found in module!"); // Keep error
+        }
+    } catch (error) {
+        console.error("[ContentScript] Failed to load or apply interaction handler:", error); // Keep error
+    }
+  })();
 
   buttonInjected = true;
   debugLog("CoPrompt floating button created and attached");
@@ -565,13 +357,15 @@ function createFloatingButton() {
   }, 500);
 }
 
-// --- Register the new message handler --- 
+// --- Register the message handler dynamically --- 
 (async () => {
   try {
+    // Dynamically import the handler
     const messageHandlerModule = await import(chrome.runtime.getURL('content/messageHandler.js'));
     if (messageHandlerModule.handleWindowMessage) {
+      // Add the event listener using the imported handler
       window.addEventListener("message", messageHandlerModule.handleWindowMessage);
-      console.log("CoPrompt: Message handler registered successfully.");
+      console.log("CoPrompt: Message handler registered successfully."); // Keep this info log
     } else {
       console.error("CoPrompt: Failed to find handleWindowMessage in the loaded module.");
     }

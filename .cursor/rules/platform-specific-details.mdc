@@ -1,0 +1,45 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+Rule Name: Platform Specific Details
+
+Description: This rule serves as a central reference for platform-specific details required for the CoPrompt extension to function correctly across different AI chat interfaces (like Claude, ChatGPT, Gemini, etc.). This includes correct hostnames for site detection, CSS selectors for DOM manipulation (e.g., button injection, context extraction), and any other platform-dependent values used in the codebase (primarily `content.js` and potentially `injected.js`). Maintaining accuracy here is crucial for cross-platform compatibility.
+
+**Supported Platforms & Key Details:**
+
+*   **Claude:**
+    *   **Hostname(s):** `claude.ai`
+        *   *Code Check:* `hostname.includes("claude.ai")`
+    *   **Context Extraction Selectors:**
+        *   *Messages:* `[data-testid="user-message"], .font-claude-message`
+        *   *Role Determination:* Check if element `matches('[data-testid="user-message"]')` (user) or `.font-claude-message` (assistant).
+    *   **Button Injection Target:** [TODO: Identify and add the specific selector for the input area/toolbar]
+    *   **Input Field Selector:** [TODO: Identify and add the specific selector for the main text input]
+
+*   **ChatGPT:**
+    *   **Hostname(s):** `chatgpt.com` (primary), `openai.com` (secondary/fallback)
+        *   *Code Check:* `hostname.includes("openai.com") || hostname.includes("chatgpt.com")`
+    *   **Context Extraction Selectors:**
+        *   *Messages:* `[data-message-author-role]`
+        *   *Role Determination:* Read value of `data-message-author-role` attribute.
+    *   **Button Injection Target:** [TODO: Identify and add the specific selector for the input area/toolbar]
+    *   **Input Field Selector:** [TODO: Identify and add the specific selector for the main text input, likely `textarea#prompt-textarea`]
+
+*   **Gemini:** (Support not yet implemented)
+    *   **Hostname(s):** `gemini.google.com` (likely)
+        *   *Code Check:* Placeholder exists `hostname.includes("gemini.google.com")`
+    *   **Context Extraction Selectors:** [TODO: Identify needed selectors]
+    *   **Button Injection Target:** [TODO: Identify needed selectors]
+    *   **Input Field Selector:** [TODO: Identify needed selectors]
+
+**Important Considerations:**
+
+*   **Specificity:** Always use the most specific hostname and CSS selectors that reliably target the intended elements on the live interface. Avoid overly broad selectors that might break with site updates.
+*   **Verification:** When adding or modifying support for a platform, use the browser's developer tools (Inspect Element) to:
+    *   Confirm `window.location.hostname` on the relevant pages.
+    *   Identify stable CSS selectors for message containers, role indicators, input fields, and button attachment points.
+    *   Test selectors thoroughly.
+*   **Maintenance:** Web interfaces change. Regularly verify that the selectors and hostnames documented here and used in the code still work correctly on each platform. Update this rule and the code simultaneously when changes are needed.
+*   **Code Location:** Most platform-specific logic currently resides in `content.js` (e.g., `getConversationContext`, `observeDOMChanges`, `injectButton`).

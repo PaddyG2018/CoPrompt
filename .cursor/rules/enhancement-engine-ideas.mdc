@@ -1,0 +1,72 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+Rule Name: Prompt Enhancement Engine - Future Improvements Log
+
+Description: This document captures potential ideas and areas for future improvement for the CoPrompt prompt enhancement engine (`systemInstruction` logic, context handling, etc.). These are ideas to consider beyond the current implementation and can be prioritized and worked on as needed.
+
+**Potential Improvement Areas:**
+
+1.  **Placeholder Strategy Refinement:**
+    *   **Goal:** Optimize the use of placeholders (`[Specify X]`) inserted when information is missing.
+    *   **Ideas:**
+        *   Evaluate if placeholders are specific enough or too generic.
+        *   Assess frequency: Are they used too often? Not often enough?
+        *   Consider suggesting options within placeholders (e.g., `[Select tone: formal | informal | conversational]`).
+        *   Ensure strict consistency in placeholder format.
+    *   **Status:** Open Idea
+
+2.  **Nuanced Context Integration (Tone/Style):**
+    *   **Goal:** Enhance the engine's ability to capture and reflect subtleties like conversational tone, established style, or specific terminology used earlier in the chat history, beyond just the topic.
+    *   **Ideas:**
+        *   Modify `systemInstruction` to explicitly guide the AI to analyze and match tone/style markers from the `conversationContext`.
+        *   Potentially fine-tune the enhancement model itself (if using a dedicated one later).
+    *   **Status:** Open Idea
+
+3.  **Handling Very Short/Ambiguous Prompts:**
+    *   **Goal:** Define the optimal enhancement strategy for extremely minimal user prompts (e.g., "tell me a story", "explain quantum physics") where context might also be limited.
+    *   **Ideas:**
+        *   Option A: Default to a highly structured enhancement with many placeholders, forcing the user to add detail.
+        *   Option B: Attempt a more creative "best guess" enhancement, acknowledging it might be off-base.
+        *   Option C: A hybrid approach based on potential context clues.
+        *   Refine `systemInstruction` to specify the desired behavior in these cases.
+    *   **Status:** Open Idea
+
+4.  **Performance/Latency Optimization:**
+    *   **Goal:** Ensure the enhancement process feels responsive to the user.
+    *   **Ideas:**
+        *   Measure current end-to-end latency (button click to enhanced prompt display).
+        *   Investigate bottlenecks (API call, background script processing, DOM manipulation).
+        *   Consider using faster/smaller models for enhancement if applicable (trade-off with quality).
+        *   Optimize communication between content script, background script, and API.
+    *   **Status:** Open Idea
+
+5.  **Task-Specific Enhancement Logic:**
+    *   **Goal:** Tailor enhancement strategies based on the *type* of prompt (e.g., coding, writing, analysis).
+    *   **Ideas:**
+        *   Implement prompt type detection (keyword-based or AI classification).
+        *   Add conditional logic to `systemInstruction` based on detected type.
+        *   Develop specific placeholder sets or structuring rules for different types.
+    *   **Status:** Open Idea (Previously discussed)
+
+6.  **User Configuration/Preferences:**
+    *   **Goal:** Allow users to customize the enhancement behavior.
+    *   **Ideas:**
+        *   Settings for default tone, audience, common constraints.
+        *   Option to manually select prompt type.
+        *   Ability to disable enhancement for certain sites or globally.
+    *   **Status:** Open Idea (Previously discussed)
+
+7.  **User Feedback Mechanism:**
+    *   **Goal:** Collect direct user feedback on the quality of individual enhancements.
+    *   **Ideas:**
+        *   Add simple 👍/👎 buttons after enhancement.
+        *   Periodically ask for qualitative feedback (optional).
+        *   Use feedback data to refine `systemInstruction` or model training.
+    *   **Status:** Open Idea (Previously discussed)
+
+---
+
+*(Add new ideas below this line)*

@@ -1,0 +1,128 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Code Refactoring Plan (Efficiency & Maintainability)
+
+**Guiding Principles:**
+
+*   **Incremental Changes:** Each story should result in a functional, testable state.
+*   **Testing:** Thoroughly test functionality after each story, especially cross-script communication and UI interactions.
+*   **Version Control:** Use branches for each workstream/story for easier review and rollback.
+
+---
+
+## Phase 1: Foundational Cleanup & Externalization
+
+*Goal: Improve readability and reduce hardcoding by moving constants and styles out of JavaScript.*
+
+*   **Workstream 1: Configuration & Constants Externalization**
+    *   **Story 1.1: Create Shared Constants Module**
+        *   **Task:** Create a new file (e.g., `utils/constants.js`). Define and export the large, hardcoded `systemInstruction` strings (default and category-specific) currently found in `content.js`, `background.js`, and `injected.js`.
+        *   **Rationale:** Centralizes prompts, making them easier to update and manage. Improves readability of the main script files.
+        *   **Dependencies:** None.
+    *   **Story 1.2: Update Scripts to Use Constants Module**
+        *   **Task:** Modify `content.js` (within `handleEnhanceClick`), `background.js` (within `ENHANCE_PROMPT` handler), and `injected.js` (within `window.enhancePrompt`) to import and use the system instructions from `utils/constants.js` instead of hardcoding them.
+        *   **Rationale:** Completes the externalization of prompts.
+        *   **Dependencies:** Story 1.1.
+
+*   **Workstream 2: CSS Externalization**
+    *   **Story 2.1: Create `content.css` File**
+        *   **Task:** Create a `content.css` file. Define CSS rules for the floating button container (`#coprompt-container`), the button itself (`#coprompt-button`), its hover states (`:hover`), the loading animation (`@keyframes copromptDotPulse` and related dot styles), and any dragging visual feedback (`.coprompt-dragging`). Use appropriate BEM-like naming if desired (e.g., `.coprompt-button`, `.coprompt-button__icon`).
+        *   **Rationale:** Separates presentation (CSS) from logic (JS), making styling easier to manage and modify.
+        *   **Dependencies:** None.
+    *   **Story 2.2: Inject `content.css`**
+        *   **Task:** Update `manifest.json` to include `content.css` in the `content_scripts` section under `css`. Ensure it injects into the appropriate target pages.
+        *   **Rationale:** Makes the styles available to the content script.
+        *   **Dependencies:** Story 2.1.
+    *   **Story 2.3: Refactor `createFloatingButton` to Use CSS Classes**
+        *   **Task:** Modify `content.js`: Remove all `element.style.cssText = ...` assignments related to static styling within `createFloatingButton` and the periodic visibility check (`setInterval`). Instead, create DOM elements and assign the appropriate CSS classes defined in Story 2.1 (e.g., `buttonContainer.className = 'coprompt-container';`). Remove inline hover effect logic (`onmouseover`, `onmouseout`) as this will be handled by CSS `:hover`. Remove dynamic keyframe injection for the loading animation.
+        *   **Rationale:** Significantly cleans up JS, improves maintainability, leverages CSS for presentation.
+        *   **Dependencies:** Stories 2.1, 2.2.
+
+---
+
+## Phase 2: Core `content.js` Modularization & Consolidation
+
+*Goal: Break down the large `content.js` file into logical modules and eliminate redundant code.*
+
+*   **Workstream 3: `content.js` Utility Modules**
+    *   **Story 3.1: Create DOM Utilities Module (`domUtils.js`)**
+        *   **Task:** Create `utils/domUtils.js`. Move the logic for *finding* the target input element (currently duplicated in `getChatGPTInputField` and the `CoPromptEnhanceResponse` handler) into a single exported function (e.g., `findActiveInputElement()`). Move the logic for *updating* the input element (from the `CoPromptEnhanceResponse` handler, including fallbacks) into a separate exported function (e.g., `updateInputElement(element, text)`).
+        *   **Rationale:** Creates reusable DOM interaction logic, adheres to DRY principle.
+        *   **Dependencies:** None.
+    *   **Story 3.2: Refactor `content.js` to Use `domUtils.js`**
+        *   **Task:** Modify `content.js`: Replace the input finding logic in the observer callback and the response handler with calls to `domUtils.findActiveInputElement()`. Replace the input updating logic in the response handler with a call to `domUtils.updateInputElement()`. Remove the now-redundant `getChatGPTInputField` function.
+        *   **Rationale:** Cleans up `content.js`, uses the consolidated utilities.
+        *   **Dependencies:** Story 3.1.
+    *   **Story 3.3: Create Platform Context Extractor Module (`contextExtractor.js`)**
+        *   **Task:** Create `content/contextExtractor.js`. Move the `getConversationContext` function into this module. Within the function, refactor the platform-specific logic (selectors and role determination for ChatGPT, Claude, Gemini) into separate internal helper functions (e.g., `_getContextForChatGPT`, `_getContextForClaude`).
+        *   **Rationale:** Isolates complex, platform-dependent logic, making `getConversationContext` easier to read and maintain. Prepares for potential further separation if needed.
+        *   **Dependencies:** None.
+    *   **Story 3.4: Refactor `content.js` to Use `contextExtractor.js`**
+        *   **Task:** Modify `content.js` to import and call the `getConversationContext` function from the new module when handling the `CoPromptEnhanceRequest` message.
+        *   **Rationale:** Integrates the refactored context extraction.
+        *   **Dependencies:** Story 3.3.
+
+*   **Workstream 4: `content.js` Event & Message Handling**
+    *   **Story 4.1: Create Message Handler Module (`messageHandler.js`)**
+        *   **Task:** Create `content/messageHandler.js`. Move the entire `window.addEventListener("message", ...)` callback function into this module as an exported function (e.g., `handleWindowMessage(event)`). Refactor the listener's internal logic: break down the handling for different `event.data.type` values (`CoPromptGetAPIKey`, `CoPromptEnhanceRequest`, `CoPromptEnhanceResponse`) into separate, non-exported helper functions within the module (e.g., `_handleApiKeyRequest`, `_handleEnhanceRequest`, `_handleEnhanceResponse`).
+        *   **Rationale:** Separates message handling logic from other `content.js` responsibilities. Improves structure and readability of the complex listener.
+        *   **Dependencies:** Relies on modules created in Workstream 3 (`domUtils`, `contextExtractor`).
+    *   **Story 4.2: Refactor `content.js` to Use `messageHandler.js`**
+        *   **Task:** Modify `content.js`: Remove the large event listener callback. Import `handleWindowMessage` from `messageHandler.js` and register it as the listener: `window.addEventListener("message", handleWindowMessage);`. Ensure necessary functions/data are passed to or accessible by the message handler module (potentially via imports or parameters).
+        *   **Rationale:** Simplifies the main `content.js` file, delegating message handling.
+        *   **Dependencies:** Story 4.1.
+
+---
+
+## Phase 3: Refactoring Complex Features & Other Scripts
+
+*Goal: Address the most complex individual functions and improve background/injected scripts.*
+
+*   **Workstream 5: Drag-and-Drop Refinement (`content.js`)**
+    *   **Story 5.1: Refactor `makeDraggable` Logic**
+        *   **Task:** Create `content/interactionHandler.js` (or similar). Move the `makeDraggable` function and its nested handlers (`dragMouseDown`, `elementDrag`, `closeDragElement`, touch handlers) into this module. Refactor the logic:
+            *   Consolidate mouse and touch event handling (consider Pointer Events if feasible, otherwise reduce duplication).
+            *   Encapsulate drag state (positions, flags) into an object.
+            *   Extract viewport constraint logic into a helper function.
+            *   Extract click-vs-drag detection logic into a helper function.
+        *   **Rationale:** Tackles the most complex function in `content.js`, improving its structure, maintainability, and testability.
+        *   **Dependencies:** Phase 1 (CSS externalization might affect visual feedback like `.coprompt-dragging`).
+    *   **Story 5.2: Integrate Refactored Drag Logic**
+        *   **Task:** Modify `content.js` (specifically where `createFloatingButton` calls `makeDraggable`) and the button's click handler to use the refactored interaction handler module and its potentially simplified interface for click detection.
+        *   **Rationale:** Connects the refactored drag logic back into the main flow.
+        *   **Dependencies:** Story 5.1.
+
+*   **Workstream 6: Background & Injected Script Cleanup**
+    *   **Story 6.1: Refactor `background.js` API Call**
+        *   **Task:** Create `background/apiClient.js` (or similar). Move the `fetch` logic for calling the OpenAI API (including headers, body, timeout, error handling for status codes) from the `ENHANCE_PROMPT` handler into an exported async function (e.g., `callOpenAI(apiKey, messages)`).
+        *   **Rationale:** Cleans up the main message handler, isolates external API interaction logic.
+        *   **Dependencies:** None.
+    *   **Story 6.2: Update `background.js` to Use `apiClient.js`**
+        *   **Task:** Modify the `ENHANCE_PROMPT` handler in `background.js` to import and use the `callOpenAI` function from the new module.
+        *   **Rationale:** Integrates the refactored API call logic.
+        *   **Dependencies:** Story 6.1.
+    *   **Story 6.3: Simplify `injected.js` (`window.enhancePrompt`)**
+        *   **Task:** Refactor the `window.enhancePrompt` function in `injected.js`. Extract the logic for selecting the appropriate `systemInstruction` (based on category) into a separate internal helper function. Review the promise/timeout/interval logic for potential simplification (though it might be necessary).
+        *   **Rationale:** Improves the readability and structure of this key injected function.
+        *   **Dependencies:** Story 1.2 (Uses externalized constants).
+
+---
+
+## Phase 4: Build Process & Final Polish (Lower Priority)
+
+*Goal: Improve the development experience and address minor remaining items.*
+
+*   **Workstream 7: Developer Experience**
+    *   **Story 7.1: Implement Build Step for Debug Flags**
+        *   **Task:** Introduce a simple build process (e.g., using `npm scripts` with `sed` or a basic build tool) that can automatically set the `DEBUG` flags in `content.js`, `background.js`, and `injected.js` to `false` for production builds and remove `debugLog` / `console.log` calls flagged for removal.
+        *   **Rationale:** Prevents accidental leakage of debug logs in production, removes manual steps.
+        *   **Dependencies:** None.
+    *   **Story 7.2: Review State Management in `content.js`**
+        *   **Task:** Review the remaining global variables in `content.js` (e.g., `buttonInjected`, drag state if not fully encapsulated in Story 5.1) and group them into logical objects where appropriate.
+        *   **Rationale:** Improves code organization, minor maintainability gain.
+        *   **Dependencies:** Dependent on the state after Phase 2 and 3 refactoring.
+
+---

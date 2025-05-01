@@ -1,4 +1,5 @@
 import { DEFAULT_SYSTEM_INSTRUCTION } from './utils/constants.js';
+import { callOpenAI } from './background/apiClient.js';
 
 // Simple flag for production builds - Hardcoded to false for stability
 const DEBUG = false;
@@ -174,136 +175,48 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return;
       }
 
+      let apiKey;
       try {
         if (DEBUG) console.log("Background: Decrypting API key...");
-        const apiKey = await decryptAPIKey(data.openai_api_key);
+        apiKey = await decryptAPIKey(data.openai_api_key);
         if (!apiKey) {
           console.error("Failed to decrypt API key");
           sendResponse({ error: "Invalid API key stored. Please re-enter your API key in options." });
           return;
         }
         if (DEBUG) console.log("Background: API key decrypted successfully");
-
-        // Create a prompt that works with or without context
-        let contextAwarePrompt;
-
-        if (hasContext) {
-          // Use context if available
-          contextAwarePrompt = `
-Current conversation context:
-${formattedContext}
-
-User's original prompt: "${request.prompt}"
-
-Transform this into a comprehensive, detailed prompt that will get excellent results. Remember to make reasonable assumptions rather than asking questions, and create a complete, ready-to-use prompt.`;
-        } else {
-          // For fresh chats with no context
-          contextAwarePrompt = `
-User's original prompt: "${request.prompt}"
-
-This is a fresh conversation with no previous context. Transform this into a comprehensive, detailed prompt that will get excellent results. Remember to make reasonable assumptions rather than asking questions, and create a complete, ready-to-use prompt.`;
-        }
-
-        if (DEBUG) console.log("Background: Sending request to OpenAI API...");
-        if (DEBUG) console.log("Background: Using model: gpt-4-turbo");
-
-        // --- Outer try...catch for fetch and processing ---
-        try {
-          const controller = new AbortController();
-          let timeoutId = setTimeout(() => {
-            controller.abort();
-          }, 50000); // 50 second timeout
-
-          const response = await fetch(
-            "https://api.openai.com/v1/chat/completions",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${apiKey}`,
-              },
-              body: JSON.stringify({
-                model: "gpt-4.1-mini",
-                messages: [
-                  { role: "system", content: systemInstruction },
-                  { role: "user", content: contextAwarePrompt },
-                ],
-                temperature: 0.7,
-              }),
-              signal: controller.signal,
-            },
-          );
-
-          clearTimeout(timeoutId); // Clear timeout regardless of response status
-
-          if (DEBUG) console.log(`Background: API response status: ${response.status}`);
-
-          // --- Handle Non-OK responses ---
-          if (!response.ok) {
-            let errorText = "Unknown API error"; // Default error text
-            // --- Add try...catch for response.text() ---
-            try {
-              errorText = await response.text();
-              console.error(`API error (${response.status}):`, errorText);
-            } catch (parseError) {
-              console.error(`API error (${response.status}), but failed to parse error response body:`, parseError);
-              errorText = `Status ${response.status}, failed to read error body.`; // Update error text
-            }
-            // --- End try...catch for response.text() ---
-
-            let userErrorMessage = `API request failed (${errorText}). Check network or API key.`;
-            if (response.status === 401) {
-                userErrorMessage = "API request failed (Unauthorized). Please check your API key.";
-            } else if (response.status === 429) {
-                userErrorMessage = "API request failed (Rate Limit/Quota Exceeded). Please check your OpenAI account.";
-            }
-            sendResponse({ error: userErrorMessage });
-            return; // Exit after sending error
-          }
-
-          // --- Handle OK responses ---
-          // --- Add try...catch for response.json() and processing ---
-          try {
-            const result = await response.json(); // This might fail if body isn't valid JSON
-
-            if (!result.choices || !result.choices[0]?.message?.content) {
-              console.error("Invalid API response structure:", result);
-              sendResponse({ error: "Received an invalid response structure from the API." });
-              return; // Exit after sending error
-            }
-
-            const enhancedPrompt = result.choices[0].message.content;
-            const elapsedTime = (Date.now() - startTime) / 1000;
-            if (DEBUG) console.log(`Background: Enhancement completed in ${elapsedTime.toFixed(2)} seconds`);
-            if (DEBUG) console.log("Background: Enhanced prompt:", enhancedPrompt);
-
-            sendResponse({ enhancedPrompt: enhancedPrompt }); // Send success response
-
-          } catch (jsonError) {
-            // Catch errors specifically from response.json() or subsequent processing
-            console.error("Failed to parse successful API response as JSON or process result:", jsonError);
-            sendResponse({ error: "Failed to process API response. Please try again." });
-          }
-          // --- End try...catch for response.json() ---
-
-        } catch (fetchError) {
-          // Catches network errors, AbortError (timeout), etc.
-          console.error("Fetch error:", fetchError);
-          let userErrorMessage = "API request failed. Please check your network connection.";
-          if (fetchError.name === "AbortError") {
-            userErrorMessage = "API request timed out (50s). Please try again.";
-          }
-          sendResponse({ error: userErrorMessage });
-        }
-        // --- End outer try...catch for fetch ---
-
-      } catch (error) {
-        // Catches errors from key decryption or other setup before fetch
-        console.error("Error in enhancement setup phase:", error);
-        sendResponse({ error: "An internal error occurred before sending the API request." });
+      } catch (decryptionError) {
+        console.error("Error decrypting API key during enhance:", decryptionError);
+        sendResponse({ error: "Error accessing stored API key. Please try again or re-save your key." });
+        return;
       }
-    }); // End chrome.storage.local.get callback
+      
+      // Create the user prompt (including context)
+      let contextAwarePrompt;
+      if (hasContext) {
+        contextAwarePrompt = `Current conversation context:\n${formattedContext}\n\nUser's original prompt: "${request.prompt}"\n\nTransform this into a comprehensive, detailed prompt that will get excellent results. Remember to make reasonable assumptions rather than asking questions, and create a complete, ready-to-use prompt.`;
+      } else {
+        contextAwarePrompt = `User's original prompt: "${request.prompt}"\n\nThis is a fresh conversation with no previous context. Transform this into a comprehensive, detailed prompt that will get excellent results. Remember to make reasonable assumptions rather than asking questions, and create a complete, ready-to-use prompt.`;
+      }
 
-    return true; // Keep message port open for async response
+      if (DEBUG) console.log("Background: Calling apiClient...");
+      
+      // --- Call the refactored API client --- 
+      try {
+        const enhancedPrompt = await callOpenAI(apiKey, systemInstruction, contextAwarePrompt);
+        if (DEBUG) console.log(`Background: Enhance successful. Time: ${(Date.now() - startTime) / 1000}s`);
+        sendResponse({ enhancedPrompt: enhancedPrompt });
+
+      } catch (apiError) {
+        // apiClient throws errors with user-friendly messages
+        console.error("Background: Error from apiClient:", apiError.message);
+        if (DEBUG) console.log(`Background: Enhance failed. Time: ${(Date.now() - startTime) / 1000}s`);
+        sendResponse({ error: apiError.message || "An unknown error occurred calling the API." });
+      }
+      // --- End API client call --- 
+
+    }); // End storage.local.get callback
+    
+    return true; // Keep message channel open for async response
   } // End ENHANCE_PROMPT handler
 });

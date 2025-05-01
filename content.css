@@ -5,7 +5,7 @@
   bottom: 80px !important; /* Default position, higher to avoid input box */
   right: 20px !important;
   z-index: 9999 !important; /* High z-index, but slightly lower than button itself */
-  cursor: grab !important;
+  cursor: default !important; /* ADDED: Explicitly set default cursor */
   display: block !important; /* Ensure visible */
   visibility: visible !important; /* Ensure visible */
   opacity: 1 !important; /* Ensure visible */
@@ -24,7 +24,7 @@
   box-shadow: 0 2px 8px rgba(0, 112, 243, 0.3) !important;
   font-weight: 500 !important;
   font-size: 14px !important;
-  cursor: pointer !important;
+  cursor: pointer !important; /* This will override container default when hovering button */
   transition: all 0.2s ease !important;
   min-width: 120px !important;
   min-height: 36px !important;
@@ -48,9 +48,14 @@
 }
 
 #coprompt-container.coprompt-dragging {
-  cursor: grabbing !important;
+  cursor: grabbing !important; /* Applies only during drag */
   /* Add any other visual feedback for dragging, e.g., slightly lower opacity */
   /* opacity: 0.8; */
+}
+
+/* ADDED: Ensure button also shows grabbing cursor when dragging */
+#coprompt-container.coprompt-dragging #coprompt-button {
+  cursor: grabbing !important;
 }
 
 /* Loading State Styles */

@@ -1,0 +1,211 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+Okay, here is the updated Security Improvements Plan integrated directly into the CoPrompt Monetization Roadmap structure. This plan incorporates the feedback and provides a clear, version-by-version guide to implementing security measures.
+
+---
+
+**Updated Security Plan & Roadmap**
+
+**Overall Principles:**
+
+- Maintain working button functionality throughout.
+- Implement security improvements incrementally with each version release.
+- Test each change thoroughly (both functionally and for security implications) before release.
+- Maintain clear version control and backups for rollback points.
+
+---
+
+**🧪 MVP v1: Free Extension (BYOK Only)**
+
+**Goal:** Launch quickly on Chrome Web Store with essential security measures for a client-side only, BYOK extension.
+
+**Architecture:**
+
+text
+
+Apply
+
+[ User Chrome ] -- CoPrompt Extension --> [ ChatGPT UI DOM ]
+
+\
+
+\__ Uses user's OpenAI API key (stored locally)
+
+**Security Implementation Plan (Must be completed before launch):**
+
+1. **Manifest & Permissions Hardening:**
+- **Restrict host_permissions:** Ensure only the minimum required domains (e.g., https://*.openai.com/, https://claude.ai/, https://gemini.google.com/) are listed. Remove overly broad permissions.
+- **Scope web_accessible_resources:** **CRITICAL FIX:** Change "matches": ["<all_urls>"] to match *only* the necessary target domains where injected.js needs to run (e.g., https://*.openai.com/*, etc.).
+- **Verify permissions:** Ensure only required permissions (storage, activeTab) are requested.
+1. **Secure API Key Storage:**
+- **Confirm Storage:** Verify API keys are *only* stored using chrome.storage.local.
+- **No Transmission:** Ensure the API key is never sent outside the user's browser/extension storage.
+1. **Content Security Policy (CSP):**
+- **Verify manifest.json CSP:** Ensure "extension_pages": "script-src 'self'; object-src 'self';" is correctly implemented. *Note: connect-src is also present, ensure it only lists necessary domains for key validation if done via API call (e.g. api.openai.com).*
+- **Eliminate Insecure Practices:** Confirm no unsafe-inline, unsafe-eval, or remote script URLs (other than the validated API endpoint if used) are required or used in extension pages (popup, options).
+1. **Code Hygiene & UI Security:**
+- **Remove Debug Logging:** Ensure all console.log statements intended for debugging are removed or conditionally disabled in the production build.
+- **Basic XSS Prevention:** Review content.js and injected.js where DOM manipulation occurs. Use safe methods like textContent instead of innerHTML when inserting data derived from the page or user input. Sanitize where necessary to prevent DOM XSS.
+- **Secure Error Handling:** Ensure errors shown to the user or logged internally don't leak sensitive data (API key fragments, internal state).
+1. **Dependency Audit:**
+- Run npm audit (or equivalent) to check for known vulnerabilities in dependencies and update/replace vulnerable packages.
+
+**Testing:**
+
+- Manual testing on all target sites to confirm functionality.
+- Code review focused on the security implementation points above.
+- Test API key storage and ensure it's not exposed.
+
+**Rollback:** Git tags/branches before and after implementing these changes.
+
+MVP v1 Security Plan - Completed Items:
+✅ Restrict Host Access: Verified host_permissions in manifest.json are appropriate for current functionality.
+✅ Secure Resource Accessibility: Restricted web_accessible_resources in manifest.json to specific target domains.
+✅ Verify Minimal Permissions: Confirmed permissions (storage, activeTab) in manifest.json are reasonable for MVP.
+✅ Confirm Secure API Key Handling (Storage): Audited key capture, storage (chrome.storage.local), and internal usage flow; removed unnecessary API key transmission via postMessage from injected.js.
+✅ Validate Content Security Policy: Reviewed basic CSP (script-src 'self', object-src 'self', relevant connect-src) in manifest.json.
+✅ Sanitize Production Logs: Implemented conditional logging (console.log only when DEBUG is true) in background.js, content.js, and injected.js to prevent leaking verbose operational details in production builds.
+✅ Mitigate DOM XSS Risk: Reviewed DOM manipulation in content.js (input field updates, button creation) and confirmed safe methods (.value, execCommand('insertText'), innerText, textContent, createElement) are used, minimizing XSS risks.
+✅ Harden Error Reporting: Refactored error messages sent from background.js via sendResponse to be more generic and user-friendly, avoiding leakage of internal details or raw API responses.
+✅ Address Dependency Vulnerabilities: Confirmed 0 known vulnerabilities via npm audit on current dependencies.
+(✓) Functionality Restored: Debugged and resolved issues related to logging changes that temporarily impacted service worker lifecycle and button injection.
+
+---
+
+**🧭 v1.5: Add Shared API Key w/ Proxy + Daily Cap**
+
+**Goal:** Introduce a shared API key model via a backend proxy, implementing necessary client-server security and rate limiting.
+
+**Architecture:**
+
+text
+
+Apply
+
+[ User Chrome ]
+
+|
+
+|---> CoPrompt Extension
+
+|       |---> Backend Proxy (/enhance)
+
+|                |---> Validates auth method/origin
+
+|                |---> Uses YOUR OpenAI API key securely
+
+|                |---> Enforces rate limits (IP/Email/Simple Token)
+
+**Security Implementation Plan:**
+
+1. **Proxy Security:**
+- **Secure API Key Management:** Store the shared OpenAI API key securely on the server (e.g., environment variables, secrets manager), *not* in code. Implement key rotation capabilities.
+- **Input Sanitization:** Sanitize all data received from the extension *before* processing or passing it to the OpenAI API (e.g., check prompt length, format, potential injection attempts).
+- **Rate Limiting:** Implement robust rate limiting (e.g., using Upstash Redis, Cloudflare KV, or built-in features of the serverless platform) based on IP, a simple generated token, or verified email. Protect against timing attacks or bypasses.
+- **Dependency Management (Backend):** Regularly scan backend dependencies for vulnerabilities.
+- **Secure Configuration:** Ensure the proxy server/function is configured securely (e.g., minimal privileges, network access controls).
+1. **Client <-> Proxy Communication Security:**
+- **HTTPS Enforcement:** Ensure all communication uses HTTPS.
+- **Origin Verification:** The proxy **must** check the Origin header of incoming requests and only allow requests from the extension's origin (chrome-extension://YOUR_EXTENSION_ID).
+- **(Optional but Recommended) Simple Authentication:** Implement a basic mechanism for the extension to authenticate to the proxy, even for the free tier (e.g., a short-lived token obtained via a specific extension-only flow), to make rate limiting more reliable than IP-based limits alone.
+- **Error Handling:** Ensure proxy error messages returned to the client do not leak sensitive backend information.
+1. **Extension Updates:**
+- Modify the extension to call the proxy instead of OpenAI directly when using the shared key.
+- Securely handle the proxy URL configuration.
+- Implement the client-side logic for the chosen rate-limiting/authentication mechanism (e.g., storing usage count, handling token refresh).
+1. **Logging & Monitoring (Backend):**
+- Implement logging for requests, errors, and rate limit events on the proxy.
+- Ensure logs do *not* contain sensitive user data or the shared API key. Monitor for anomalies and potential abuse.
+1. **Privacy Policy Update:** Update the privacy policy to reflect the collection of IP addresses or emails (if applicable) for rate limiting and the use of a backend proxy.
+
+**Testing:**
+
+- Test BYOK and Shared Key modes function correctly.
+- Test rate limiting enforcement.
+- Attempt to bypass origin checks (e.g., using curl).
+- Test input sanitization with malicious payloads.
+- Review proxy logs for security and privacy.
+- Perform dependency scans on backend code.
+
+**Rollback:** Git tags/branches for both extension and backend code. Feature flag within the extension to switch between direct API calls and proxy calls during rollout.
+
+---
+
+**💰 v2.0: Full SaaS with Auth + Stripe**
+
+**Goal:** Implement a full subscription model with user accounts, payment processing, and robust security for handling user data and authentication.
+
+**Architecture:**
+
+text
+
+Apply
+
+[ User Chrome ]
+
+|
+
+|---> CoPrompt Extension
+
+|---> Auth API (Supabase / Clerk / Auth0)
+
+|---> Billing API (Stripe)
+
+|---> Prompt Proxy API (you)
+
+|---> Validates JWT
+
+|---> Logs usage per user ID
+
+|---> Enforces quota per user/tier
+
+**Security Implementation Plan:**
+
+1. **Authentication Security:**
+- **Secure Auth Integration:** Securely integrate the chosen authentication provider (Supabase, Clerk, Auth0) following their best practices.
+- **JWT Handling:**
+- **Storage:** Store JWTs securely in the extension (e.g., chrome.storage.session or local with appropriate care).
+- **Transmission:** Only transmit JWTs over HTTPS. Include them in the Authorization: Bearer <token> header.
+- **Validation (Backend):** The proxy **must** rigorously validate incoming JWTs (signature, expiration, issuer, audience) on every authenticated request.
+- **CSRF Protection:** If authentication involves web pages (e.g., login/signup forms), implement standard CSRF protection (e.g., anti-CSRF tokens).
+- **Secure Account Management:** Implement secure password reset flows, email verification, and consider multi-factor authentication options.
+1. **Authorization & Quota Enforcement:**
+- **Token-Based Authorization:** Proxy uses the validated user identity (from JWT) to check subscription status/tier and enforce usage quotas.
+- **User-Specific Rate Limiting:** Implement rate limiting tied to the authenticated user ID.
+1. **Billing Security:**
+- **Secure Stripe Integration:** Use Stripe's recommended integration patterns (e.g., Stripe Elements for frontend, webhooks for backend).
+- **Webhook Security:** Securely handle Stripe webhooks by verifying their signatures using your Stripe webhook secret.
+- **API Key Security:** Protect Stripe API keys on the backend (secrets manager, environment variables). Never expose them client-side.
+1. **Enhanced Client <-> Proxy Communication:**
+- Ensure all proxy endpoints require appropriate authentication (JWT validation).
+- Continue Origin validation as a defense-in-depth measure.
+- Validate request payloads rigorously based on user permissions/context.
+1. **Advanced Logging & Monitoring:**
+- Implement detailed audit logging for authentication events, billing actions, and API usage, tied to user IDs.
+- Redact sensitive information (especially prompt content, PII beyond user ID) from logs destined for long-term storage or analysis.
+- Set up alerts for security-sensitive events (e.g., failed logins, potential abuse patterns, webhook failures).
+1. **Enhanced CSP:**
+- Review and potentially tighten the extension's CSP further, especially connect-src to include auth and billing provider domains if accessed directly from the extension.
+1. **Formal Security Practices:**
+- **Incident Response Plan:** Develop a basic plan for handling potential security breaches (identification, containment, eradication, recovery, communication).
+- **Penetration Testing:** Consider budgeting for third-party penetration testing after launch or significant updates.
+- **Security Documentation:** Maintain internal documentation regarding the security architecture and procedures.
+
+**Testing:**
+
+- Test all authentication flows (signup, login, logout, password reset).
+- Test subscription flows and quota enforcement for different tiers.
+- Attempt unauthorized access to proxy endpoints using invalid/expired/different user JWTs.
+- Verify Stripe webhook handling and signature verification.
+- Review detailed logs for correctness and ensure no sensitive data leakage.
+- Conduct thorough testing of all functionalities across different user roles/states.
+
+**Rollback:** Git tags/branches for extension and all backend services. Feature flags for major changes. Database backups.
+
+---
+
+This integrated plan provides a roadmap for layering security measures logically as the extension evolves. Remember to treat security as an ongoing process, not just a checklist item for each version.
