@@ -1,6 +1,6 @@
 {
   "name": "coprompt",
-  "version": "1.0.0",
+  "version": "0.3.0",
   "description": "A browser extension that enhances AI interactions",
   "private": true,
   "scripts": {
