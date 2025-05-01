@@ -6,19 +6,6 @@
 // We might need a way to get this from background if not in manifest
 const DEBUG = false; // Set to false for production manually for now
 
-// Add at the top of the file with other global variables
-// const DRAG_THRESHOLD = 5; // pixels
-// const CLICK_DELAY = 100; // milliseconds
-
-// let isDragging = false;
-// let dragStartX = 0;
-// let dragStartY = 0;
-// let dragDistance = 0;
-// let isButtonDragging = false;
-// let dragStartTime = 0;
-// let lastDragEndTime = -CLICK_DELAY; // Initialize to a value that won't trigger the delay check
-// let hasDragged = false; // New flag to track if actual dragging occurred
-
 // Inject `injected.js` into the page properly
 const script = document.createElement("script");
 script.src = chrome.runtime.getURL("injected.js");

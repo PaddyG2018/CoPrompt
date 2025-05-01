@@ -36,4 +36,24 @@ debug.log
 
 # Chrome Extension specific
 *.pem
-*.crx 
+*.crx
+
+# Build artifacts
+node_modules/
+web-ext-artifacts/
+dist/
+
+# Env files
+.env
+
+# macOS specific
+.DS_Store
+
+# Supabase specific
+.supabase/
+supabase/.temp/
+
+# Other
+*.log
+*.tmp
+*.swp 
