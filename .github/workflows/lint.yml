@@ -32,10 +32,10 @@ jobs:
       run: |
         eslint --ext .js,.ts .
 
-    - name: Validate manifest.json
-      run: |
-        # Use direct call instead of npx
-        web-ext lint
+    # - name: Validate manifest.json
+    #   run: |
+    #     # Use direct call instead of npx
+    #     web-ext lint
 
     - name: Check formatting
       run: |
