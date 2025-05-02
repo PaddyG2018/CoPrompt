@@ -21,7 +21,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        npm install -g eslint eslint-plugin-json web-ext prettier @typescript-eslint/parser @typescript-eslint/eslint-plugin
+        npm install -g eslint eslint-plugin-json web-ext@latest prettier @typescript-eslint/parser @typescript-eslint/eslint-plugin
         if [ -f package.json ]; then
           npm install
         fi
