@@ -1,0 +1,47 @@
+{
+  "compilerOptions": {
+    /* Base Options */
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "target": "ES2022",
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "moduleDetection": "force",
+    "isolatedModules": true,
+
+    /* Strictness */
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitAny": true,
+
+    /* If NOT transpiling with TypeScript: */
+    "module": "preserve", // Use 'preserve' for projects using Babel/SWC or 'NodeNext'/'ESNext' otherwise
+    "noEmit": true, // Set to true if you are only using tsc for type checking
+
+    /* If your code runs in the DOM: */
+    "lib": ["es2022", "dom", "dom.iterable"],
+
+    /* Specify the root directory of your source files */
+    // "rootDir": ".", // Adjust if your source files are in a specific directory like 'src'
+
+    /* Specify the base URL for module resolution */
+    // "baseUrl": ".", // Optional: Set a base URL for non-relative module paths
+    /* Path mapping for module resolution */
+    // "paths": { // Optional: Define path aliases
+    //   "@/*": ["./src/*"]
+    // }
+  },
+  /* Include files to be type-checked */
+  "include": [
+    "**/*.ts", 
+    "**/*.js", 
+    "**/*.cjs", 
+    "**/*.mjs"
+  ],
+  /* Exclude files */
+  "exclude": [
+    "node_modules", 
+    "dist", 
+    "web-ext-artifacts"
+  ]
+} 
