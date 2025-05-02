@@ -28,7 +28,7 @@ jobs:
 
     - name: Lint JavaScript/TypeScript
       run: |
-        eslint --ext .js,.ts,.json .
+        eslint --ext .js,.ts .
 
     - name: Validate manifest.json
       run: |
