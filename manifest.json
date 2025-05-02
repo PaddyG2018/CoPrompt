@@ -51,8 +51,8 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "injected.js", 
-        "utils/constants.js", 
+        "injected.js",
+        "utils/constants.js",
         "utils/domUtils.js",
         "content/contextExtractor.js",
         "utils/logger.js",
@@ -70,7 +70,7 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "coprompt@example.com",
-      "strict_min_version": "109.0"
+      "strict_min_version": "112.0"
     }
   }
 }
