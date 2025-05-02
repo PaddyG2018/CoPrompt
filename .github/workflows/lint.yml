@@ -25,6 +25,8 @@ jobs:
         if [ -f package.json ]; then
           npm install
         fi
+        # Verify web-ext version
+        web-ext --version
 
     - name: Lint JavaScript/TypeScript
       run: |
@@ -32,7 +34,8 @@ jobs:
 
     - name: Validate manifest.json
       run: |
-        npx web-ext lint
+        # Use direct call instead of npx
+        web-ext lint
 
     - name: Check formatting
       run: |
