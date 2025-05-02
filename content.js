@@ -143,7 +143,8 @@ async function handleEnhanceClick(inputElement) {
 }
 
 // Debounced observer callback
-const debouncedObserverCallback = debounce(async (mutations) => { // Make async
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const debouncedObserverCallback = debounce(async (_mutations) => { // Prefixed mutations
   if (buttonInjected && checkButtonVisibility()) return;
 
   // Use dynamic import here as well
@@ -287,7 +288,8 @@ function createFloatingButton() {
   document.body.appendChild(buttonContainer);
   
   // Define the click handler logic to pass as a callback
-  const handleButtonClick = async (event) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handleButtonClick = async (_event) => { // Prefixed event
     // REMOVED handleButtonClick called log
     try {
         const { findActiveInputElement } = await import(chrome.runtime.getURL('utils/domUtils.js'));

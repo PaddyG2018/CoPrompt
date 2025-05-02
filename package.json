@@ -9,12 +9,10 @@
     "format": "prettier --write \"**/*.{js,json,html,css,md}\"",
     "start": "web-ext run --target=chromium",
     "security": "npm audit && snyk test",
-    
     "clean": "rimraf dist/",
     "copy-files": "mkdir -p dist && cp -R background.js content.js injected.js content.css options.html options.js popup.html popup.js manifest.json icons utils background content dist/",
     "set-debug-false": "replace-in-file --string='const DEBUG = true;' --replacement='const DEBUG = false;' dist/**/*.js",
-    "set-debug-false-hardcoded": "replace-in-file --string='const DEBUG = false;' --replacement='const DEBUG = false;' dist/**/*.js", 
-    
+    "set-debug-false-hardcoded": "replace-in-file --string='const DEBUG = false;' --replacement='const DEBUG = false;' dist/**/*.js",
     "build:dev": "npm run clean && npm run copy-files",
     "build:prod": "npm run clean && npm run copy-files && npm run set-debug-false && npm run set-debug-false-hardcoded && echo \"Production build ready in dist/\"",
     "package": "npm run build:prod && web-ext build --source-dir dist --overwrite-dest"
@@ -34,5 +32,8 @@
   },
   "engines": {
     "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "dompurify": "^3.2.5"
   }
 }

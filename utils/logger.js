@@ -41,7 +41,9 @@ const rateLimitState = {
 // Check rate limit
 function checkRateLimit(level) {
     const now = Date.now();
+    // eslint-disable-next-line security/detect-object-injection -- 'level' is from internal LOG_LEVELS enum, not user input
     const limit = RATE_LIMIT[level];
+    // eslint-disable-next-line security/detect-object-injection -- 'level' is from internal LOG_LEVELS enum, not user input
     const state = rateLimitState[level];
 
     // Reset counter if window has passed
@@ -90,9 +92,13 @@ function formatData(data) {
             // Recursively sanitize object values
             const sanitizeObject = (obj) => {
                 for (const key in obj) {
+                    // eslint-disable-next-line security/detect-object-injection -- 'key' is from object iteration for sanitization, not execution
                     if (typeof obj[key] === 'string') {
+                        // eslint-disable-next-line security/detect-object-injection -- 'key' is from object iteration for sanitization, not execution
                         obj[key] = sanitizeMessage(obj[key]);
+                    // eslint-disable-next-line security/detect-object-injection -- 'key' is from object iteration for sanitization, not execution
                     } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+                        // eslint-disable-next-line security/detect-object-injection -- 'key' is from object iteration for sanitization, not execution
                         sanitizeObject(obj[key]);
                     }
                 }
@@ -160,8 +166,10 @@ class Logger {
             [LOG_LEVELS.WARN]: console.warn,
             [LOG_LEVELS.INFO]: console.log,
             [LOG_LEVELS.DEBUG]: console.debug
+            // eslint-disable-next-line security/detect-object-injection -- 'level' is from internal LOG_LEVELS enum, not user input
         }[level] || console.log;
 
+        // eslint-disable-next-line security/detect-object-injection -- 'logFn' is confirmed to be a safe console method, based on controlled 'level'
         logFn(`[${timestamp}] [${level}] [${this.context}]`, sanitizedMessage, data ? formattedData : '');
     }
 

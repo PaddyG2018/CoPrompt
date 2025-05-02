@@ -1,0 +1,10 @@
+node_modules/
+dist/
+web-ext-artifacts/
+.DS_Store
+*.log
+*.tmp
+*.swp
+
+# Ignore minified libraries for linting
+utils/dompurify.min.js 

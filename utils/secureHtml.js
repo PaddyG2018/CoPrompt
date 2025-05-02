@@ -1,3 +1,5 @@
+import DOMPurify from 'dompurify';
+
 /**
  * Sanitizes HTML content using DOMPurify
  * @param {string} html - The HTML content to sanitize

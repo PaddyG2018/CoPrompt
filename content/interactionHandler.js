@@ -15,7 +15,6 @@
 
 // Configuration Constants
 const DRAG_THRESHOLD = 3; // Lowered threshold for more sensitivity
-const CLICK_DELAY = 150;
 
 /**
  * Applies viewport constraints to a position.

@@ -11,7 +11,8 @@ async function logDebug(message, ...args) {
 // --- Internal Helpers ---
 
 // Handles request from injected script to get API key
-function _handleApiKeyRequest(event) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function _handleApiKeyRequest(_event) {
   logDebug("Handling API key request from injected script");
   chrome.runtime.sendMessage({ type: "GET_API_KEY" }, (response) => {
     if (chrome.runtime.lastError) {
