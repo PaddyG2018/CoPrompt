@@ -17,6 +17,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0 # Fetch all history for TruffleHog
 
     - name: Use Node.js
       uses: actions/setup-node@v3
@@ -51,8 +53,11 @@ jobs:
       uses: trufflesecurity/trufflehog@main
       with:
         path: ./
-        base: ${{ github.event.repository.default_branch }}
-        head: HEAD
+        # For pushes, compare against the previous commit (HEAD~1)
+        # For pull requests, compare against the base branch of the PR
+        # For scheduled/manual runs, compare against the default branch
+        base: ${{ (github.event_name == 'push' && github.event.before) || (github.event_name == 'pull_request' && github.event.pull_request.base.sha) || github.ref_name }}
+        head: HEAD # Current commit remains the head
 
     # Check for sensitive data exposure
     - name: Check for sensitive data
