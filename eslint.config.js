@@ -50,6 +50,7 @@ export default tseslint.config(
       // Security plugin rules (already included by recommended, but can override here)
       "security/detect-object-injection": "warn",
       "security/detect-child-process": "off", // Temporarily disable due to crash in ESLint v9
+      "security/detect-non-literal-fs-filename": "off", // Temporarily disable due to crash in ESLint v9
 
       // TypeScript specific rules
       "@typescript-eslint/no-explicit-any": "warn",
