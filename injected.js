@@ -2,12 +2,12 @@ import {
   DEFAULT_SYSTEM_INSTRUCTION,
   CODE_SYSTEM_INSTRUCTION,
   RESEARCH_SYSTEM_INSTRUCTION,
-  CREATIVE_SYSTEM_INSTRUCTION
-} from './utils/constants.js';
+  CREATIVE_SYSTEM_INSTRUCTION,
+} from "./utils/constants.js";
 
 // Simple flag - injected scripts don't have easy access to manifest
 // Assume production logging unless specifically enabled for debug builds
-const DEBUG = false; 
+const DEBUG = false;
 
 if (DEBUG) console.log("CoPrompt injected.js loaded successfully");
 
@@ -100,7 +100,11 @@ window.enhancePrompt = async function (prompt) {
 
       // Track when the request was sent
       const requestStartTime = Date.now();
-      if (DEBUG) console.log("Sending enhancement request at:", new Date().toISOString());
+      if (DEBUG)
+        console.log(
+          "Sending enhancement request at:",
+          new Date().toISOString(),
+        );
 
       const handleEnhanceResponse = (event) => {
         if (
@@ -111,9 +115,10 @@ window.enhancePrompt = async function (prompt) {
 
         // Calculate response time
         const responseTime = (Date.now() - requestStartTime) / 1000;
-        if (DEBUG) console.log(
-          `Received enhancement response after ${responseTime.toFixed(2)} seconds`,
-        );
+        if (DEBUG)
+          console.log(
+            `Received enhancement response after ${responseTime.toFixed(2)} seconds`,
+          );
 
         // Clean up
         clearTimeout(timeoutId);
@@ -123,7 +128,8 @@ window.enhancePrompt = async function (prompt) {
           console.error("Error enhancing prompt:", event.data.error);
           resolve(prompt); // Return original on error
         } else {
-          if (DEBUG) console.log("AI-enhanced prompt received from background script");
+          if (DEBUG)
+            console.log("AI-enhanced prompt received from background script");
 
           // Verify we got a meaningful enhancement
           const enhancedPrompt = event.data.enhancedPrompt || prompt;

@@ -9,7 +9,7 @@ const DEBUG = false; // Set to false for production manually for now
 // Inject `injected.js` into the page properly
 const script = document.createElement("script");
 script.src = chrome.runtime.getURL("injected.js");
-script.type = 'module'; // Ensure it's loaded as a module
+script.type = "module"; // Ensure it's loaded as a module
 script.onload = function () {
   this.remove();
 }; // Remove once loaded
@@ -53,7 +53,8 @@ function checkButtonVisibility() {
   }
 
   const rect = button.getBoundingClientRect();
-  debugLog("Button dimensions:", { // Use restored debugLog
+  debugLog("Button dimensions:", {
+    // Use restored debugLog
     width: rect.width,
     height: rect.height,
     top: rect.top,
@@ -63,7 +64,8 @@ function checkButtonVisibility() {
 
   // Check if button is actually visible
   const style = window.getComputedStyle(button);
-  debugLog("Button computed style:", { // Use restored debugLog
+  debugLog("Button computed style:", {
+    // Use restored debugLog
     display: style.display,
     visibility: style.visibility,
     opacity: style.opacity,
@@ -128,7 +130,9 @@ async function handleEnhanceClick(inputElement) {
   }
 
   // Dynamically import the constant when needed
-  const { MAIN_SYSTEM_INSTRUCTION } = await import(chrome.runtime.getURL('utils/constants.js'));
+  const { MAIN_SYSTEM_INSTRUCTION } = await import(
+    chrome.runtime.getURL("utils/constants.js")
+  );
 
   // Send the enhance request to the background script
   window.postMessage(
@@ -144,16 +148,20 @@ async function handleEnhanceClick(inputElement) {
 
 // Debounced observer callback
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const debouncedObserverCallback = debounce(async (_mutations) => { // Prefixed mutations
+const debouncedObserverCallback = debounce(async (_mutations) => {
+  // Prefixed mutations
   if (buttonInjected && checkButtonVisibility()) return;
 
   // Use dynamic import here as well
-  const { findActiveInputElement } = await import(chrome.runtime.getURL('utils/domUtils.js'));
+  const { findActiveInputElement } = await import(
+    chrome.runtime.getURL("utils/domUtils.js")
+  );
   const inputField = findActiveInputElement();
-  if (inputField && !buttonInjected) { // Only create if not already injected
+  if (inputField && !buttonInjected) {
+    // Only create if not already injected
     // If an input field is found and button isn't there, create it
     debugLog("Input field found by observer, creating floating button.");
-    createFloatingButton(); 
+    createFloatingButton();
   }
 }, 100);
 
@@ -200,7 +208,9 @@ setInterval(() => {
     style.visibility === "hidden" ||
     parseFloat(style.opacity) < 0.1 // Check opacity if needed
   ) {
-    debugLog("Button exists but computed style indicates it's not visible. CSS should handle this with !important.");
+    debugLog(
+      "Button exists but computed style indicates it's not visible. CSS should handle this with !important.",
+    );
     // Removed direct style manipulation here
   }
 
@@ -249,16 +259,21 @@ function createFloatingButton() {
     if (savedPosition) {
       const { top, left } = JSON.parse(savedPosition);
       if (top !== null && left !== null) {
-         // Basic check to ensure it's within reasonable bounds
-         if (top > 0 && left > 0 && top < window.innerHeight - 50 && left < window.innerWidth - 50) {
-            buttonContainer.style.top = `${top}px`;
-            buttonContainer.style.left = `${left}px`;
-            buttonContainer.style.bottom = 'auto';
-            buttonContainer.style.right = 'auto';
-            debugLog("Restored button position:", top, left);
-         } else {
-             debugLog("Saved position out of bounds, using default.");
-         }
+        // Basic check to ensure it's within reasonable bounds
+        if (
+          top > 0 &&
+          left > 0 &&
+          top < window.innerHeight - 50 &&
+          left < window.innerWidth - 50
+        ) {
+          buttonContainer.style.top = `${top}px`;
+          buttonContainer.style.left = `${left}px`;
+          buttonContainer.style.bottom = "auto";
+          buttonContainer.style.right = "auto";
+          debugLog("Restored button position:", top, left);
+        } else {
+          debugLog("Saved position out of bounds, using default.");
+        }
       }
     }
   } catch (e) {
@@ -286,27 +301,32 @@ function createFloatingButton() {
 
   buttonContainer.appendChild(enhanceButton);
   document.body.appendChild(buttonContainer);
-  
+
   // Define the click handler logic to pass as a callback
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleButtonClick = async (_event) => { // Prefixed event
+  const handleButtonClick = async (_event) => {
+    // Prefixed event
     // REMOVED handleButtonClick called log
     try {
-        const { findActiveInputElement } = await import(chrome.runtime.getURL('utils/domUtils.js'));
-        const activeElement = findActiveInputElement();
-        // Keep debugLog for active element
-        debugLog("Active element on click:", activeElement);
-        
-        if (activeElement) {
-            // Keep debugLog for calling enhance
-            debugLog("Valid click and active input found, calling handleEnhanceClick");
-            handleEnhanceClick(activeElement); 
-        } else {
-            // Keep debugLog for no active input
-            debugLog("Valid click, but no active input element found.");
-        }
-    } catch(err) {
-        console.error("[ContentScript] Error during button click handling:", err); // Keep error
+      const { findActiveInputElement } = await import(
+        chrome.runtime.getURL("utils/domUtils.js")
+      );
+      const activeElement = findActiveInputElement();
+      // Keep debugLog for active element
+      debugLog("Active element on click:", activeElement);
+
+      if (activeElement) {
+        // Keep debugLog for calling enhance
+        debugLog(
+          "Valid click and active input found, calling handleEnhanceClick",
+        );
+        handleEnhanceClick(activeElement);
+      } else {
+        // Keep debugLog for no active input
+        debugLog("Valid click, but no active input element found.");
+      }
+    } catch (err) {
+      console.error("[ContentScript] Error during button click handling:", err); // Keep error
     }
   };
 
@@ -314,16 +334,27 @@ function createFloatingButton() {
   (async () => {
     // REMOVED Attempting to import log
     try {
-        const interactionModule = await import(chrome.runtime.getURL('content/interactionHandler.js'));
-        // REMOVED imported successfully log
-        if (interactionModule.makeDraggable) {
-            interactionModule.makeDraggable(buttonContainer, handleButtonClick, enhanceButton);
-            // REMOVED Applied makeDraggable log
-        } else {
-            console.error("[ContentScript] makeDraggable function not found in module!"); // Keep error
-        }
+      const interactionModule = await import(
+        chrome.runtime.getURL("content/interactionHandler.js")
+      );
+      // REMOVED imported successfully log
+      if (interactionModule.makeDraggable) {
+        interactionModule.makeDraggable(
+          buttonContainer,
+          handleButtonClick,
+          enhanceButton,
+        );
+        // REMOVED Applied makeDraggable log
+      } else {
+        console.error(
+          "[ContentScript] makeDraggable function not found in module!",
+        ); // Keep error
+      }
     } catch (error) {
-        console.error("[ContentScript] Failed to load or apply interaction handler:", error); // Keep error
+      console.error(
+        "[ContentScript] Failed to load or apply interaction handler:",
+        error,
+      ); // Keep error
     }
   })();
 
@@ -336,8 +367,8 @@ function createFloatingButton() {
     const container = document.getElementById("coprompt-container");
 
     if (button && container) {
-        // Ensure classes are present if needed (though IDs should suffice)
-        debugLog("Button exists, CSS should handle visibility.");
+      // Ensure classes are present if needed (though IDs should suffice)
+      debugLog("Button exists, CSS should handle visibility.");
     } else {
       debugLog("Button not found after delay, recreating");
       buttonInjected = false;
@@ -346,19 +377,29 @@ function createFloatingButton() {
   }, 500);
 }
 
-// --- Register the message handler dynamically --- 
+// --- Register the message handler dynamically ---
 (async () => {
   try {
     // Dynamically import the handler
-    const messageHandlerModule = await import(chrome.runtime.getURL('content/messageHandler.js'));
+    const messageHandlerModule = await import(
+      chrome.runtime.getURL("content/messageHandler.js")
+    );
     if (messageHandlerModule.handleWindowMessage) {
       // Add the event listener using the imported handler
-      window.addEventListener("message", messageHandlerModule.handleWindowMessage);
+      window.addEventListener(
+        "message",
+        messageHandlerModule.handleWindowMessage,
+      );
       console.log("CoPrompt: Message handler registered successfully."); // Keep this info log
     } else {
-      console.error("CoPrompt: Failed to find handleWindowMessage in the loaded module.");
+      console.error(
+        "CoPrompt: Failed to find handleWindowMessage in the loaded module.",
+      );
     }
   } catch (error) {
-    console.error("CoPrompt: Failed to load or register message handler module:", error);
+    console.error(
+      "CoPrompt: Failed to load or register message handler module:",
+      error,
+    );
   }
 })();

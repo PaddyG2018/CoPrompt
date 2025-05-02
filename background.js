@@ -1,5 +1,5 @@
-import { DEFAULT_SYSTEM_INSTRUCTION } from './utils/constants.js';
-import { callOpenAI } from './background/apiClient.js';
+import { DEFAULT_SYSTEM_INSTRUCTION } from "./utils/constants.js";
+import { callOpenAI } from "./background/apiClient.js";
 
 // Simple flag for production builds - Hardcoded to false for stability
 const DEBUG = false;
@@ -143,7 +143,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       } catch (error) {
         console.error("Error encrypting API key:", error);
         // Send generic error to content script
-        sendResponse({ success: false, error: "Failed to secure API key for storage." });
+        sendResponse({
+          success: false,
+          error: "Failed to secure API key for storage.",
+        });
       }
     })();
     return true;
@@ -171,7 +174,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     chrome.storage.local.get("openai_api_key", async (data) => {
       if (!data.openai_api_key) {
         console.error("No OpenAI API key set.");
-        sendResponse({ error: "OpenAI API key not configured. Please set it in the extension options." });
+        sendResponse({
+          error:
+            "OpenAI API key not configured. Please set it in the extension options.",
+        });
         return;
       }
 
@@ -181,16 +187,25 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         apiKey = await decryptAPIKey(data.openai_api_key);
         if (!apiKey) {
           console.error("Failed to decrypt API key");
-          sendResponse({ error: "Invalid API key stored. Please re-enter your API key in options." });
+          sendResponse({
+            error:
+              "Invalid API key stored. Please re-enter your API key in options.",
+          });
           return;
         }
         if (DEBUG) console.log("Background: API key decrypted successfully");
       } catch (decryptionError) {
-        console.error("Error decrypting API key during enhance:", decryptionError);
-        sendResponse({ error: "Error accessing stored API key. Please try again or re-save your key." });
+        console.error(
+          "Error decrypting API key during enhance:",
+          decryptionError,
+        );
+        sendResponse({
+          error:
+            "Error accessing stored API key. Please try again or re-save your key.",
+        });
         return;
       }
-      
+
       // Create the user prompt (including context)
       let contextAwarePrompt;
       if (hasContext) {
@@ -200,23 +215,34 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       }
 
       if (DEBUG) console.log("Background: Calling apiClient...");
-      
-      // --- Call the refactored API client --- 
-      try {
-        const enhancedPrompt = await callOpenAI(apiKey, systemInstruction, contextAwarePrompt);
-        if (DEBUG) console.log(`Background: Enhance successful. Time: ${(Date.now() - startTime) / 1000}s`);
-        sendResponse({ enhancedPrompt: enhancedPrompt });
 
+      // --- Call the refactored API client ---
+      try {
+        const enhancedPrompt = await callOpenAI(
+          apiKey,
+          systemInstruction,
+          contextAwarePrompt,
+        );
+        if (DEBUG)
+          console.log(
+            `Background: Enhance successful. Time: ${(Date.now() - startTime) / 1000}s`,
+          );
+        sendResponse({ enhancedPrompt: enhancedPrompt });
       } catch (apiError) {
         // apiClient throws errors with user-friendly messages
         console.error("Background: Error from apiClient:", apiError.message);
-        if (DEBUG) console.log(`Background: Enhance failed. Time: ${(Date.now() - startTime) / 1000}s`);
-        sendResponse({ error: apiError.message || "An unknown error occurred calling the API." });
+        if (DEBUG)
+          console.log(
+            `Background: Enhance failed. Time: ${(Date.now() - startTime) / 1000}s`,
+          );
+        sendResponse({
+          error:
+            apiError.message || "An unknown error occurred calling the API.",
+        });
       }
-      // --- End API client call --- 
-
+      // --- End API client call ---
     }); // End storage.local.get callback
-    
+
     return true; // Keep message channel open for async response
   } // End ENHANCE_PROMPT handler
 });

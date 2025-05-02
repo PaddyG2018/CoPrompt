@@ -17,7 +17,7 @@
 
 #coprompt-button {
   padding: 8px 12px !important;
-  background: #0070F3 !important;
+  background: #0070f3 !important;
   color: white !important;
   border: none !important;
   border-radius: 18px !important;
@@ -32,7 +32,9 @@
   align-items: center !important;
   justify-content: center !important;
   z-index: 99999 !important; /* Highest z-index */
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif !important;
   letter-spacing: 0.3px !important;
   text-transform: none !important;
   visibility: visible !important;
@@ -90,13 +92,27 @@
 }
 
 /* Assign animation delays via nth-child */
-.coprompt-loading-dot:nth-child(1) { animation-delay: 0s; }
-.coprompt-loading-dot:nth-child(2) { animation-delay: 0.2s; }
-.coprompt-loading-dot:nth-child(3) { animation-delay: 0.4s; }
+.coprompt-loading-dot:nth-child(1) {
+  animation-delay: 0s;
+}
+.coprompt-loading-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.coprompt-loading-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
 
 @keyframes copromptDotPulse {
-  0%, 80%, 100% { transform: scale(0.8); opacity: 0.7; }
-  40% { transform: scale(1.2); opacity: 1; }
+  0%,
+  80%,
+  100% {
+    transform: scale(0.8);
+    opacity: 0.7;
+  }
+  40% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
 }
 
 /* Styles for the SVG icon inside the button */
@@ -104,4 +120,4 @@
   margin-right: 6px !important;
   width: 16px !important; /* Ensure consistent size */
   height: 16px !important; /* Ensure consistent size */
-} 
+}

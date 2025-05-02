@@ -57,49 +57,52 @@ document.addEventListener("DOMContentLoaded", function () {
   const confirmClearBtn = document.getElementById("confirmClearBtn");
   const cancelClearBtn = document.getElementById("cancelClearBtn");
 
-  // --- Clear API key --- 
+  // --- Clear API key ---
   const clearButton = document.getElementById("clearButton");
   if (clearButton) {
-      console.log("CoPrompt Options: Adding listener to Clear button.");
-      clearButton.addEventListener("click", function () {
-          console.log("CoPrompt Options: Clear button clicked - showing modal.");
-          // Show the custom modal instead of alert/confirm
-          if (clearModal) {
-             clearModal.style.display = "flex"; // Use flex to enable centering
-          }
-      });
+    console.log("CoPrompt Options: Adding listener to Clear button.");
+    clearButton.addEventListener("click", function () {
+      console.log("CoPrompt Options: Clear button clicked - showing modal.");
+      // Show the custom modal instead of alert/confirm
+      if (clearModal) {
+        clearModal.style.display = "flex"; // Use flex to enable centering
+      }
+    });
   } else {
-      console.error("CoPrompt Options: Clear button not found!");
+    console.error("CoPrompt Options: Clear button not found!");
   }
 
-  // --- Modal Actions --- 
+  // --- Modal Actions ---
   if (cancelClearBtn) {
-      cancelClearBtn.addEventListener("click", function() {
-          console.log("CoPrompt Options: Modal Cancel clicked.");
-          if (clearModal) {
-              clearModal.style.display = "none"; // Hide modal
-          }
-      });
+    cancelClearBtn.addEventListener("click", function () {
+      console.log("CoPrompt Options: Modal Cancel clicked.");
+      if (clearModal) {
+        clearModal.style.display = "none"; // Hide modal
+      }
+    });
   }
 
   if (confirmClearBtn) {
-      confirmClearBtn.addEventListener("click", function() {
-          console.log("CoPrompt Options: Modal Confirm clicked, clearing key...");
-          chrome.storage.local.remove("openai_api_key", function() {
-            if (chrome.runtime.lastError) {
-              showStatus("Error clearing API key: " + chrome.runtime.lastError.message, "error");
-            } else {
-              showStatus("API key cleared successfully.", "success");
-              const apiKeyInput = document.getElementById("apiKey");
-              apiKeyInput.value = ""; // Clear the input field visually
-              apiKeyInput.placeholder = "sk-..."; // Restore original placeholder
-            }
-            // Always hide modal after action
-            if (clearModal) {
-              clearModal.style.display = "none";
-            }
-          });
+    confirmClearBtn.addEventListener("click", function () {
+      console.log("CoPrompt Options: Modal Confirm clicked, clearing key...");
+      chrome.storage.local.remove("openai_api_key", function () {
+        if (chrome.runtime.lastError) {
+          showStatus(
+            "Error clearing API key: " + chrome.runtime.lastError.message,
+            "error",
+          );
+        } else {
+          showStatus("API key cleared successfully.", "success");
+          const apiKeyInput = document.getElementById("apiKey");
+          apiKeyInput.value = ""; // Clear the input field visually
+          apiKeyInput.placeholder = "sk-..."; // Restore original placeholder
+        }
+        // Always hide modal after action
+        if (clearModal) {
+          clearModal.style.display = "none";
+        }
       });
+    });
   }
 
   // Function to display status messages

@@ -9,7 +9,7 @@ const ASSISTANT_ROLE = "assistant";
 async function logDebug(message, ...args) {
   try {
     // Assuming logger.js is also made web-accessible if needed by content scripts
-    const { debugLog } = await import(chrome.runtime.getURL('utils/logger.js'));
+    const { debugLog } = await import(chrome.runtime.getURL("utils/logger.js"));
     debugLog(message, ...args);
   } catch (e) {
     // Fallback or ignore if logger not available
@@ -21,7 +21,9 @@ async function logDebug(message, ...args) {
 
 function _getContextFromElements(elements, platformConfig) {
   const allMessages = [];
-  logDebug(`[${platformConfig.name}] Found ${elements.length} potential elements.`);
+  logDebug(
+    `[${platformConfig.name}] Found ${elements.length} potential elements.`,
+  );
 
   for (let i = 0; i < elements.length; i++) {
     const element = elements[i];
@@ -34,14 +36,23 @@ function _getContextFromElements(elements, platformConfig) {
       content = result.content;
 
       if (role && content) {
-        const normalizedRole = role.toLowerCase() === ASSISTANT_ROLE ? ASSISTANT_ROLE : USER_ROLE;
+        const normalizedRole =
+          role.toLowerCase() === ASSISTANT_ROLE ? ASSISTANT_ROLE : USER_ROLE;
         allMessages.push({ role: normalizedRole, content });
-        logDebug(`[${platformConfig.name}] Added message: Role=${normalizedRole}, Index=${i}`);
+        logDebug(
+          `[${platformConfig.name}] Added message: Role=${normalizedRole}, Index=${i}`,
+        );
       } else {
-        logDebug(`[${platformConfig.name}] Skipped element at index ${i}: Role='${role}', Content='${content?.substring(0, 50)}...'`);
+        logDebug(
+          `[${platformConfig.name}] Skipped element at index ${i}: Role='${role}', Content='${content?.substring(0, 50)}...'`,
+        );
       }
     } catch (error) {
-      console.error(`[ContextExtractor] Error processing message element on ${platformConfig.name}:`, element, error);
+      console.error(
+        `[ContextExtractor] Error processing message element on ${platformConfig.name}:`,
+        element,
+        error,
+      );
     }
   }
   const recentMessages = allMessages.slice(-CONTEXT_LIMIT);
@@ -55,10 +66,15 @@ const PLATFORM_CONFIGS = {
     selector: "[data-message-author-role]",
     extractRoleAndContent: (element) => {
       const role = element.getAttribute("data-message-author-role");
-      const contentWrapper = element.querySelector('.markdown') || element.querySelector('div[class*="prose"]');
-      const content = contentWrapper?.textContent?.trim() || element.textContent?.trim() || "";
+      const contentWrapper =
+        element.querySelector(".markdown") ||
+        element.querySelector('div[class*="prose"]');
+      const content =
+        contentWrapper?.textContent?.trim() ||
+        element.textContent?.trim() ||
+        "";
       return { role, content };
-    }
+    },
   },
   CLAUDE: {
     name: "Claude",
@@ -73,7 +89,7 @@ const PLATFORM_CONFIGS = {
       }
       const content = element.textContent?.trim() || "";
       return { role, content };
-    }
+    },
   },
   GEMINI: {
     name: "Gemini",
@@ -91,8 +107,8 @@ const PLATFORM_CONFIGS = {
         content = messageContentElement?.textContent?.trim() || "";
       }
       return { role, content };
-    }
-  }
+    },
+  },
 };
 
 /**
@@ -107,7 +123,7 @@ export function getConversationContext() {
   let activePlatformConfig = null;
   for (const key in PLATFORM_CONFIGS) {
     const config = PLATFORM_CONFIGS[key];
-    if (config.hostIncludes.some(host => hostname.includes(host))) {
+    if (config.hostIncludes.some((host) => hostname.includes(host))) {
       activePlatformConfig = config;
       break;
     }
@@ -118,14 +134,22 @@ export function getConversationContext() {
     return [];
   }
 
-  const conversationElements = document.querySelectorAll(activePlatformConfig.selector);
+  const conversationElements = document.querySelectorAll(
+    activePlatformConfig.selector,
+  );
 
   if (!conversationElements || conversationElements.length === 0) {
-    logDebug(`No conversation elements found with selector for ${activePlatformConfig.name}:`, activePlatformConfig.selector);
+    logDebug(
+      `No conversation elements found with selector for ${activePlatformConfig.name}:`,
+      activePlatformConfig.selector,
+    );
     return [];
   }
 
-  const messages = _getContextFromElements(conversationElements, activePlatformConfig);
+  const messages = _getContextFromElements(
+    conversationElements,
+    activePlatformConfig,
+  );
   logDebug("Final recentMessages (should be oldest first):", messages);
   return messages;
-} 
+}

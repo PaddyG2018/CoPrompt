@@ -19,7 +19,7 @@
     "noEmit": true, // Set to true if you are only using tsc for type checking
 
     /* If your code runs in the DOM: */
-    "lib": ["es2022", "dom", "dom.iterable"],
+    "lib": ["es2022", "dom", "dom.iterable"]
 
     /* Specify the root directory of your source files */
     // "rootDir": ".", // Adjust if your source files are in a specific directory like 'src'
@@ -32,16 +32,7 @@
     // }
   },
   /* Include files to be type-checked */
-  "include": [
-    "**/*.ts", 
-    "**/*.js", 
-    "**/*.cjs", 
-    "**/*.mjs"
-  ],
+  "include": ["**/*.ts", "**/*.js", "**/*.cjs", "**/*.mjs"],
   /* Exclude files */
-  "exclude": [
-    "node_modules", 
-    "dist", 
-    "web-ext-artifacts"
-  ]
-} 
+  "exclude": ["node_modules", "dist", "web-ext-artifacts"]
+}

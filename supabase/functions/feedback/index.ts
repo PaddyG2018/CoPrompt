@@ -3,17 +3,17 @@
 // This enables autocomplete, go to definition, etc.
 
 // Setup type definitions for built-in Supabase Runtime APIs
-import "jsr:@supabase/functions-js/edge-runtime.d.ts"
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from "@supabase/supabase-js";
 // We'll create this shared file next
-import { corsHeaders } from '../_shared/cors.ts'
+import { corsHeaders } from "../_shared/cors.ts";
 
 console.log(`Function 'feedback' up and running!`);
 
 // Define the expected structure of the incoming feedback data
 interface FeedbackPayload {
-  feedbackType: 'positive' | 'negative';
+  feedbackType: "positive" | "negative";
   originalPrompt?: string;
   enhancedPrompt?: string;
   timestamp: number; // Milliseconds since epoch from client
@@ -22,44 +22,57 @@ interface FeedbackPayload {
 
 Deno.serve(async (req) => {
   // Handle CORS preflight requests. Required for browser clients.
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
     // Ensure this is a POST request
-    if (req.method !== 'POST') {
-        return new Response(JSON.stringify({ error: 'Method Not Allowed' }), {
-            status: 405,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+    if (req.method !== "POST") {
+      return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
+        status: 405,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Parse the incoming JSON payload from the browser extension
-    const payload = await req.json() as FeedbackPayload;
+    const payload = (await req.json()) as FeedbackPayload;
     console.log("Received feedback payload:", payload);
 
     // Basic validation on the payload
-    if (!payload || !payload.feedbackType || !['positive', 'negative'].includes(payload.feedbackType) || typeof payload.timestamp !== 'number') {
+    if (
+      !payload ||
+      !payload.feedbackType ||
+      !["positive", "negative"].includes(payload.feedbackType) ||
+      typeof payload.timestamp !== "number"
+    ) {
       console.error("Invalid payload received:", payload);
-      return new Response(JSON.stringify({ error: 'Invalid feedback payload structure' }), {
-        status: 400, // Bad Request
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({ error: "Invalid feedback payload structure" }),
+        {
+          status: 400, // Bad Request
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     // --- Supabase Client Initialization ---
     // Get Supabase credentials from environment variables
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
 
     if (!supabaseUrl || !supabaseAnonKey) {
-        console.error("Server Error: Missing Supabase environment variables SUPABASE_URL or SUPABASE_ANON_KEY");
-        // Do not expose detailed errors to the client
-        return new Response(JSON.stringify({ error: 'Server configuration error' }), {
-            status: 500, // Internal Server Error
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+      console.error(
+        "Server Error: Missing Supabase environment variables SUPABASE_URL or SUPABASE_ANON_KEY",
+      );
+      // Do not expose detailed errors to the client
+      return new Response(
+        JSON.stringify({ error: "Server configuration error" }),
+        {
+          status: 500, // Internal Server Error
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     // Create a Supabase client for interacting with the database
@@ -69,10 +82,9 @@ Deno.serve(async (req) => {
         persistSession: false,
         autoRefreshToken: false,
         detectSessionInUrl: false,
-      }
+      },
     });
     // --- End Supabase Client Initialization ---
-
 
     // --- Data Insertion ---
     // Convert the client timestamp (milliseconds) to a Date object
@@ -81,7 +93,7 @@ Deno.serve(async (req) => {
 
     // Insert data into the 'feedback_submissions' table
     const { data, error } = await supabase
-      .from('feedback_submissions') // Ensure this matches your table name
+      .from("feedback_submissions") // Ensure this matches your table name
       .insert([
         {
           feedback_type: payload.feedbackType,
@@ -96,31 +108,40 @@ Deno.serve(async (req) => {
 
     // Handle potential database errors
     if (error) {
-      console.error('Error inserting feedback into Supabase:', error);
+      console.error("Error inserting feedback into Supabase:", error);
       // Do not expose detailed database errors to the client
-      return new Response(JSON.stringify({ error: 'Failed to record feedback due to database error' }), {
-        status: 500, // Internal Server Error
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({
+          error: "Failed to record feedback due to database error",
+        }),
+        {
+          status: 500, // Internal Server Error
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
-    console.log('Feedback successfully inserted:', data);
+    console.log("Feedback successfully inserted:", data);
     // --- End Data Insertion ---
 
-
     // Send success response back to the extension
-    return new Response(JSON.stringify({ success: true, message: "Feedback recorded" }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200, // OK
-    });
-
+    return new Response(
+      JSON.stringify({ success: true, message: "Feedback recorded" }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200, // OK
+      },
+    );
   } catch (err) {
     // Catch any unexpected errors during function execution
     console.error("Caught unhandled error in function handler:", err);
-    return new Response(JSON.stringify({ error: 'Internal server error occurred' }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
-    });
+    return new Response(
+      JSON.stringify({ error: "Internal server error occurred" }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+      },
+    );
   }
 });
 

@@ -55,7 +55,10 @@ export default tseslint.config(
       // TypeScript specific rules
       "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/explicit-module-boundary-types": "warn",
-      "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_" },
+      ],
 
       // Removed type-aware rules as they require project parsing
       // "@typescript-eslint/no-floating-promises": "error",
@@ -79,5 +82,5 @@ export default tseslint.config(
       "utils/dompurify.min.js",
       "eslint.config.js", // Ignore the config file itself
     ],
-  }
-); 
+  },
+);

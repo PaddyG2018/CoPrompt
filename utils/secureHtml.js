@@ -1,4 +1,4 @@
-import DOMPurify from 'dompurify';
+import DOMPurify from "dompurify";
 
 /**
  * Sanitizes HTML content using DOMPurify
@@ -8,14 +8,33 @@ import DOMPurify from 'dompurify';
  */
 export function sanitizeHtml(html, config = {}) {
   const defaultConfig = {
-    ALLOWED_TAGS: ['svg', 'path', 'div', 'span'],
-    ALLOWED_ATTR: ['xmlns', 'width', 'height', 'viewBox', 'fill', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin', 'class', 'style', 'margin-right'],
-    ALLOWED_STYLES: ['display', 'align-items', 'justify-content', 'gap', 'margin-right'],
+    ALLOWED_TAGS: ["svg", "path", "div", "span"],
+    ALLOWED_ATTR: [
+      "xmlns",
+      "width",
+      "height",
+      "viewBox",
+      "fill",
+      "stroke",
+      "stroke-width",
+      "stroke-linecap",
+      "stroke-linejoin",
+      "class",
+      "style",
+      "margin-right",
+    ],
+    ALLOWED_STYLES: [
+      "display",
+      "align-items",
+      "justify-content",
+      "gap",
+      "margin-right",
+    ],
     SANITIZE_DOM: true,
     WHOLE_DOCUMENT: false,
     RETURN_DOM_FRAGMENT: true,
     RETURN_DOM: false,
-    RETURN_TRUSTED_TYPE: true
+    RETURN_TRUSTED_TYPE: true,
   };
 
   return DOMPurify.sanitize(html, { ...defaultConfig, ...config });
@@ -30,10 +49,10 @@ export function sanitizeHtml(html, config = {}) {
  */
 export function createSecureElement(tagName, attributes = {}, styles = {}) {
   const element = document.createElement(tagName);
-  
+
   // Set attributes securely
   Object.entries(attributes).forEach(([key, value]) => {
-    if (key === 'style') {
+    if (key === "style") {
       // Handle styles separately
       Object.entries(value).forEach(([styleKey, styleValue]) => {
         element.style.setProperty(styleKey, styleValue);
@@ -59,14 +78,14 @@ export function createSecureElement(tagName, attributes = {}, styles = {}) {
  */
 export function createSecureSvg(attributes = {}, paths = []) {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  
+
   // Set attributes securely
   Object.entries(attributes).forEach(([key, value]) => {
     svg.setAttribute(key, value);
   });
 
   // Add paths securely
-  paths.forEach(pathData => {
+  paths.forEach((pathData) => {
     const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
     path.setAttribute("d", pathData);
     path.setAttribute("fill", "currentColor");
@@ -95,9 +114,9 @@ export function setSecureInnerHtml(element, html, config = {}) {
  */
 export function appendSecureHtml(element, html, config = {}) {
   const sanitized = sanitizeHtml(html, config);
-  const temp = document.createElement('div');
+  const temp = document.createElement("div");
   temp.innerHTML = sanitized;
   while (temp.firstChild) {
     element.appendChild(temp.firstChild);
   }
-} 
+}

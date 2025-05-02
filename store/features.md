@@ -1,6 +1,7 @@
 # Features
 
 ## Core Functionality
+
 - One-click prompt enhancement
 - Smart context awareness
 - Automatic parameter addition
@@ -8,6 +9,7 @@
 - Real-time enhancement
 
 ## User Experience
+
 - Floating action button
 - Drag-and-drop positioning
 - Loading state indicators
@@ -15,6 +17,7 @@
 - Mobile-friendly design
 
 ## Security & Privacy
+
 - Encrypted API key storage
 - Local browser processing
 - No data collection
@@ -22,6 +25,7 @@
 - Content security policy
 
 ## Technical Features
+
 - Works with ChatGPT's new and legacy interfaces
 - Supports both textarea and contenteditable inputs
 - Automatic button visibility management
@@ -29,8 +33,9 @@
 - Touch device support
 
 ## Integration
+
 - Seamless ChatGPT integration
 - No configuration required
 - Works with existing conversations
 - Preserves conversation context
-- Minimal performance impact 
+- Minimal performance impact

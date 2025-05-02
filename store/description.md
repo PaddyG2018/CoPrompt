@@ -37,4 +37,4 @@ Visit [www.coprompt.app](https://www.coprompt.app) to learn more and get your AP
 
 ## Support
 
-Need help? Visit our [documentation](https://www.coprompt.app/docs) or contact us at support@coprompt.app 
+Need help? Visit our [documentation](https://www.coprompt.app/docs) or contact us at support@coprompt.app

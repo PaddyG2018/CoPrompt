@@ -98,4 +98,4 @@ Enhanced: "Write a fantasy short story about dragons with the following specific
 - Length: Approximately 1500-2000 words
 - Narrative perspective: Third-person limited from the dragon's viewpoint
 - Include at least one scene showing dragon culture and customs
-- End with a resolution that establishes a new understanding between species"`; 
+- End with a resolution that establishes a new understanding between species"`;

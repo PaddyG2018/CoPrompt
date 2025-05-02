@@ -1,6 +1,7 @@
 # Security Improvements Test Plan
 
 ## 1. API Key Security
+
 - [ ] Verify API key encryption in storage
 - [ ] Test key rotation mechanism
 - [ ] Validate key format and length
@@ -8,6 +9,7 @@
 - [ ] Verify secure key transmission
 
 ## 2. XSS Prevention
+
 - [ ] Test DOMPurify integration
   - [ ] Verify HTML sanitization
   - [ ] Check allowed tags and attributes
@@ -22,6 +24,7 @@
   - [ ] Validate style handling
 
 ## 3. Content Security Policy
+
 - [ ] Verify CSP headers
 - [ ] Test script loading restrictions
 - [ ] Validate style and image sources
@@ -29,6 +32,7 @@
 - [ ] Test default-src restrictions
 
 ## 4. Message Passing Security
+
 - [ ] Test origin verification
 - [ ] Validate message format
 - [ ] Check event handling security
@@ -36,6 +40,7 @@
 - [ ] Test error handling
 
 ## 5. Storage Security
+
 - [ ] Test managed storage schema
 - [ ] Verify data validation
 - [ ] Check retention limits
@@ -43,6 +48,7 @@
 - [ ] Validate encryption
 
 ## 6. Error Handling & Logging
+
 - [ ] Test secure error reporting
 - [ ] Verify logging levels
 - [ ] Check error recovery
@@ -50,6 +56,7 @@
 - [ ] Validate debug mode
 
 ## 7. Privacy Features
+
 - [ ] Test user consent mechanism
 - [ ] Verify data collection limits
 - [ ] Check privacy policy integration
@@ -57,12 +64,15 @@
 - [ ] Validate data retention
 
 ## Test Environment Setup
+
 1. Chrome Extension:
+
    - Load unpacked extension
    - Enable developer mode
    - Set up test API key
 
 2. Test Cases:
+
    - Create test prompts
    - Simulate various user interactions
    - Test error conditions
@@ -75,13 +85,16 @@
    - Network analyzer
 
 ## Test Scenarios
+
 1. Normal Usage:
+
    - Basic prompt enhancement
    - Button dragging
    - Context preservation
    - Error recovery
 
 2. Edge Cases:
+
    - Invalid API key
    - Network errors
    - DOM manipulation
@@ -94,8 +107,9 @@
    - Privacy violations
 
 ## Reporting
+
 - Document all test results
 - Note any security issues
 - Track performance impact
 - List recommended improvements
-- Create security audit report 
+- Create security audit report

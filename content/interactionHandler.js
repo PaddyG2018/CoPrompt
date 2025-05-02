@@ -25,11 +25,11 @@ const DRAG_THRESHOLD = 3; // Lowered threshold for more sensitivity
  * @returns {number} The constrained position.
  */
 function constrainToViewport(initialPos, offset, maxDimension, elementSize) {
-    let newPos = initialPos + offset;
-    if (newPos < 0) newPos = 0; 
-    const maxPos = maxDimension - elementSize;
-    if (newPos > maxPos) newPos = maxPos;
-    return newPos;
+  let newPos = initialPos + offset;
+  if (newPos < 0) newPos = 0;
+  const maxPos = maxDimension - elementSize;
+  if (newPos > maxPos) newPos = maxPos;
+  return newPos;
 }
 
 /**
@@ -39,12 +39,14 @@ function constrainToViewport(initialPos, offset, maxDimension, elementSize) {
  * @param {Function} onClick Callback function to execute on a click interaction.
  * @param {HTMLElement} [handleElement=draggableElement] The element to attach the initial pointerdown listener to. Defaults to draggableElement.
  */
-export function makeDraggable(draggableElement, onClick, handleElement = null) { 
+export function makeDraggable(draggableElement, onClick, handleElement = null) {
   const listenerTarget = handleElement || draggableElement;
-  
+
   if (!draggableElement) {
-      console.error("[InteractionHandler] makeDraggable called with null draggableElement");
-      return;
+    console.error(
+      "[InteractionHandler] makeDraggable called with null draggableElement",
+    );
+    return;
   }
 
   // Attach state directly to the draggable element
@@ -58,12 +60,12 @@ export function makeDraggable(draggableElement, onClick, handleElement = null) {
     startX: 0,
     startY: 0,
     lastPointerUpTime: 0,
-    pointerId: null
+    pointerId: null,
   };
 
-  // --- Pointer Event Handlers --- 
+  // --- Pointer Event Handlers ---
   // NOTE: All references inside these handlers should still use 'draggableElement'
-  // for positioning and state management, even though the initial listener might 
+  // for positioning and state management, even though the initial listener might
   // be on 'handleElement'. This works due to closures.
 
   const handlePointerDown = (event) => {
@@ -82,21 +84,31 @@ export function makeDraggable(draggableElement, onClick, handleElement = null) {
     draggableElement._dragState.startY = event.clientY;
     draggableElement._dragState.pointerId = event.pointerId;
 
-    // --- Get POSITION from draggableElement, SIZE from handleElement --- 
+    // --- Get POSITION from draggableElement, SIZE from handleElement ---
     const dragRect = draggableElement.getBoundingClientRect();
     const handleRect = listenerTarget.getBoundingClientRect(); // listenerTarget is handleElement or draggableElement
 
     const currentLeft = dragRect.left;
     const currentTop = dragRect.top;
     // Use the HANDLE's size for constraint calculation
-    const currentWidth = handleRect.width; 
+    const currentWidth = handleRect.width;
     const currentHeight = handleRect.height;
-    // --- End Change --- 
-    
+    // --- End Change ---
+
     // Calculate the constrained position based on current rendering
-    const constrainedInitialTop = constrainToViewport(currentTop, 0, window.innerHeight, currentHeight);
-    const constrainedInitialLeft = constrainToViewport(currentLeft, 0, window.innerWidth, currentWidth);
-    
+    const constrainedInitialTop = constrainToViewport(
+      currentTop,
+      0,
+      window.innerHeight,
+      currentHeight,
+    );
+    const constrainedInitialLeft = constrainToViewport(
+      currentLeft,
+      0,
+      window.innerWidth,
+      currentWidth,
+    );
+
     // Store the *constrained* position and the HANDLE's size in state
     draggableElement._dragState.initialLeft = constrainedInitialLeft;
     draggableElement._dragState.initialTop = constrainedInitialTop;
@@ -106,7 +118,7 @@ export function makeDraggable(draggableElement, onClick, handleElement = null) {
     // Add class to draggable element
     draggableElement.classList.add("coprompt-dragging");
     // Capture pointer on the element that received the event (listenerTarget)
-    listenerTarget.setPointerCapture(event.pointerId); 
+    listenerTarget.setPointerCapture(event.pointerId);
 
     // Add move/up listeners to the element that received the event (listenerTarget)
     listenerTarget.addEventListener("pointermove", handlePointerMove);
@@ -116,7 +128,11 @@ export function makeDraggable(draggableElement, onClick, handleElement = null) {
 
   const handlePointerMove = (event) => {
     // Use draggableElement state
-    if (!draggableElement._dragState.isPointerDown || event.pointerId !== draggableElement._dragState.pointerId) return;
+    if (
+      !draggableElement._dragState.isPointerDown ||
+      event.pointerId !== draggableElement._dragState.pointerId
+    )
+      return;
     event.preventDefault();
     event.stopPropagation();
 
@@ -132,8 +148,18 @@ export function makeDraggable(draggableElement, onClick, handleElement = null) {
 
     // Calculate new position based on initial pos + total offset
     // Pass ACTUAL element size to constrain function
-    const constrainedTop = constrainToViewport(draggableElement._dragState.initialTop, offsetY, window.innerHeight, draggableElement._dragState.initialHeight);
-    const constrainedLeft = constrainToViewport(draggableElement._dragState.initialLeft, offsetX, window.innerWidth, draggableElement._dragState.initialWidth);
+    const constrainedTop = constrainToViewport(
+      draggableElement._dragState.initialTop,
+      offsetY,
+      window.innerHeight,
+      draggableElement._dragState.initialHeight,
+    );
+    const constrainedLeft = constrainToViewport(
+      draggableElement._dragState.initialLeft,
+      offsetX,
+      window.innerWidth,
+      draggableElement._dragState.initialWidth,
+    );
 
     // Apply new position
     draggableElement.style.top = `${constrainedTop}px`;
@@ -144,23 +170,27 @@ export function makeDraggable(draggableElement, onClick, handleElement = null) {
 
   const handlePointerUp = (event) => {
     // Use draggableElement state
-     if (!draggableElement._dragState.isPointerDown || event.pointerId !== draggableElement._dragState.pointerId) return;
+    if (
+      !draggableElement._dragState.isPointerDown ||
+      event.pointerId !== draggableElement._dragState.pointerId
+    )
+      return;
     event.preventDefault();
     event.stopPropagation();
 
     // Release capture on the element that received the event (listenerTarget)
-    listenerTarget.releasePointerCapture(event.pointerId); 
+    listenerTarget.releasePointerCapture(event.pointerId);
     // Remove class from draggable element
     draggableElement.classList.remove("coprompt-dragging");
 
     // Check dragging state on draggableElement
-    const wasDragging = draggableElement._dragState.isDragging; 
+    const wasDragging = draggableElement._dragState.isDragging;
 
     // Update state on draggableElement
-    draggableElement._dragState.lastPointerUpTime = Date.now(); 
+    draggableElement._dragState.lastPointerUpTime = Date.now();
     draggableElement._dragState.isPointerDown = false;
     draggableElement._dragState.pointerId = null;
-    draggableElement._dragState.isDragging = false; 
+    draggableElement._dragState.isDragging = false;
 
     // Remove listeners from the element that received the event (listenerTarget)
     listenerTarget.removeEventListener("pointermove", handlePointerMove);
@@ -172,22 +202,22 @@ export function makeDraggable(draggableElement, onClick, handleElement = null) {
       try {
         const rect = draggableElement.getBoundingClientRect();
         localStorage.setItem(
-            "coPromptButtonPosition",
-            JSON.stringify({ top: rect.top, left: rect.left })
+          "coPromptButtonPosition",
+          JSON.stringify({ top: rect.top, left: rect.left }),
         );
       } catch (e) {
         console.error("Error saving button position:", e);
       }
-    } 
-    
+    }
+
     // Call onClick callback if it wasn't a drag
     if (!wasDragging) {
-      if (typeof onClick === 'function') {
-          onClick(event);
+      if (typeof onClick === "function") {
+        onClick(event);
       }
     }
   };
 
   // Attach the initial listener to the specified target (handle or draggable element)
   listenerTarget.addEventListener("pointerdown", handlePointerDown);
-} 
+}

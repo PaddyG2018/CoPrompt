@@ -1,7 +1,7 @@
 // DOM Utility functions for CoPrompt
 
 /**
- * Finds the currently active/targetable input element (textarea or contenteditable) 
+ * Finds the currently active/targetable input element (textarea or contenteditable)
  * on known chat platforms.
  * Uses multiple strategies to increase robustness.
  * @returns {HTMLElement | null} The found input element or null.
@@ -9,8 +9,8 @@
 export function findActiveInputElement() {
   let inputField = null;
   const debugLog = (message, ...args) => {
-      // Basic logging for now, replace with proper logger if needed
-      console.log(`[findActiveInputElement] ${message}`, ...args);
+    // Basic logging for now, replace with proper logger if needed
+    console.log(`[findActiveInputElement] ${message}`, ...args);
   };
 
   // Strategy 1: Direct ID selector for contenteditable (ChatGPT)
@@ -37,8 +37,8 @@ export function findActiveInputElement() {
       "div.ProseMirror[contenteditable='true']",
     );
     if (inputField) {
-        debugLog("Found via div.ProseMirror[contenteditable]");
-        return inputField;
+      debugLog("Found via div.ProseMirror[contenteditable]");
+      return inputField;
     }
   }
 
@@ -73,10 +73,14 @@ export function findActiveInputElement() {
   // Strategy 6: Look for the main form and find the input within it
   if (!inputField) {
     // Common form selectors across platforms
-    const form = document.querySelector("form, form > textarea, form > div[contenteditable='true']")?.closest('form');
+    const form = document
+      .querySelector(
+        "form, form > textarea, form > div[contenteditable='true']",
+      )
+      ?.closest("form");
     if (form) {
-        debugLog("Found form, searching within", form);
-        // Search within the form for the most likely input field
+      debugLog("Found form, searching within", form);
+      // Search within the form for the most likely input field
       const formInput = form.querySelector(
         "textarea, div[contenteditable='true']",
       );
@@ -97,10 +101,8 @@ export function findActiveInputElement() {
  * @param {string} alertReason A prefix for the alert message.
  */
 function simpleFallback(alertReason) {
-   console.warn(`[domUtils] Triggering fallback: ${alertReason}`); // Log the reason
-   alert(
-     `${alertReason} Please try enhancing your prompt again.`,
-   );
+  console.warn(`[domUtils] Triggering fallback: ${alertReason}`); // Log the reason
+  alert(`${alertReason} Please try enhancing your prompt again.`);
 }
 
 /**
@@ -117,7 +119,7 @@ export function updateInputElement(element, text) {
   };
   const errorLog = (message, ...args) => {
     console.error(`[updateInputElement] ${message}`, ...args);
-  }
+  };
 
   if (!element) {
     errorLog("Target element not provided, falling back.");
@@ -137,16 +139,27 @@ export function updateInputElement(element, text) {
         document.execCommand("insertText", false, text);
         debugLog("Successfully updated contenteditable via execCommand");
       } catch (error1) {
-        errorLog("Error updating contenteditable with execCommand, trying innerText fallback:", error1);
+        errorLog(
+          "Error updating contenteditable with execCommand, trying innerText fallback:",
+          error1,
+        );
         try {
           // Fallback: Set innerText directly
           element.innerText = text;
           // Trigger input event manually as innerText doesn't always do it
-          const inputEvent = new Event("input", { bubbles: true, cancelable: true });
+          const inputEvent = new Event("input", {
+            bubbles: true,
+            cancelable: true,
+          });
           element.dispatchEvent(inputEvent);
-          debugLog("Successfully updated contenteditable via innerText and dispatched event");
+          debugLog(
+            "Successfully updated contenteditable via innerText and dispatched event",
+          );
         } catch (error2) {
-          errorLog("Error updating contenteditable with innerText fallback:", error2);
+          errorLog(
+            "Error updating contenteditable with innerText fallback:",
+            error2,
+          );
           throw error2; // Re-throw error to trigger outer catch block and fallback
         }
       }
@@ -156,23 +169,32 @@ export function updateInputElement(element, text) {
       debugLog("Updating textarea element:", element);
       element.value = text;
       // Dispatch events to ensure frameworks/listeners detect the change
-      element.dispatchEvent(new Event("input", { bubbles: true, cancelable: true }));
-      element.dispatchEvent(new Event("change", { bubbles: true, cancelable: true }));
+      element.dispatchEvent(
+        new Event("input", { bubbles: true, cancelable: true }),
+      );
+      element.dispatchEvent(
+        new Event("change", { bubbles: true, cancelable: true }),
+      );
       element.focus(); // Set focus back to the textarea
       debugLog("Successfully updated textarea and dispatched events");
     } else {
       errorLog("Unknown input field type:", element.tagName, element);
       // Attempt generic update if possible, might not work
       try {
-          element.value = text;
-          element.dispatchEvent(new Event("input", { bubbles: true, cancelable: true }));
-          element.dispatchEvent(new Event("change", { bubbles: true, cancelable: true }));
+        element.value = text;
+        element.dispatchEvent(
+          new Event("input", { bubbles: true, cancelable: true }),
+        );
+        element.dispatchEvent(
+          new Event("change", { bubbles: true, cancelable: true }),
+        );
       } catch (genericError) {
-          throw new Error("Unsupported element type for update.");
+        throw new Error("Unsupported element type for update.");
       }
     }
-  } catch (error) { // Catch errors during the update process
+  } catch (error) {
+    // Catch errors during the update process
     errorLog("Failed to update input field directly, falling back:", error);
     simpleFallback("Could not update the input field directly."); // Use simple fallback
   }
-} 
+}
