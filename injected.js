@@ -166,3 +166,136 @@ window.enhancePrompt = async function (prompt) {
     return prompt; // Fallback: return original prompt if anything fails
   }
 };
+
+// Function to update the input field (Handles different input types)
+function updateInputElement(element, text) {
+  logInjectedDebug(`Attempting to update element with text (length: ${text.length})`);
+  if (!element) {
+    logInjectedDebug("Update failed: Element is null.");
+    return;
+  }
+
+  try {
+    // Check if the element is a standard input or textarea
+    if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+      element.value = text;
+      // Dispatch input event to trigger any framework listeners (React, Vue, etc.)
+      element.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+      logInjectedDebug("Updated value of INPUT/TEXTAREA and dispatched input event.");
+    }
+    // Check if the element is contenteditable
+    else if (element.isContentEditable) {
+       logInjectedDebug("Element is contenteditable. Attempting update with execCommand...");
+       // Focus the element first
+       element.focus();
+       // Use execCommand to insert text - this often works better with framework-controlled inputs
+       const success = document.execCommand('insertText', false, text);
+       if (success) {
+         logInjectedDebug("execCommand('insertText') succeeded.");
+       } else {
+         // Report foundational error (Story 1.2) - before fallback
+         const errorMsg = "execCommand('insertText') returned false.";
+         console.error("[CoPrompt Injected Error] E_UPDATE_INPUT_FAILED:", errorMsg);
+         window.postMessage({ type: "CoPromptReportError", detail: { code: 'E_UPDATE_INPUT_FAILED', message: errorMsg, context: 'execCommand returned false' } }, "*");
+         // Fallback to textContent if execCommand fails (less likely to work, but safe)
+         element.textContent = text;
+         element.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+         logInjectedDebug("Updated textContent as fallback and dispatched input event.");
+       }
+    } else {
+      logInjectedDebug("Update failed: Element is not an input, textarea, or contenteditable.", element);
+    }
+  } catch (error) {
+    // Report foundational error (Story 1.2)
+    console.error("[CoPrompt Injected Error] E_UPDATE_INPUT_FAILED: Error occurred during updateInputElement:", error);
+    window.postMessage({ type: "CoPromptReportError", detail: { code: 'E_UPDATE_INPUT_FAILED', message: error.message, stack: error.stack } }, "*");
+    logInjectedDebug("Error occurred during updateInputElement:", error.message);
+  }
+}
+
+// Function to create and add the enhance button
+function addEnhanceButton(inputElement) {
+  // ... (Existing addEnhanceButton logic - should be stable from reset state) ...
+}
+
+// Function to reset the button state - Simplified for Functional Reset
+function resetButtonState() {
+  logInjectedDebug("Attempting functional button reset.");
+
+  // Clear timeout if it exists
+  if (requestTimeoutId) {
+    clearTimeout(requestTimeoutId);
+    requestTimeoutId = null;
+    logInjectedDebug("Cleared response timeout during reset.");
+  }
+
+  // Use the enhanceButton state variable which should hold the reference
+  if (enhanceButton) {
+     try {
+        // Prioritize making the button functionally clickable again
+        enhanceButton.disabled = false;
+        // Attempt to reset visual state (may be overridden by host page)
+        enhanceButton.textContent = ORIGINAL_LABEL;
+        enhanceButton.style.cursor = 'pointer';
+        enhanceButton.style.backgroundColor = "#6a0dad"; // Reset color
+
+        logInjectedDebug(`Functional button reset executed: Disabled=${enhanceButton.disabled}, Text='${enhanceButton.textContent}'`);
+     } catch (error) {
+         // Report foundational error (Story 1.2)
+         console.error("[CoPrompt Injected Error] E_BUTTON_RESET_FAILED: Error resetting button state:", error);
+         window.postMessage({ type: "CoPromptReportError", detail: { code: 'E_BUTTON_RESET_FAILED', message: error.message, stack: error.stack } }, "*");
+         logInjectedDebug("Error during resetButtonState:", error.message);
+         enhanceButton = null; 
+     }
+  } else {
+    logInjectedDebug("Reset skipped: Button element variable (enhanceButton) is null.");
+  }
+}
+
+// --- Communication with Content Script ---
+window.addEventListener('message', (event) => {
+  // ... (validation & logging) ...
+  if (event.source !== window || !event.data || !event.data.type) return;
+  // ... (log relevant messages)
+
+  if (event.data.type === "CoPromptEnhanceResponse") {
+    logInjectedDebug("Processing CoPromptEnhanceResponse...");
+    // Reset button state after processing response (success or error)
+    resetButtonState(); // Call the simplified reset function
+
+    if (event.data.error) {
+      console.error("[CoPrompt Injected] Enhancement failed:", event.data.error);
+      // Basic alert for now (per Phase 1.3)
+      alert(`Enhancement Error: ${event.data.error}`); 
+    } else if (event.data.enhancedPrompt) {
+      logInjectedDebug("Enhancement successful. Finding input element to update...");
+      const inputElement = currentInputElement || findActiveInputElement(); 
+      if (inputElement) {
+        logInjectedDebug("Input element found. Updating content...");
+        updateInputElement(inputElement, event.data.enhancedPrompt);
+        logInjectedDebug("Input element update attempted.");
+      } else {
+        console.error("[CoPrompt Injected] Could not find input element to update after enhancement.");
+        alert("Error: Could not find the text input field to place the enhanced prompt.");
+      }
+    } else {
+        logInjectedDebug("Received CoPromptEnhanceResponse but no error or prompt data found.", event.data);
+        // Handle unexpected response format if necessary
+    }
+  }
+});
+
+// ... (Initialization, MutationObserver) ...
+
+function findActiveInputElement() {
+  logInjectedDebug("Attempting to find active input element...");
+  const element = /* ... selectors ... */ document.querySelector('div[contenteditable="true"]');
+  // ... (visibility check) ...
+  if (!element) {
+     // Report foundational error (Story 1.2)
+     console.error("[CoPrompt Injected Error] E_NO_INPUT_FIELD: No suitable active input element found.");
+     window.postMessage({ type: "CoPromptReportError", detail: { code: 'E_NO_INPUT_FIELD', message: 'No suitable active input element found.' } }, "*");
+  }
+  logInjectedDebug(element ? "Found active input element:" : "No suitable active input element found.", element);
+  return element;
+}

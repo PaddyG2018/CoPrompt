@@ -37,6 +37,7 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
+    "@sentry/browser": "^9.15.0",
     "dompurify": "^3.2.5"
   }
 }

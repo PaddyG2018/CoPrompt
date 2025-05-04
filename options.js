@@ -10,6 +10,13 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
+  // Load Telemetry Consent
+  chrome.storage.sync.get("telemetryConsent", (data) => {
+    console.log("Loaded telemetryConsent:", data.telemetryConsent);
+    const telemetryConsentCheckbox = document.getElementById('telemetryConsent');
+    telemetryConsentCheckbox.checked = !!data.telemetryConsent; // Ensure boolean
+  });
+
   // Save API key
   const saveButton = document.getElementById("saveButton");
   if (saveButton) {
@@ -104,6 +111,24 @@ document.addEventListener("DOMContentLoaded", function () {
       });
     });
   }
+
+  // Telemetry Consent change listener
+  const telemetryConsentCheckbox = document.getElementById('telemetryConsent');
+  telemetryConsentCheckbox.addEventListener('change', () => {
+    const consentGiven = telemetryConsentCheckbox.checked;
+    console.log("Telemetry consent changed:", consentGiven);
+    chrome.storage.sync.set({ telemetryConsent: consentGiven }, () => {
+      if (chrome.runtime.lastError) {
+        console.error("Error saving telemetry consent:", chrome.runtime.lastError);
+        // Optional: Show error to user?
+        showStatus("Error saving telemetry setting.", "error");
+      } else {
+        console.log("Telemetry consent saved successfully.");
+        // Optional: Show success feedback?
+        // showStatus("Telemetry setting saved.", "success"); 
+      }
+    });
+  });
 
   // Function to display status messages
   function showStatus(message, type) {
