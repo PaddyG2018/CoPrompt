@@ -184,13 +184,43 @@ chrome.runtime.onConnect.addListener((port) => {
 
     port.onMessage.addListener(async (message) => { // Keep this async due to callOpenAI
       if (message.type === "ENHANCE_PROMPT") {
-         // ... try/catch around callOpenAI ...
          try {
-            // ... decrypt key ...
-            const result = await callOpenAI(/* ... */);
+            // 1. Retrieve the stored API key
+            const storageData = await chrome.storage.local.get("openai_api_key");
+            const encryptedKey = storageData.openai_api_key;
+
+            if (!encryptedKey) {
+                reportError('E_API_KEY_MISSING', 'API key not found in storage.', { source: 'portListener' });
+                port.postMessage({ type: "CoPromptErrorResponse", error: "API key not set. Please set it in the extension options." });
+                return; // Stop processing if key is missing
+            }
+
+            // 2. Decrypt the API key
+            let apiKey = null;
+            try {
+                apiKey = await decryptAPIKey(encryptedKey);
+            } catch (decryptionError) {
+                reportError('E_DECRYPTION_FAILED', decryptionError, { source: 'portListener' });
+                port.postMessage({ type: "CoPromptErrorResponse", error: "Failed to decrypt API key." });
+                return; // Stop processing if decryption fails
+            }
+            
+            if (!apiKey) {
+                 reportError('E_DECRYPTION_EMPTY', 'Decryption resulted in null/empty key.', { source: 'portListener' });
+                 port.postMessage({ type: "CoPromptErrorResponse", error: "API key decryption failed (empty result)." });
+                 return; // Stop processing if key is empty after decryption
+            }
+            
+            // 3. Format context (if needed, example assumes it's passed in message)
+            const formattedContext = formatConversationContext(message.context || []);
+            const systemInstruction = message.systemInstruction || DEFAULT_SYSTEM_INSTRUCTION;
+
+            // 4. Call OpenAI with the decrypted key and context
+            const result = await callOpenAI(apiKey, systemInstruction, message.prompt, formattedContext);
             port.postMessage({ type: "CoPromptEnhanceResponse", data: result });
+
          } catch (error) {
-            // Use the simplified, synchronous reportError
+            // Catch errors from callOpenAI or other issues
             reportError('E_BACKGROUND_ERROR', error, { prompt: message.prompt, context: message.context });
             port.postMessage({ type: "CoPromptErrorResponse", error: error.message || "Unknown background error" });
          }
