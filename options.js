@@ -1,28 +1,28 @@
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", () => {
   console.log("CoPrompt Options: DOM Content Loaded.");
 
-  // Load saved API key
-  chrome.storage.local.get("openai_api_key", function (data) {
+  const apiKeyInput = document.getElementById("apiKey");
+  const saveButton = document.getElementById("saveButton");
+  const clearButton = document.getElementById("clearButton");
+  const statusDiv = document.getElementById("status");
+  // Modal elements
+  const modal = document.getElementById("clearConfirmationModal");
+  const confirmClearBtn = document.getElementById("confirmClearBtn");
+  const cancelClearBtn = document.getElementById("cancelClearBtn");
+
+  // Load saved API Key 
+  chrome.storage.local.get("openai_api_key", (data) => {
     if (data.openai_api_key) {
       // We don't actually show the decrypted key for security
-      document.getElementById("apiKey").placeholder =
-        "API key is set (hidden for security)";
+      apiKeyInput.placeholder = "API key is set (hidden for security)";
     }
   });
 
-  // Load Telemetry Consent
-  chrome.storage.sync.get("telemetryConsent", (data) => {
-    console.log("Loaded telemetryConsent:", data.telemetryConsent);
-    const telemetryConsentCheckbox = document.getElementById('telemetryConsent');
-    telemetryConsentCheckbox.checked = !!data.telemetryConsent; // Ensure boolean
-  });
-
-  // Save API key
-  const saveButton = document.getElementById("saveButton");
+  // Save API Key
   if (saveButton) {
     console.log("CoPrompt Options: Adding listener to Save button.");
     saveButton.addEventListener("click", function () {
-      const apiKey = document.getElementById("apiKey").value.trim();
+      const apiKey = apiKeyInput.value.trim();
 
       if (!apiKey) {
         showStatus("Please enter your OpenAI API key.", "error");
@@ -43,9 +43,8 @@ document.addEventListener("DOMContentLoaded", function () {
         function (response) {
           if (response.success) {
             showStatus("API key saved successfully!", "success");
-            document.getElementById("apiKey").value = "";
-            document.getElementById("apiKey").placeholder =
-              "API key is set (hidden for security)";
+            apiKeyInput.value = "";
+            apiKeyInput.placeholder = "API key is set (hidden for security)";
           } else {
             showStatus(
               "Error saving API key: " + (response.error || "Unknown error"),
@@ -59,36 +58,21 @@ document.addEventListener("DOMContentLoaded", function () {
     console.error("CoPrompt Options: Save button not found!");
   }
 
-  // Get modal elements
-  const clearModal = document.getElementById("clearConfirmationModal");
-  const confirmClearBtn = document.getElementById("confirmClearBtn");
-  const cancelClearBtn = document.getElementById("cancelClearBtn");
-
-  // --- Clear API key ---
-  const clearButton = document.getElementById("clearButton");
+  // Clear API Key (with confirmation)
   if (clearButton) {
     console.log("CoPrompt Options: Adding listener to Clear button.");
     clearButton.addEventListener("click", function () {
       console.log("CoPrompt Options: Clear button clicked - showing modal.");
       // Show the custom modal instead of alert/confirm
-      if (clearModal) {
-        clearModal.style.display = "flex"; // Use flex to enable centering
+      if (modal) {
+        modal.style.display = "flex"; // Use flex to enable centering
       }
     });
   } else {
     console.error("CoPrompt Options: Clear button not found!");
   }
 
-  // --- Modal Actions ---
-  if (cancelClearBtn) {
-    cancelClearBtn.addEventListener("click", function () {
-      console.log("CoPrompt Options: Modal Cancel clicked.");
-      if (clearModal) {
-        clearModal.style.display = "none"; // Hide modal
-      }
-    });
-  }
-
+  // Modal Actions
   if (confirmClearBtn) {
     confirmClearBtn.addEventListener("click", function () {
       console.log("CoPrompt Options: Modal Confirm clicked, clearing key...");
@@ -100,45 +84,34 @@ document.addEventListener("DOMContentLoaded", function () {
           );
         } else {
           showStatus("API key cleared successfully.", "success");
-          const apiKeyInput = document.getElementById("apiKey");
           apiKeyInput.value = ""; // Clear the input field visually
           apiKeyInput.placeholder = "sk-..."; // Restore original placeholder
         }
         // Always hide modal after action
-        if (clearModal) {
-          clearModal.style.display = "none";
+        if (modal) {
+          modal.style.display = "none";
         }
       });
     });
   }
 
-  // Telemetry Consent change listener
-  const telemetryConsentCheckbox = document.getElementById('telemetryConsent');
-  telemetryConsentCheckbox.addEventListener('change', () => {
-    const consentGiven = telemetryConsentCheckbox.checked;
-    console.log("Telemetry consent changed:", consentGiven);
-    chrome.storage.sync.set({ telemetryConsent: consentGiven }, () => {
-      if (chrome.runtime.lastError) {
-        console.error("Error saving telemetry consent:", chrome.runtime.lastError);
-        // Optional: Show error to user?
-        showStatus("Error saving telemetry setting.", "error");
-      } else {
-        console.log("Telemetry consent saved successfully.");
-        // Optional: Show success feedback?
-        // showStatus("Telemetry setting saved.", "success"); 
+  if (cancelClearBtn) {
+    cancelClearBtn.addEventListener("click", function () {
+      console.log("CoPrompt Options: Modal Cancel clicked.");
+      if (modal) {
+        modal.style.display = "none"; // Hide modal
       }
     });
-  });
+  }
 
   // Function to display status messages
   function showStatus(message, type) {
-    const statusElement = document.getElementById("status");
-    statusElement.textContent = message;
-    statusElement.className = "status " + type;
-    statusElement.style.display = "block";
+    statusDiv.textContent = message;
+    statusDiv.className = "status " + type;
+    statusDiv.style.display = "block";
 
     setTimeout(function () {
-      statusElement.style.display = "none";
+      statusDiv.style.display = "none";
     }, 3000);
   }
 });

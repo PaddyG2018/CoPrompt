@@ -11,16 +11,13 @@
     "start": "web-ext run --target=chromium",
     "security": "npm audit && snyk test",
     "clean": "rimraf dist/",
-    "copy-files": "mkdir -p dist && cp -R background.js content.js injected.js content.css options.html options.js popup.html popup.js manifest.json icons utils background content dist/",
-    "set-debug-false": "replace-in-file --string='const DEBUG = true;' --replacement='const DEBUG = false;' dist/**/*.js",
-    "set-debug-false-hardcoded": "replace-in-file --string='const DEBUG = false;' --replacement='const DEBUG = false;' dist/**/*.js",
-    "build:dev": "npm run clean && npm run copy-files",
-    "build:prod": "npm run clean && npm run copy-files && npm run set-debug-false && npm run set-debug-false-hardcoded && echo \"Production build ready in dist/\"",
+    "build:prod": "webpack --mode production && echo \"Production build ready in dist/\"",
     "package": "npm run build:prod && web-ext build --source-dir dist --overwrite-dest"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^7.1.0",
     "@typescript-eslint/parser": "^7.1.0",
+    "copy-webpack-plugin": "^13.0.0",
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-json": "^3.1.0",
@@ -31,13 +28,14 @@
     "rimraf": "^5.0.5",
     "snyk": "^1.1250.0",
     "typescript-eslint": "^8.31.1",
-    "web-ext": "^8.5.0"
+    "web-ext": "^8.5.0",
+    "webpack": "^5.99.7",
+    "webpack-cli": "^6.0.1"
   },
   "engines": {
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "@sentry/browser": "^9.15.0",
     "dompurify": "^3.2.5"
   }
 }
