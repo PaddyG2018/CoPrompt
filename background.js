@@ -1,101 +1,31 @@
-import { DEFAULT_SYSTEM_INSTRUCTION } from "./utils/constants.js";
+import { DEFAULT_SYSTEM_INSTRUCTION, MAIN_SYSTEM_INSTRUCTION, MAX_CONTEXT_ITEMS } from "./utils/constants.js";
 import { callOpenAI } from "./background/apiClient.js";
+import { createLogger } from './utils/logger.js'; // Import createLogger
+import { encryptAPIKey, decryptAPIKey } from './utils/secureApiKey.js'; // Correct path
 
-// --- Simplified Error Reporting Helper ---
-function reportError(errorCode, error, context = {}) {
-  // Simple console logging for errors
-  console.error(`[CoPrompt Background Error] Code: ${errorCode}, Error:`, error, "Context:", context);
-}
-
-// 🔐 Improved API key security using Web Crypto API
-async function encryptAPIKey(apiKey) {
-  // Use a consistent encryption key derived from browser fingerprint or extension ID
-  const encoder = new TextEncoder();
-  const data = encoder.encode(apiKey);
-
-  // Create a key from the extension ID (or another consistent value)
-  const keyMaterial = await crypto.subtle.digest(
-    "SHA-256",
-    encoder.encode(chrome.runtime.id),
-  );
-
-  const key = await crypto.subtle.importKey(
-    "raw",
-    keyMaterial,
-    { name: "AES-GCM" },
-    false,
-    ["encrypt", "decrypt"],
-  );
-
-  // Create a random initialization vector
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-
-  // Encrypt the data
-  const encryptedData = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv },
-    key,
-    data,
-  );
-
-  // Combine IV and encrypted data for storage
-  return btoa(
-    String.fromCharCode(...iv) +
-      String.fromCharCode(...new Uint8Array(encryptedData)),
-  );
-}
-
-async function decryptAPIKey(encryptedString) {
-  try {
-    const binaryData = atob(encryptedString);
-    const bytes = new Uint8Array(binaryData.length);
-    for (let i = 0; i < binaryData.length; i++) {
-      bytes[i] = binaryData.charCodeAt(i);
-    }
-
-    // Extract IV (first 12 bytes)
-    const iv = bytes.slice(0, 12);
-    const encryptedData = bytes.slice(12);
-
-    // Recreate the key
-    const encoder = new TextEncoder();
-    const keyMaterial = await crypto.subtle.digest(
-      "SHA-256",
-      encoder.encode(chrome.runtime.id),
-    );
-
-    const key = await crypto.subtle.importKey(
-      "raw",
-      keyMaterial,
-      { name: "AES-GCM" },
-      false,
-      ["encrypt", "decrypt"],
-    );
-
-    // Decrypt
-    const decryptedData = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv },
-      key,
-      encryptedData,
-    );
-
-    return new TextDecoder().decode(decryptedData);
-  } catch (error) {
-    console.error("Decryption failed:", error);
-    return null;
-  }
-}
+// Instantiate logger for background context
+const backgroundLogger = createLogger('background');
 
 // Helper function to format conversation context
 function formatConversationContext(context) {
   if (!context || !Array.isArray(context) || context.length === 0) {
-    return "No previous conversation context available.";
+    return null; // Return null if no context
   }
 
-  return context
+  // Limit context to the last MAX_CONTEXT_ITEMS items
+  const recentContext = context.slice(-MAX_CONTEXT_ITEMS);
+
+  // Format context clearly
+  const formatted = recentContext
     .map((msg) => {
-      return `${msg.role === "assistant" ? "AI" : "User"}: ${msg.content}`;
+      // Ensure roles are consistently capitalized if needed by the prompt
+      const role = msg.role === "assistant" ? "Assistant" : "User"; 
+      return `${role}: ${msg.content}`;
     })
     .join("\n\n");
+    
+  // Add delimiters for clarity in the final prompt
+  return `--- Conversation Context ---\n${formatted}\n--- End Context ---`;
 }
 
 // --- Listener for Simple One-Time Messages ---
@@ -162,7 +92,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       // Synchronous handler now, just calls the simplified reportError
       console.log("[Background] Received error report from content script:", request.payload);
       const { code, message, stack, context } = request.payload || {};
-      reportError(code || 'E_UNKNOWN_CONTENT_SCRIPT', message || 'Unknown error from content script', { 
+      // Use logger instance
+      backgroundLogger.error(message || 'Unknown error from content script', { 
+          code: code || 'E_UNKNOWN_CONTENT_SCRIPT',
           stack: stack, 
           context: context, 
           source: 'contentScriptViaInjected' 
@@ -180,59 +112,140 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 // --- Listener for Long-Lived Port Connections ---
 chrome.runtime.onConnect.addListener((port) => {
   if (port.name === "enhancer") {
-    console.log("[Background Port Listener] Enhancer port connected.");
+    // console.log("[Background Port Listener] Enhancer port connected."); // REMOVE log
 
-    port.onMessage.addListener(async (message) => { // Keep this async due to callOpenAI
+    // Add listener to detect disconnect from background side
+    port.onDisconnect.addListener(() => {
+        const lastError = chrome.runtime.lastError?.message || "(No error message)";
+        // console.log(`[Background Port Listener] Enhancer port disconnected. Last error: ${lastError}`); // REMOVE log
+    });
+
+    port.onMessage.addListener(async (message) => { 
+      // console.log("[Background Port Listener] Received message inside port:", message); // REMOVE log
       if (message.type === "ENHANCE_PROMPT") {
+         // Extract requestId from the incoming message
+         const { prompt: originalPrompt, systemInstruction, conversationContext, requestId } = message; // Rename prompt to originalPrompt for clarity
+         
+         if (!requestId) {
+             // Should not happen if messageHandler validates, but good practice
+             backgroundLogger.error('ENHANCE_PROMPT message missing requestId', { 
+                 code: 'E_MISSING_REQUEST_ID', 
+                 source: 'portListener' 
+             });
+             console.error("[Background Port Listener] Received ENHANCE_PROMPT without requestId."); // Keep Error
+             // Cannot easily send error back with original ID here
+             return; 
+         }
+         
+         // console.log(`[Background Port Listener] Processing ENHANCE_PROMPT (ID: ${requestId})`); // REMOVE log
          try {
+            // console.log(`[Background Port Listener] Attempting to retrieve API key (ID: ${requestId})`); // REMOVE log
             // 1. Retrieve the stored API key
             const storageData = await chrome.storage.local.get("openai_api_key");
             const encryptedKey = storageData.openai_api_key;
 
             if (!encryptedKey) {
-                reportError('E_API_KEY_MISSING', 'API key not found in storage.', { source: 'portListener' });
-                port.postMessage({ type: "CoPromptErrorResponse", error: "API key not set. Please set it in the extension options." });
+                console.error(`[Background Port Listener] API key not found (ID: ${requestId})`); // Keep Error
+                backgroundLogger.error('API key not found in storage.', { 
+                    code: 'E_API_KEY_MISSING', 
+                    source: 'portListener', 
+                    requestId: requestId 
+                });
+                port.postMessage({ type: "CoPromptErrorResponse", error: "API key not set. Please set it in the extension options.", requestId: requestId });
                 return; // Stop processing if key is missing
             }
 
             // 2. Decrypt the API key
             let apiKey = null;
+            // console.log(`[Background Port Listener] Attempting to decrypt API key (ID: ${requestId})`); // REMOVE log
             try {
                 apiKey = await decryptAPIKey(encryptedKey);
+                if (apiKey) {
+                    // console.log(`[Background Port Listener] API key decrypted successfully (ID: ${requestId})`); // REMOVE log
+                } else {
+                     // Decryption succeeded but returned null/empty
+                    console.error(`[Background Port Listener] Decryption resulted in null/empty key (ID: ${requestId})`); // Keep Error
+                    backgroundLogger.error('Decryption resulted in null/empty key.', { 
+                        code: 'E_DECRYPTION_EMPTY', 
+                        source: 'portListener', 
+                        requestId: requestId 
+                    });
+                    port.postMessage({ type: "CoPromptErrorResponse", error: "API key decryption failed (empty result).", requestId: requestId });
+                    return; // Stop processing if key is empty after decryption
+                }
             } catch (decryptionError) {
-                reportError('E_DECRYPTION_FAILED', decryptionError, { source: 'portListener' });
-                port.postMessage({ type: "CoPromptErrorResponse", error: "Failed to decrypt API key." });
+                console.error(`[Background Port Listener] Decryption failed (ID: ${requestId}):`, decryptionError); // Keep Error
+                // Pass the error object directly to the logger
+                backgroundLogger.error('Decryption failed', { 
+                    code: 'E_DECRYPTION_FAILED', 
+                    source: 'portListener', 
+                    error: decryptionError, // Pass the actual error
+                    requestId: requestId 
+                });
+                port.postMessage({ type: "CoPromptErrorResponse", error: "Failed to decrypt API key.", requestId: requestId });
                 return; // Stop processing if decryption fails
             }
             
-            if (!apiKey) {
-                 reportError('E_DECRYPTION_EMPTY', 'Decryption resulted in null/empty key.', { source: 'portListener' });
-                 port.postMessage({ type: "CoPromptErrorResponse", error: "API key decryption failed (empty result)." });
-                 return; // Stop processing if key is empty after decryption
-            }
+            // If we reach here, apiKey should be valid
             
-            // 3. Format context (if needed, example assumes it's passed in message)
-            const formattedContext = formatConversationContext(message.context || []);
-            const systemInstruction = message.systemInstruction || DEFAULT_SYSTEM_INSTRUCTION;
+            // *** FIX: Format context and combine with prompt ***
+            const formattedContext = formatConversationContext(conversationContext || []);
+            const finalUserPrompt = formattedContext 
+                ? `${formattedContext}\n\n--- Original Prompt ---\n${originalPrompt}` 
+                : originalPrompt; // Use original prompt if no context
+            
+            // *** FIX: Use MAIN_SYSTEM_INSTRUCTION ***
+            // Use the passed systemInstruction if provided (e.g., category-specific), otherwise use MAIN
+            const finalSystemInstruction = systemInstruction || MAIN_SYSTEM_INSTRUCTION;
 
-            // 4. Call OpenAI with the decrypted key and context
-            const result = await callOpenAI(apiKey, systemInstruction, message.prompt, formattedContext);
-            port.postMessage({ type: "CoPromptEnhanceResponse", data: result });
+            // *** TEMP DEBUG: Log the final inputs to OpenAI ***
+            console.log("\\n--- OpenAI API Call Inputs ---");
+            console.log("[System Instruction]:", finalSystemInstruction);
+            console.log("[User Prompt (Context + Original)]:", finalUserPrompt);
+            console.log("--- End OpenAI API Call Inputs ---\\n");
+            // *** END TEMP DEBUG ***
+
+            // 4. Call OpenAI with the decrypted key and combined context/prompt
+            // console.log(`[Background Port Listener] Calling OpenAI API (ID: ${requestId})`); // REMOVE log
+            const result = await callOpenAI(apiKey, finalSystemInstruction, finalUserPrompt);
+            // console.log(`[Background Port Listener] OpenAI API call successful (ID: ${requestId})`); // REMOVE log
+            
+            // Include requestId in the success response
+            // console.log(`[Background Port Listener] Posting success response via port (ID: ${requestId})`); // REMOVE log
+            port.postMessage({ 
+                type: "CoPromptEnhanceResponse", 
+                data: result, 
+                requestId: requestId 
+            });
 
          } catch (error) {
-            // Catch errors from callOpenAI or other issues
-            reportError('E_BACKGROUND_ERROR', error, { prompt: message.prompt, context: message.context });
-            port.postMessage({ type: "CoPromptErrorResponse", error: error.message || "Unknown background error" });
+            console.error(`[Background Port Listener] Error during enhancement process (ID: ${requestId}):`, error); // Keep Error
+            backgroundLogger.error('Error during enhancement process', { 
+                code: 'E_BACKGROUND_ERROR', 
+                error: error, // Pass the actual error
+                prompt: originalPrompt, 
+                context: conversationContext, 
+                requestId: requestId 
+            });
+            // Include requestId in the error response
+            // console.log(`[Background Port Listener] Posting error response via port (ID: ${requestId})`); // REMOVE log
+            port.postMessage({ 
+                type: "CoPromptErrorResponse", 
+                error: error.message || "Unknown background error", 
+                requestId: requestId 
+            });
          }
       } else {
-        // Use the simplified, synchronous reportError
-        reportError('E_UNKNOWN_MESSAGE_TYPE', `Received unknown message type via port: ${message.type}`, { source: 'portListener' });
-        // ... (rest of port listener)
+        console.warn(`[Background Port Listener] Received unknown message type: ${message.type}`); // Keep Warn
+        // Use the logger instance
+        backgroundLogger.warn(`Received unknown message type via port: ${message.type}`, { 
+            code: 'E_UNKNOWN_MESSAGE_TYPE', 
+            source: 'portListener', 
+            messageObject: message 
+        });
       }
     });
-    // ... (port.onDisconnect) ...
   }
-  // ... (rest of onConnect) ...
 });
 
 // --- Other Service Worker Lifecycle Listeners ---
@@ -254,4 +267,4 @@ self.addEventListener('install', (event) => {
   // event.waitUntil(self.skipWaiting()); // Optional: Force activation
 });
 
-console.log("CoPrompt Background Script Loaded (v2 - Sentry Helper Added)");
+// console.log("CoPrompt Background Script Loaded (v2 - Sentry Helper Added)"); // REMOVE log
