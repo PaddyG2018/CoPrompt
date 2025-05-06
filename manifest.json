@@ -51,13 +51,7 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "injected.js",
-        "utils/constants.js",
-        "utils/domUtils.js",
-        "content/contextExtractor.js",
-        "utils/logger.js",
-        "content/messageHandler.js",
-        "content/interactionHandler.js"
+        "injected.js"
       ],
       "matches": [
         "https://chat.openai.com/*",

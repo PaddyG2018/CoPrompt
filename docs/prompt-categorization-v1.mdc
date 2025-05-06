@@ -1,0 +1,67 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Prompt Categorization (v1 - Pre-Removal)
+
+This document outlines the prompt categorization logic implemented in `injected.js` before its removal in favor of always using the `MAIN_SYSTEM_INSTRUCTION`.
+
+## Implementation (in `injected.js`)
+
+The core logic resided in the `determinePromptCategory` function:
+
+```javascript
+// Simplified representation
+function determinePromptCategory(promptText) {
+  const lowerCasePrompt = promptText.toLowerCase();
+  if (/* keywords related to coding */) {
+    return 'code';
+  } else if (/* keywords related to research */) {
+    return 'research';
+  } else if (/* keywords related to creative writing */) {
+    return 'creative';
+  }
+  return 'default'; // Fallback category
+}
+```
+
+This function analyzed **only the current prompt text** using simple keyword matching to determine if the prompt fell into 'code', 'research', or 'creative' categories.
+
+The result of this function was used in `window.enhancePrompt` to select a corresponding system instruction (`CODE_SYSTEM_INSTRUCTION`, `RESEARCH_SYSTEM_INSTRUCTION`, `CREATIVE_SYSTEM_INSTRUCTION`, or `DEFAULT_SYSTEM_INSTRUCTION`) defined in `constants.js`. This selected instruction was then sent to `background.js` along with the prompt.
+
+```javascript
+// Simplified representation within window.enhancePrompt
+const category = determinePromptCategory(promptText);
+let systemInstruction;
+switch (category) {
+    case 'code': systemInstruction = CODE_SYSTEM_INSTRUCTION; break;
+    // ... other cases ...
+    default: systemInstruction = DEFAULT_SYSTEM_INSTRUCTION;
+}
+port.postMessage({
+    action: 'enhancePrompt',
+    data: {
+        prompt: promptText,
+        context: conversationContext,
+        systemInstruction: systemInstruction // Explicitly sent
+    }
+});
+```
+
+## Rationale for Removal
+
+This approach was removed because:
+
+1.  **Context Insensitivity:** The categorization only considered the immediate prompt, ignoring valuable conversation history which the enhancement process *does* use. This led to potentially mis-categorized prompts and suboptimal enhancements.
+2.  **Simplicity:** Always using the `MAIN_SYSTEM_INSTRUCTION` simplifies the logic in both `injected.js` and `background.js`, reducing potential points of failure and making the system easier to maintain.
+3.  **Potential Confusion:** The discrepancy between the context-aware *enhancement* and the context-ignorant *categorization* could be confusing.
+
+## Potential Future Improvements (If Re-implemented)
+
+If prompt categorization is revisited, consider:
+
+1.  **Context-Aware Categorization:** Analyze conversation history in addition to the current prompt. This could be done either in `content.js` (if context is readily available) or `background.js` (after receiving context).
+2.  **User Selection:** Allow users to manually select a category or enhancement "mode" via the UI.
+3.  **LLM-Based Categorization:** Use a lightweight LLM call (potentially locally or via the backend) to determine the most appropriate category or instruction set based on the prompt and context.
+4.  **Refined Keyword Logic:** Improve the keyword matching logic for better accuracy if sticking with a simpler approach.

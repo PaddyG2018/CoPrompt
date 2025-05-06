@@ -5,32 +5,37 @@ import {
   CREATIVE_SYSTEM_INSTRUCTION,
 } from "./utils/constants.js";
 
+// --- Utility Functions ---
+// REMOVED generateUniqueId - consolidated in utils/helpers.js
+
+// --- Constants for button states ---
+// const DEFAULT_SYSTEM_INSTRUCTION = "Default instruction..."; // REMOVE placeholder
+// const CODE_SYSTEM_INSTRUCTION = "Code instruction...";       // REMOVE placeholder
+const IMPROVE_LABEL_WITH_ICON = `
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sparkles">
+    <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"></path>
+    <path d="M20 3v4"></path>
+    <path d="M22 5h-4"></path>
+    <path d="M4 17v2"></path>
+    <path d="M5 18H3"></path>
+  </svg>
+  Improve Prompt
+`;
+const ENHANCING_LABEL = "Enhancing...";
+
+// --- Top-level state variables ---
+// Removed enhanceButton, ORIGINAL_LABEL, ENHANCING_LABEL - they will be handled differently or locally
+// let enhanceButton = null; 
+// const ORIGINAL_LABEL = 'Enhance';
+// const ENHANCING_LABEL = 'Enhancing...';
+
 // Simple flag - injected scripts don't have easy access to manifest
 // Assume production logging unless specifically enabled for debug builds
 const DEBUG = false;
 
-if (DEBUG) console.log("CoPrompt injected.js loaded successfully");
+// console.log("[CoPrompt Injected] Reached point before enhancePrompt definition."); // <-- REMOVE log before
 
 // Modified to use message passing instead of direct API calls
-async function determinePromptCategory(prompt) {
-  // Simple regex patterns for initial categorization
-  const codePatterns =
-    /\bcode\b|\bfunction\b|\bclass\b|\bprogramming\b|\bjavascript\b|\bpython\b|\bc\+\+\b|\bjava\b|\bhtml\b|\bcss\b|\bsql\b/i;
-  const researchPatterns =
-    /\bresearch\b|\bstudy\b|\banalysis\b|\bdata\b|\bscientific\b|\bhistory\b|\bexplain\b|\btheory\b/i;
-  const creativePatterns =
-    /\bstory\b|\bcreative\b|\bwrite\b|\bpoem\b|\bnarrative\b|\bfiction\b|\bimagine\b|\bscenario\b/i;
-
-  // Try regex first for efficiency
-  if (codePatterns.test(prompt)) return "code";
-  if (researchPatterns.test(prompt)) return "research";
-  if (creativePatterns.test(prompt)) return "creative";
-
-  // No AI fallback - just use general category to avoid CSP issues
-  return "general";
-}
-
-// ✅ Improved API key retrieval with timeout
 async function getAPIKeyFromContentScript() {
   return new Promise((resolve) => {
     const timeoutId = setTimeout(() => {
@@ -62,240 +67,358 @@ async function getAPIKeyFromContentScript() {
   });
 }
 
-// Modified to use message passing for API calls
-window.enhancePrompt = async function (prompt) {
-  if (DEBUG) console.log("Sending prompt to AI for enhancement:", prompt);
+// Modified enhancePrompt: Sends request TO content script, doesn't handle response directly
+window.enhancePrompt = async (promptText, conversationContext, requestId) => { // Removed port parameter
+  if (DEBUG) console.log('enhancePrompt called with:', promptText, 'Context:', conversationContext, 'ID:', requestId);
 
   try {
-    // Get API key through content.js
-    const apiKey = await getAPIKeyFromContentScript();
-    if (!apiKey) {
-      console.error("No API key found.");
-      return prompt; // Fallback to original prompt
-    }
-
-    // Detect category using regex only (no API call)
-    const category = await determinePromptCategory(prompt);
-    if (DEBUG) console.log("Detected category:", category);
-
-    // Define tailored instructions based on category
-    let systemInstruction = DEFAULT_SYSTEM_INSTRUCTION;
-
-    if (category === "code") {
-      systemInstruction = CODE_SYSTEM_INSTRUCTION;
-    } else if (category === "research") {
-      systemInstruction = RESEARCH_SYSTEM_INSTRUCTION;
-    } else if (category === "creative") {
-      systemInstruction = CREATIVE_SYSTEM_INSTRUCTION;
-    }
-
-    // Send request to background script via content script
-    return new Promise((resolve) => {
-      // Increase timeout to 60 seconds (from 30)
-      const timeoutId = setTimeout(() => {
-        console.error("Enhance prompt request timed out after 60 seconds");
-        window.removeEventListener("message", handleEnhanceResponse);
-        resolve(prompt); // Return original prompt on timeout
-      }, 60000);
-
-      // Track when the request was sent
-      const requestStartTime = Date.now();
-      if (DEBUG)
-        console.log(
-          "Sending enhancement request at:",
-          new Date().toISOString(),
-        );
-
-      const handleEnhanceResponse = (event) => {
-        if (
-          event.source !== window ||
-          event.data.type !== "CoPromptEnhanceResponse"
-        )
-          return;
-
-        // Calculate response time
-        const responseTime = (Date.now() - requestStartTime) / 1000;
-        if (DEBUG)
-          console.log(
-            `Received enhancement response after ${responseTime.toFixed(2)} seconds`,
-          );
-
-        // Clean up
-        clearTimeout(timeoutId);
-        window.removeEventListener("message", handleEnhanceResponse);
-
-        if (event.data.error) {
-          console.error("Error enhancing prompt:", event.data.error);
-          resolve(prompt); // Return original on error
-        } else {
-          if (DEBUG)
-            console.log("AI-enhanced prompt received from background script");
-
-          // Verify we got a meaningful enhancement
-          const enhancedPrompt = event.data.enhancedPrompt || prompt;
-
-          // If the enhanced prompt is the same as the original or very short, return the original
-          if (
-            enhancedPrompt === prompt ||
-            enhancedPrompt.length < prompt.length
-          ) {
-            console.warn(
-              "Enhanced prompt was not meaningful, returning original",
-            );
-            resolve(prompt);
-          } else {
-            resolve(enhancedPrompt);
-          }
-        }
-      };
-
-      window.addEventListener("message", handleEnhanceResponse);
-
-      // Send request to content script
-      window.postMessage(
-        {
-          type: "CoPromptEnhanceRequest",
-          prompt: prompt,
-          systemInstruction: systemInstruction,
-        },
-        "*",
-      );
-    });
+    // Post message TO content script (which will then talk to background)
+    window.postMessage({
+      type: "CoPromptEnhanceRequest", // Use a specific type for this direction
+      prompt: promptText,
+      context: conversationContext,
+      requestId: requestId // Include requestId
+    }, "*");
   } catch (error) {
-    console.error("Error in enhancePrompt:", error);
-    return prompt; // Fallback: return original prompt if anything fails
+    console.error('Error posting enhance request message to content script:', error);
+    // Reset button locally if possible? Find button by ID.
+    const buttonToReset = document.querySelector(`button[data-co-prompt-request-id="${requestId}"]`);
+    resetButtonState(buttonToReset); // Use existing reset function
   }
 };
 
+// console.log("[CoPrompt Injected] Reached point AFTER enhancePrompt definition."); // <-- REMOVE log after
+
+// --- Global Message Listener --- 
+// (Combine with existing listener if any, e.g., from getAPIKeyFromContentScript)
+window.addEventListener("message", (event) => {
+  // Basic validation
+  if (event.source !== window || !event.data?.type) {
+    return;
+  }
+
+  // Log relevant messages if debugging
+  // if (DEBUG && event.data.type?.startsWith('CoPrompt')) { // Keep conditional DEBUG log
+  //   console.log("[Injected Listener] Received:", event.data);
+  // }
+
+  const { type, payload, requestId } = event.data;
+
+  switch (type) {
+    case "CoPromptExecuteEnhance": // Listen for trigger from content script
+      // console.log("[Injected Listener] Received CoPromptExecuteEnhance, calling enhancePrompt..."); // REMOVE log
+      // Ensure enhancePrompt is available (should be, as this script defines it)
+      if(typeof enhancePrompt === 'function') { 
+          // Call enhancePrompt with data from content script's message
+          enhancePrompt(event.data.prompt, event.data.context, event.data.requestId);
+      } else {
+          console.error("[Injected Listener] enhancePrompt function not found locally!");
+      }
+      break;
+
+    case "CoPromptAPIKeyResponse":
+      // This logic is likely handled within getAPIKeyFromContentScript promise
+      // If getAPIKey uses this listener, ensure no conflicts
+      break;
+
+    case "CoPromptEnhanceResponse":
+      // console.log("[Injected Listener] Handling CoPromptEnhanceResponse"); // REMOVE log
+      const responseRequestId = event.data.requestId;
+      if (!responseRequestId) {
+          console.error("Enhance response missing requestId. Cannot reset button.", event.data);
+          // Might still try to update input if possible?
+          // updateInputElement(findActiveInputElement(), event.data.enhancedPrompt);
+          return; // Cannot reliably reset button
+      }
+      // console.log(`[Injected Listener] Response received for Request ID: ${responseRequestId}`); // REMOVE log
+
+      // Find the specific button associated with this request
+      const buttonToReset = document.querySelector(`button[data-co-prompt-request-id="${responseRequestId}"]`);
+      if (!buttonToReset) {
+           console.warn(`Button with ID ${responseRequestId} not found for reset.`);
+      }
+
+      // Check for error from background
+      if (event.data.error) {
+        console.error(`Error received from background (ID: ${responseRequestId}):`, event.data.error);
+        alert(`Enhancement failed: ${event.data.error}`); 
+        // console.log(`[Injected Listener] Calling resetButtonState for button ID ${responseRequestId} after error.`); // REMOVE log
+        resetButtonState(buttonToReset); // Pass the found button (or null if not found)
+        return;
+      }
+
+      // Process successful response
+      const enhancedPrompt = event.data.data;
+      // console.log(`[Injected Listener] Got enhancedPrompt (length: ${enhancedPrompt?.length}) for ID ${responseRequestId}`); // REMOVE log
+      if (enhancedPrompt) {
+          // console.log(`[Injected Listener] Finding active input element for ID ${responseRequestId}...`); // REMOVE log
+          const inputElement = findActiveInputElement(); // Input finding is independent of button ID
+          if (inputElement) {
+            // console.log(`[Injected Listener] Input element found. Calling updateInputElement for ID ${responseRequestId}...`); // REMOVE log
+            updateInputElement(inputElement, enhancedPrompt);
+            // console.log(`[Injected Listener] updateInputElement finished for ID ${responseRequestId}.`); // REMOVE log
+          } else {
+            console.error(`[Injected Listener] Could not find active input element to update for ID ${responseRequestId}.`);
+            window.postMessage({ type: "CoPromptReportError", detail: { code: 'E_NO_INPUT_FIELD', message: 'Could not find active input element after enhance response', requestId: responseRequestId } }, "*");
+          }
+      } else {
+          console.warn(`[Injected Listener] Received CoPromptEnhanceResponse but the enhanced prompt string was empty for ID ${responseRequestId}.`);
+          alert("Enhancement resulted in an empty prompt.");
+      }
+      // console.log(`[Injected Listener] Calling resetButtonState for button ID ${responseRequestId} after success/empty response.`); // REMOVE log
+      resetButtonState(buttonToReset); // Pass the found button (or null if not found)
+      // console.log(`[Injected Listener] resetButtonState finished for ID ${responseRequestId}.`); // REMOVE log
+      break;
+
+    case "CoPromptErrorResponse": // Ensure error responses also have requestId
+      // console.log("[Injected Listener] Handling CoPromptErrorResponse"); // REMOVE log
+      const errorRequestId = event.data.requestId; // Use consistent destructuring
+      // Find button by errorRequestId, show error, reset button
+      const errorButtonToReset = document.querySelector(`button[data-co-prompt-request-id="${errorRequestId}"]`);
+      if (!errorButtonToReset) {
+           console.warn(`Button with ID ${errorRequestId} not found for reset after error.`);
+      }
+      alert(`Enhancement failed: ${event.data.error || 'Unknown error'}`); 
+      resetButtonState(errorButtonToReset); // Pass the found button (or null if not found)
+      break;
+
+    default:
+      // Ignore unknown message types
+      break;
+  }
+});
+
+// --- DOM Manipulation & Button Logic --- 
+
 // Function to update the input field (Handles different input types)
 function updateInputElement(element, text) {
-  logInjectedDebug(`Attempting to update element with text (length: ${text.length})`);
+  // console.log(`[UPDATE_INPUT_DEBUG] Attempting to update element with text (length: ${text.length})`, element); // REMOVE log
   if (!element) {
-    logInjectedDebug("Update failed: Element is null.");
+    // console.warn("[UPDATE_INPUT_DEBUG] Update failed: Element is null."); // REMOVE log
     return;
   }
 
   try {
+    // console.log(`[UPDATE_INPUT_DEBUG] Element tagName: ${element.tagName}, isContentEditable: ${element.isContentEditable}`); // REMOVE log
     // Check if the element is a standard input or textarea
     if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+      // console.log("[UPDATE_INPUT_DEBUG] Updating INPUT/TEXTAREA value."); // REMOVE log
       element.value = text;
       // Dispatch input event to trigger any framework listeners (React, Vue, etc.)
+      // console.log("[UPDATE_INPUT_DEBUG] Dispatching input event for INPUT/TEXTAREA."); // REMOVE log
       element.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
-      logInjectedDebug("Updated value of INPUT/TEXTAREA and dispatched input event.");
+      // console.log("[UPDATE_INPUT_DEBUG] INPUT/TEXTAREA update complete."); // REMOVE log
     }
     // Check if the element is contenteditable
     else if (element.isContentEditable) {
-       logInjectedDebug("Element is contenteditable. Attempting update with execCommand...");
-       // Focus the element first
-       element.focus();
-       // Use execCommand to insert text - this often works better with framework-controlled inputs
+       // console.log("[UPDATE_INPUT_DEBUG] Element is contenteditable. Focusing..."); // REMOVE log
+       element.focus(); 
+       // *** FIX: Select existing content before inserting ***
+       document.execCommand('selectAll', false, null);
+       // *** END FIX ***
+       // console.log("[UPDATE_INPUT_DEBUG] Calling execCommand('insertText')...); // REMOVE log
        const success = document.execCommand('insertText', false, text);
+       // console.log(`[UPDATE_INPUT_DEBUG] execCommand success: ${success}`); // REMOVE log
        if (success) {
-         logInjectedDebug("execCommand('insertText') succeeded.");
+         // console.log("[UPDATE_INPUT_DEBUG] execCommand succeeded."); // REMOVE log
        } else {
-         // Report foundational error (Story 1.2) - before fallback
+         console.error("[UPDATE_INPUT_DEBUG] execCommand returned false. Falling back to textContent."); // Keep Error
          const errorMsg = "execCommand('insertText') returned false.";
-         console.error("[CoPrompt Injected Error] E_UPDATE_INPUT_FAILED:", errorMsg);
          window.postMessage({ type: "CoPromptReportError", detail: { code: 'E_UPDATE_INPUT_FAILED', message: errorMsg, context: 'execCommand returned false' } }, "*");
-         // Fallback to textContent if execCommand fails (less likely to work, but safe)
          element.textContent = text;
+         // console.log("[UPDATE_INPUT_DEBUG] Dispatching input event for fallback."); // REMOVE log
          element.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
-         logInjectedDebug("Updated textContent as fallback and dispatched input event.");
+         // console.log("[UPDATE_INPUT_DEBUG] textContent fallback complete."); // REMOVE log
        }
     } else {
-      logInjectedDebug("Update failed: Element is not an input, textarea, or contenteditable.", element);
+      console.warn("[UPDATE_INPUT_DEBUG] Element is not an input, textarea, or contenteditable."); // Keep Warn
     }
+    // console.log("[UPDATE_INPUT_DEBUG] Try block finished successfully."); // REMOVE log
   } catch (error) {
-    // Report foundational error (Story 1.2)
-    console.error("[CoPrompt Injected Error] E_UPDATE_INPUT_FAILED: Error occurred during updateInputElement:", error);
+    console.error("[UPDATE_INPUT_DEBUG] Error occurred during updateInputElement:", error); // Keep Error
     window.postMessage({ type: "CoPromptReportError", detail: { code: 'E_UPDATE_INPUT_FAILED', message: error.message, stack: error.stack } }, "*");
-    logInjectedDebug("Error occurred during updateInputElement:", error.message);
   }
 }
 
 // Function to create and add the enhance button
 function addEnhanceButton(inputElement) {
-  // ... (Existing addEnhanceButton logic - should be stable from reset state) ...
-}
-
-// Function to reset the button state - Simplified for Functional Reset
-function resetButtonState() {
-  logInjectedDebug("Attempting functional button reset.");
-
-  // Clear timeout if it exists
-  if (requestTimeoutId) {
-    clearTimeout(requestTimeoutId);
-    requestTimeoutId = null;
-    logInjectedDebug("Cleared response timeout during reset.");
+  console.log("[ADD_BUTTON] Creating enhance button for:", inputElement);
+  if (inputElement.dataset.enhanceButtonAdded === 'true') {
+    console.log("[ADD_BUTTON] Button already added for this element.");
+    return;
   }
 
-  // Use the enhanceButton state variable which should hold the reference
-  if (enhanceButton) {
-     try {
-        // Prioritize making the button functionally clickable again
-        enhanceButton.disabled = false;
-        // Attempt to reset visual state (may be overridden by host page)
-        enhanceButton.textContent = ORIGINAL_LABEL;
-        enhanceButton.style.cursor = 'pointer';
-        enhanceButton.style.backgroundColor = "#6a0dad"; // Reset color
+  // Define labels locally or get from constants if needed elsewhere
+  const ORIGINAL_LABEL = 'Enhance';
+  const ENHANCING_LABEL = 'Enhancing...';
 
-        logInjectedDebug(`Functional button reset executed: Disabled=${enhanceButton.disabled}, Text='${enhanceButton.textContent}'`);
+  // Create the button element locally
+  const button = document.createElement('button');
+  button.textContent = ORIGINAL_LABEL;
+  button.style.position = 'absolute'; 
+  button.style.zIndex = '1000'; 
+  button.className = 'coprompt-enhance-button'; 
+
+  // Generate and assign unique ID
+  const requestId = generateUniqueId();
+  button.dataset.coPromptRequestId = requestId;
+
+  // Positioning logic (needs refinement based on target sites)
+  // ... (Positioning logic) ...
+
+  document.body.appendChild(button);
+  inputElement.dataset.enhanceButtonAdded = 'true'; 
+  console.log("[ADD_BUTTON] Enhance button created and appended with ID:", requestId, button);
+
+  // REMOVED direct onclick handler assignment
+  /* 
+  button.onclick = (event) => { ... };
+  */
+  // Click handling is now initiated via message from content.js -> makeDraggable callback
+}
+
+// Helper to get active input value/textContent
+function findActiveInputElementValue() {
+   const element = findActiveInputElement();
+   if (!element) return null;
+   return element.value !== undefined ? element.value : element.textContent;
+}
+
+// Function to reset the button state - ACCEPTS BUTTON ELEMENT
+function resetButtonState(button) {
+  // const logResetDebug = (...args) => DEBUG && console.log('[RESET_BUTTON_DEBUG]', ...args); // REMOVE debug helper
+  // const logWarnDebug = (...args) => console.warn('[RESET_BUTTON_WARN]', ...args); // REMOVE debug helper
+  const logResetError = (...args) => console.error('[RESET_BUTTON_ERROR]', ...args); // Keep Error helper or replace with direct console.error
+
+  // logResetDebug(`resetButtonState called for button:`, button); // REMOVE log
+
+  if (button && button.tagName === 'BUTTON') {
+     try {
+        // logResetDebug("Valid button passed. Attempting reset..."); // REMOVE log
+        // Reset the specific button passed as argument
+        button.disabled = false;
+        button.style.cursor = "pointer";
+        button.classList.remove("coprompt-loading");
+        // Restore original background color if needed, or rely on CSS
+        // button.style.backgroundColor = "#6a0dad"; // Example original color
+
+        // --- Reconstruct content safely --- START ---
+        // 1. Clear existing content
+        button.textContent = '';
+
+        // 2. Create SVG element
+        const svgNS = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(svgNS, "svg");
+        svg.setAttribute("width", "16");
+        svg.setAttribute("height", "16");
+        svg.setAttribute("viewBox", "0 0 24 24");
+        svg.setAttribute("fill", "none");
+        svg.setAttribute("stroke", "currentColor");
+        svg.setAttribute("stroke-width", "2");
+        svg.setAttribute("stroke-linecap", "round");
+        svg.setAttribute("stroke-linejoin", "round");
+        svg.classList.add("lucide", "lucide-sparkles"); // Add classes if needed
+
+        // *** START FIX for TrustedHTML ***
+        // 3. Set SVG paths using DOM manipulation (avoids innerHTML)
+        const path1 = document.createElementNS(svgNS, "path");
+        path1.setAttribute("d", "M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z");
+        svg.appendChild(path1);
+
+        const path2 = document.createElementNS(svgNS, "path");
+        path2.setAttribute("d", "M20 3v4");
+        svg.appendChild(path2);
+
+        const path3 = document.createElementNS(svgNS, "path");
+        path3.setAttribute("d", "M22 5h-4");
+        svg.appendChild(path3);
+
+        const path4 = document.createElementNS(svgNS, "path");
+        path4.setAttribute("d", "M4 17v2");
+        svg.appendChild(path4);
+
+        const path5 = document.createElementNS(svgNS, "path");
+        path5.setAttribute("d", "M5 18H3");
+        svg.appendChild(path5);
+        // *** END FIX for TrustedHTML ***
+
+        // 4. Create text node
+        const textNode = document.createTextNode(" Improve Prompt"); // Add leading space if needed
+
+        // 5. Append SVG and text node to the button
+        button.appendChild(svg);
+        button.appendChild(textNode);
+        // --- Reconstruct content safely --- END ---
+
+        // logResetDebug(`Button reset complete: Disabled=false, Content set programmatically.`); // REMOVE log
      } catch (error) {
-         // Report foundational error (Story 1.2)
-         console.error("[CoPrompt Injected Error] E_BUTTON_RESET_FAILED: Error resetting button state:", error);
-         window.postMessage({ type: "CoPromptReportError", detail: { code: 'E_BUTTON_RESET_FAILED', message: error.message, stack: error.stack } }, "*");
-         logInjectedDebug("Error during resetButtonState:", error.message);
-         enhanceButton = null; 
+       logResetError(`[CoPrompt Injected Error] E_BUTTON_RESET_FAILED: Error resetting button state: ${error.message}`, error);
+       window.postMessage({ type: "CoPromptReportError", detail: { code: 'E_BUTTON_RESET_FAILED', message: error.message, stack: error.stack, context: 'programmatic reset' } }, "*");
+       // Fallback: Just set text
+       button.textContent = "Improve Prompt"; 
+       button.disabled = false;
+       button.style.cursor = "pointer";
+       button.classList.remove("coprompt-loading");
      }
   } else {
-    logInjectedDebug("Reset skipped: Button element variable (enhanceButton) is null.");
+    console.warn("[RESET_BUTTON_DEBUG] Reset skipped: Invalid or null button passed.", button); // Keep Warn
   }
 }
 
-// --- Communication with Content Script ---
-window.addEventListener('message', (event) => {
-  // ... (validation & logging) ...
-  if (event.source !== window || !event.data || !event.data.type) return;
-  // ... (log relevant messages)
-
-  if (event.data.type === "CoPromptEnhanceResponse") {
-    logInjectedDebug("Processing CoPromptEnhanceResponse...");
-    // Reset button state after processing response (success or error)
-    resetButtonState(); // Call the simplified reset function
-
-    if (event.data.error) {
-      console.error("[CoPrompt Injected] Enhancement failed:", event.data.error);
-      // Basic alert for now (per Phase 1.3)
-      alert(`Enhancement Error: ${event.data.error}`); 
-    } else if (event.data.enhancedPrompt) {
-      logInjectedDebug("Enhancement successful. Finding input element to update...");
-      const inputElement = currentInputElement || findActiveInputElement(); 
-      if (inputElement) {
-        logInjectedDebug("Input element found. Updating content...");
-        updateInputElement(inputElement, event.data.enhancedPrompt);
-        logInjectedDebug("Input element update attempted.");
-      } else {
-        console.error("[CoPrompt Injected] Could not find input element to update after enhancement.");
-        alert("Error: Could not find the text input field to place the enhanced prompt.");
-      }
-    } else {
-        logInjectedDebug("Received CoPromptEnhanceResponse but no error or prompt data found.", event.data);
-        // Handle unexpected response format if necessary
-    }
-  }
-});
-
-// ... (Initialization, MutationObserver) ...
-
+// Function to find the currently focused or relevant input/textarea
 function findActiveInputElement() {
-  logInjectedDebug("Attempting to find active input element...");
-  const element = /* ... selectors ... */ document.querySelector('div[contenteditable="true"]');
-  // ... (visibility check) ...
-  if (!element) {
-     // Report foundational error (Story 1.2)
-     console.error("[CoPrompt Injected Error] E_NO_INPUT_FIELD: No suitable active input element found.");
-     window.postMessage({ type: "CoPromptReportError", detail: { code: 'E_NO_INPUT_FIELD', message: 'No suitable active input element found.' } }, "*");
+  // console.log("[FIND_INPUT_DEBUG] Attempting to find active input element..."); // REMOVE log
+  try {
+    // Use a broader set of selectors, matching domUtils.js logic if possible
+    // *** UPDATED SELECTOR to include Gemini's structure ***
+    const element = document.querySelector(
+      '#prompt-textarea[contenteditable="true"], ' + // ChatGPT ID
+      'div.ProseMirror[contenteditable="true"], ' +   // ChatGPT Class & Claude Class
+      'div.ql-editor[contenteditable="true"], ' +     // Gemini Class
+      'textarea:not([style*="display: none"]):not([disabled])' // General fallback (visible, enabled textarea)
+    ); 
+    
+    if (!element) {
+      console.error("[FIND_INPUT_DEBUG] No suitable input element found with the refined selector."); // Keep Error
+      // Try a simpler fallback just in case? (Might re-introduce the original issue)
+      const fallbackElement = document.querySelector('#prompt-textarea, textarea, div[contenteditable="true"]'); // Broader fallback
+      if (fallbackElement) {
+          console.warn("[FIND_INPUT_DEBUG] Refined selector failed, but found an element with fallback selector:", fallbackElement); // Keep Warn
+          // Basic visibility check for fallback
+          if (fallbackElement.offsetParent === null && fallbackElement.tagName !== 'TEXTAREA') {
+             console.warn("[FIND_INPUT_DEBUG] Fallback element might be hidden (offsetParent is null). Rejecting fallback."); // Keep Warn
+             return null;
+          } 
+          return fallbackElement; // Return the fallback cautiously
+      } else {
+          console.error("[FIND_INPUT_DEBUG] Fallback selector also failed."); // Keep Error
+          // window.postMessage({ type: "CoPromptReportError", detail: { code: 'E_NO_INPUT_FIELD', message: 'No suitable active input element found even with fallback.' } }, "*");
+          return null; // Explicitly return null
+      }
+    }
+    
+    // Add visibility check if needed (inline style check is now part of selector)
+    // Offset parent check can still be useful for other forms of hiding
+    if (element.offsetParent === null && element.tagName !== 'TEXTAREA') { 
+        console.warn("[FIND_INPUT_DEBUG] Found element, but offsetParent is null (might be hidden):", element); // Keep Warn
+        // return null; // Decide if offsetParent check should prevent return
+    }
+
+    // console.log("[FIND_INPUT_DEBUG] Found potential element with refined selector:", element); // REMOVE log
+    return element;
+    
+  } catch (error) {
+    console.error("[FIND_INPUT_DEBUG] Error occurred during findActiveInputElement:", error); // Keep Error
+    window.postMessage({ type: "CoPromptReportError", detail: { code: 'E_FIND_INPUT_ERROR', message: `Error finding input element: ${error.message}`, stack: error.stack } }, "*");
+    return null; // Return null on error
   }
-  logInjectedDebug(element ? "Found active input element:" : "No suitable active input element found.", element);
-  return element;
 }
+
+// MutationObserver logic to detect input fields
+// ... (observer logic remains the same) ...
+
+// Initial check for input fields on script load
+// ... (initial check logic) ...
+
+// --- FINAL CONFIRMATION LOG ---
+// console.log("[CoPrompt Injected] Script execution completed. window.enhancePrompt should be defined.");

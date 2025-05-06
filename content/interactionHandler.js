@@ -16,6 +16,22 @@
 // Configuration Constants
 const DRAG_THRESHOLD = 3; // Lowered threshold for more sensitivity
 
+import { findActiveInputElement } from "../utils/domUtils.js";
+import { ENHANCING_LABEL } from "../utils/constants.js"; // Assuming constants.js is in utils/
+
+// Add local DEBUG flag
+const DEBUG = true; // Set true for development logs
+
+// Logging specifically for interaction handler
+function logInteractionHandlerDebug(...args) {
+  if (DEBUG) {
+    console.log("[CoPrompt IH Debug]", ...args);
+  }
+}
+function logInteractionHandlerError(...args) {
+  console.error("[CoPrompt IH Error]", ...args);
+}
+
 /**
  * Applies viewport constraints to a position.
  * @param {number} initialPos The initial coordinate (top or left).
@@ -40,6 +56,7 @@ function constrainToViewport(initialPos, offset, maxDimension, elementSize) {
  * @param {HTMLElement} [handleElement=draggableElement] The element to attach the initial pointerdown listener to. Defaults to draggableElement.
  */
 export function makeDraggable(draggableElement, onClick, handleElement = null) {
+  logInteractionHandlerDebug("makeDraggable called for container:", draggableElement, "and button:", handleElement);
   const listenerTarget = handleElement || draggableElement;
 
   if (!draggableElement) {
@@ -61,6 +78,7 @@ export function makeDraggable(draggableElement, onClick, handleElement = null) {
     startY: 0,
     lastPointerUpTime: 0,
     pointerId: null,
+    targetInputElement: null,
   };
 
   // --- Pointer Event Handlers ---
@@ -76,6 +94,11 @@ export function makeDraggable(draggableElement, onClick, handleElement = null) {
     }
     event.preventDefault();
     event.stopPropagation();
+
+    // --- Find and Store Target Input Element ---
+    draggableElement._dragState.targetInputElement = findActiveInputElement();
+    logInteractionHandlerDebug("Target input element found on pointerdown:", draggableElement._dragState.targetInputElement);
+    // --- End Store --- 
 
     // Set state on the draggable element
     draggableElement._dragState.isPointerDown = true;
@@ -144,6 +167,7 @@ export function makeDraggable(draggableElement, onClick, handleElement = null) {
     // If moved beyond threshold, mark as dragging
     if (!draggableElement._dragState.isDragging && distance > DRAG_THRESHOLD) {
       draggableElement._dragState.isDragging = true;
+      logInteractionHandlerDebug("Drag threshold exceeded, isDragging = true");
     }
 
     // Calculate new position based on initial pos + total offset
@@ -213,8 +237,18 @@ export function makeDraggable(draggableElement, onClick, handleElement = null) {
     // Call onClick callback if it wasn't a drag
     if (!wasDragging) {
       if (typeof onClick === "function") {
-        onClick(event);
+        logInteractionHandlerDebug("Click detected (isDragging is false), calling provided onClick callback...");
+        try {
+          // Pass the handleElement, its requestId, AND the stored target input to the callback
+          const requestId = handleElement?.dataset.coPromptRequestId;
+          const targetInput = draggableElement._dragState.targetInputElement; 
+          onClick(handleElement, requestId, targetInput); // Pass targetInput
+        } catch (error) {
+          logInteractionHandlerError("Error executing onClick callback:", error);
+        }
       }
+    } else {
+      logInteractionHandlerDebug("Drag detected (isDragging is true), click skipped.");
     }
   };
 

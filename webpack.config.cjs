@@ -6,6 +6,8 @@ module.exports = {
   entry: {
     // Scripts that need bundling (because they import npm packages or use modules)
     background: './background.js', 
+    content: './content.js',
+    injected: './injected.js', // Add injected.js back as an entry point
     // If content.js uses imports that need resolving, add it here.
     // content: './content.js', 
     // If options.js uses imports, add it here.
@@ -15,7 +17,7 @@ module.exports = {
   },
   output: {
     path: path.resolve(__dirname, 'dist'),
-    filename: '[name].js', // Bundled files: background.js, etc.
+    filename: '[name].js', // Bundled files: background.js, content.js, etc.
     clean: true, // Clean dist/ before build
   },
   module: {
@@ -38,15 +40,11 @@ module.exports = {
         { from: "content.css", to: "." },
         // Copy Icons
         { from: "icons", to: "icons" },
-        // Copy scripts that *don't* need bundling (assuming they have no npm imports)
-        { from: "content.js", to: "." }, // Adjust if content.js needs bundling
-        { from: "options.js", to: "." }, // Adjust if options.js needs bundling
-        { from: "popup.js", to: "." },   // Adjust if popup.js needs bundling
-        { from: "injected.js", to: "." }, // Injected script is usually copied directly
-        // Copy utility directories/files if they are plain JS and don't need bundling
-        { from: "utils", to: "utils" }, 
-        { from: "background/apiClient.js", to: "background/apiClient.js" }, // Copy if not bundled via background.js
-        { from: "content", to: "content" } // Copy other content script files if needed
+        // Copy scripts that *don't* need bundling 
+        { from: "options.js", to: "." },
+        { from: "popup.js", to: "." },
+        // Copy background script dependencies IF NOT imported directly by background.js
+        // Example: { from: "background/apiClient.js", to: "background/apiClient.js" }, // Only if apiClient isn't imported by background.js
       ],
     }),
   ],
@@ -56,5 +54,5 @@ module.exports = {
     // extensions: ['.js'], // Add '.ts' if using TypeScript
   },
   // Avoid including node built-ins if not needed in browser context
-  target: 'webworker', // Change target to webworker for Service Worker context
+  target: 'web', // Change target to web for content script compatibility
 }; 
