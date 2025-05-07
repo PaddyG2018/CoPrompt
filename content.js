@@ -335,10 +335,20 @@ function createFloatingButton() {
     }
 
     logInteractionHandlerDebug("Setting button state to Enhancing (in content.js)...");
-    buttonElement.textContent = ENHANCING_LABEL;
+    
     buttonElement.disabled = true;
-    buttonElement.style.cursor = "wait";
+    buttonElement.style.cursor = "wait"; // Or rely on .coprompt-loading class from CSS
     buttonElement.classList.add("coprompt-loading");
+
+    // Set loading content (dots + text from ENHANCING_LABEL)
+    buttonElement.innerHTML = `
+      <div class="coprompt-loading-dots-container">
+        <div class="coprompt-loading-dot"></div>
+        <div class="coprompt-loading-dot"></div>
+        <div class="coprompt-loading-dot"></div>
+      </div>
+      <span>${ENHANCING_LABEL}</span> 
+    `; // Using ENHANCING_LABEL constant
 
     // 1. Get Conversation Context
     let conversationContext = [];

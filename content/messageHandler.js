@@ -116,6 +116,38 @@ export async function handleWindowMessage(event) {
       let port = null;
       try {
         port = chrome.runtime.connect({ name: "enhancer" });
+
+        // **NEW: Explicitly check for connection error (like invalidated context)**
+        if (chrome.runtime.lastError) {
+          console.error("[CoPrompt MH Error] E_PORT_CONNECTION_IMMEDIATE_FAIL: chrome.runtime.connect failed:", chrome.runtime.lastError.message);
+          // Post the specific lastError message
+          window.postMessage(
+            {
+              type: "CoPromptErrorResponse",
+              error: `Failed to connect to background service: ${chrome.runtime.lastError.message}`,
+              requestId: requestId, 
+            },
+            "*",
+          );
+          port = null; // Ensure port is marked null
+          // No need to proceed further if connection failed immediately
+          return; // Exit the CoPromptEnhanceRequest case
+        }
+        
+        // **NEW: Check if port is null even if no lastError (defensive)**
+        if (!port) {
+            console.error("[CoPrompt MH Error] E_PORT_NULL: chrome.runtime.connect returned null port without lastError.");
+            window.postMessage(
+              {
+                type: "CoPromptErrorResponse",
+                error: "Failed to connect to background service: Port not established.",
+                requestId: requestId,
+              },
+              "*",
+            );
+            return; // Exit
+        }
+
         logMessageHandlerDebug("[MessageHandler] Port connected for EnhanceRequest.");
 
         port.onDisconnect.addListener(() => {
@@ -160,12 +192,12 @@ export async function handleWindowMessage(event) {
           requestId: requestId, 
         });
 
-      } catch (error) {
-        console.error("[CoPrompt MH Error] E_PORT_CONNECTION_FAILED: Error establishing port connection:", error);
+      } catch (error) { // This will now catch errors from using a valid port, or other synchronous issues
+        console.error("[CoPrompt MH Error] E_PORT_USAGE_ERROR: Error using port or other synchronous failure:", error);
         window.postMessage(
           {
             type: "CoPromptErrorResponse",
-            error: `Failed to connect to background service: ${error.message}`,
+            error: `Error during background service communication: ${error.message}`,
             requestId: requestId, 
           },
           "*",

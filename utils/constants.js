@@ -36,7 +36,7 @@ IMPORTANT GUIDELINES:
 7. The output should ONLY be the enhanced prompt, not explanations or meta-commentary`;
 
 // --- UI Constants ---
-export const ENHANCING_LABEL = "Enhancing...";
+export const ENHANCING_LABEL = "Enhancing";
 // Add other UI-related constants here if needed (e.g., button text, icons)
 
 export const ERROR_MESSAGES = {
