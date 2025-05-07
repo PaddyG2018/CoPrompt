@@ -18,51 +18,9 @@ function logMessageHandlerDebug(...args) {
 
 // --- Internal Helpers ---
 
-// Handles request from injected script to get API key
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function _handleApiKeyRequest(_event) {
-  // logMessageHandlerDebug("Handling API key request from injected script"); // REMOVE log
-  chrome.runtime.sendMessage({ type: "GET_API_KEY" }, (response) => {
-    if (chrome.runtime.lastError) {
-      console.error("Error getting API key:", chrome.runtime.lastError);
-      window.postMessage(
-        {
-          type: "CoPromptAPIKeyResponse",
-          key: null,
-          error: chrome.runtime.lastError.message,
-        },
-        "*",
-      );
-      return;
-    }
-    if (response?.key) {
-      // logMessageHandlerDebug("Got API key, sending response to injected script"); // REMOVE log
-      window.postMessage(
-        { type: "CoPromptAPIKeyResponse", key: response.key },
-        "*",
-      );
-    } else {
-      console.error("API key retrieval failed in background script");
-      window.postMessage(
-        {
-          type: "CoPromptAPIKeyResponse",
-          key: null,
-          error: "Failed to retrieve API key from background.",
-        },
-        "*",
-      );
-    }
-  });
-}
+// Removed _handleApiKeyRequest function
 
-// Handles response *intended for the DOM/user* which originates from injected script
-// (e.g., after background script replies to injected script)
-async function _handleDomUpdateResponse(event) {
-  // logMessageHandlerDebug("Handling DOM update response (originated from injected):", event.data); // REMOVE log
-  // Resetting button state is now handled within injected.js
-  // Updating input is now handled within injected.js
-  // This function might only be needed if content script needs to do DOM updates
-}
+// Removed _handleDomUpdateResponse function
 
 /**
  * Forwards error details received from the injected script to the background script.
@@ -101,10 +59,6 @@ export async function handleWindowMessage(event) {
   logMessageHandlerDebug("Received message from injected script:", type, event.data);
 
   switch (type) {
-    case "CoPromptGetAPIKey":
-      _handleApiKeyRequest(event); // Call existing helper
-      break;
-
     case "CoPromptEnhanceRequest": // Message from injected.js asking us to enhance
       logMessageHandlerDebug(`Handling EnhanceRequest (ID: ${requestId}):`, event.data);
       if (!requestId) {

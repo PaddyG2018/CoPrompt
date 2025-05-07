@@ -38,7 +38,3 @@ IMPORTANT GUIDELINES:
 // --- UI Constants ---
 export const ENHANCING_LABEL = "Enhancing";
 // Add other UI-related constants here if needed (e.g., button text, icons)
-
-export const ERROR_MESSAGES = {
-  // ... existing code ...
-};

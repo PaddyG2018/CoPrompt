@@ -17,7 +17,6 @@
 const DRAG_THRESHOLD = 3; // Lowered threshold for more sensitivity
 
 import { findActiveInputElement } from "../utils/domUtils.js";
-import { ENHANCING_LABEL } from "../utils/constants.js"; // Assuming constants.js is in utils/
 
 // Add local DEBUG flag
 const DEBUG = true; // Set true for development logs

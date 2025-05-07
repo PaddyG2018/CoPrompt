@@ -54,27 +54,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     })();
     return true; // Indicate async response
 
-  } else if (request.type === "GET_API_KEY") {
-    // This handler uses sendResponse asynchronously via callback
-    chrome.storage.local.get("openai_api_key", async (data) => {
-        if (chrome.runtime.lastError) {
-           console.error("Error getting API key:", chrome.runtime.lastError);
-           sendResponse({ apiKey: null, error: chrome.runtime.lastError.message });
-        } else if (data.openai_api_key) {
-           try {
-              // const decryptedKey = await decryptAPIKey(data.openai_api_key);
-              // sendResponse({ apiKey: decryptedKey }); 
-              sendResponse({ apiKey: data.openai_api_key /* Send raw for now */ });
-           } catch (error) {
-              console.error("Decryption error:", error);
-              sendResponse({ apiKey: null, error: "Decryption failed" });
-           }
-        } else {
-            sendResponse({ apiKey: null }); // No key found
-        }
-    });
-    return true; // Indicate async response
-
   } else if (request.type === "CLEAR_API_KEY") {
      // This handler uses sendResponse asynchronously 
      chrome.storage.local.remove("openai_api_key", () => {
@@ -198,12 +177,7 @@ chrome.runtime.onConnect.addListener((port) => {
             // Use the passed systemInstruction if provided (e.g., category-specific), otherwise use MAIN
             const finalSystemInstruction = systemInstruction || MAIN_SYSTEM_INSTRUCTION;
 
-            // *** TEMP DEBUG: Log the final inputs to OpenAI ***
-            console.log("\\n--- OpenAI API Call Inputs ---");
-            console.log("[System Instruction]:", finalSystemInstruction);
-            console.log("[User Prompt (Context + Original)]:", finalUserPrompt);
-            console.log("--- End OpenAI API Call Inputs ---\\n");
-            // *** END TEMP DEBUG ***
+            // Removed Temp Debug Block
 
             // 4. Call OpenAI with the decrypted key and combined context/prompt
             // console.log(`[Background Port Listener] Calling OpenAI API (ID: ${requestId})`); // REMOVE log

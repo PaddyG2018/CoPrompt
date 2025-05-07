@@ -2,7 +2,7 @@ const path = require('path');
 const CopyPlugin = require('copy-webpack-plugin'); // We still need to copy assets
 
 module.exports = {
-  mode: 'production', // Or process.env.NODE_ENV || 'development'
+  mode: process.env.NODE_ENV === 'production' ? 'production' : 'development',
   entry: {
     // Scripts that need bundling (because they import npm packages or use modules)
     background: './background.js', 

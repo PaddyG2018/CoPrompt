@@ -10,7 +10,7 @@ export function findActiveInputElement() {
   let inputField = null;
   const debugLog = (message, ...args) => {
     // Basic logging for now, replace with proper logger if needed
-    console.log(`[findActiveInputElement] ${message}`, ...args);
+    // console.log(`[findActiveInputElement] ${message}`, ...args); // Quieted for now
   };
 
   // Strategy 1: Direct ID selector for contenteditable (ChatGPT)
@@ -18,7 +18,7 @@ export function findActiveInputElement() {
     "#prompt-textarea[contenteditable='true']",
   );
   if (inputField) {
-    debugLog("Found via #prompt-textarea[contenteditable]");
+    // debugLog("Found via #prompt-textarea[contenteditable]"); // Quieted
     return inputField;
   }
 
@@ -26,7 +26,7 @@ export function findActiveInputElement() {
   if (!inputField) {
     inputField = document.querySelector("textarea#prompt-textarea");
     if (inputField) {
-      debugLog("Found via textarea#prompt-textarea");
+      // debugLog("Found via textarea#prompt-textarea"); // Quieted
       return inputField;
     }
   }
@@ -37,7 +37,7 @@ export function findActiveInputElement() {
       "div.ProseMirror[contenteditable='true']",
     );
     if (inputField) {
-      debugLog("Found via div.ProseMirror[contenteditable]");
+      // debugLog("Found via div.ProseMirror[contenteditable]"); // Quieted
       return inputField;
     }
   }
@@ -49,7 +49,7 @@ export function findActiveInputElement() {
       // Check if visible (offsetParent is a simple check)
       if (textarea.offsetParent !== null) {
         inputField = textarea;
-        debugLog("Found via visible textarea", textarea);
+        // debugLog("Found via visible textarea", textarea); // Quieted
         return inputField;
       }
     }
@@ -64,7 +64,7 @@ export function findActiveInputElement() {
       // Check if visible
       if (div.offsetParent !== null) {
         inputField = div;
-        debugLog("Found via visible contenteditable div", div);
+        // debugLog("Found via visible contenteditable div", div); // Quieted
         return inputField;
       }
     }
@@ -79,20 +79,20 @@ export function findActiveInputElement() {
       )
       ?.closest("form");
     if (form) {
-      debugLog("Found form, searching within", form);
+      // debugLog("Found form, searching within", form); // Quieted
       // Search within the form for the most likely input field
       const formInput = form.querySelector(
         "textarea, div[contenteditable='true']",
       );
       if (formInput && formInput.offsetParent !== null) {
         inputField = formInput;
-        debugLog("Found input within form", formInput);
+        // debugLog("Found input within form", formInput); // Quieted
         return inputField;
       }
     }
   }
 
-  debugLog("Could not find active input element after all strategies.");
+  // debugLog("Could not find active input element after all strategies."); // Quieted
   return null; // Return null if no suitable element is found
 }
 
@@ -113,9 +113,9 @@ function simpleFallback(alertReason) {
  * @param {string} text The text to insert.
  */
 export function updateInputElement(element, text) {
-  console.log("[domUtils] Entered updateInputElement. Element:", element);
+  // console.log("[domUtils] Entered updateInputElement. Element:", element); // Quieted for now
   const debugLog = (message, ...args) => {
-    console.log(`[updateInputElement] ${message}`, ...args);
+    // console.log(`[updateInputElement] ${message}`, ...args); // Quieted for now
   };
   const errorLog = (message, ...args) => {
     console.error(`[updateInputElement] ${message}`, ...args);

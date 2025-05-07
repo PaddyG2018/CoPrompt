@@ -1,9 +1,4 @@
-import {
-  DEFAULT_SYSTEM_INSTRUCTION,
-  CODE_SYSTEM_INSTRUCTION,
-  RESEARCH_SYSTEM_INSTRUCTION,
-  CREATIVE_SYSTEM_INSTRUCTION,
-} from "./utils/constants.js";
+// Removed import of constants as they are unused in injected.js
 
 // --- Utility Functions ---
 // REMOVED generateUniqueId - consolidated in utils/helpers.js
@@ -34,38 +29,6 @@ const ENHANCING_LABEL = "Enhancing...";
 const DEBUG = false;
 
 // console.log("[CoPrompt Injected] Reached point before enhancePrompt definition."); // <-- REMOVE log before
-
-// Modified to use message passing instead of direct API calls
-async function getAPIKeyFromContentScript() {
-  return new Promise((resolve) => {
-    const timeoutId = setTimeout(() => {
-      console.error("API key request timed out");
-      resolve(null);
-    }, 5000);
-
-    const handleMessage = (event) => {
-      if (
-        event.source !== window ||
-        event.data.type !== "CoPromptAPIKeyResponse"
-      )
-        return;
-
-      // Clean up
-      clearTimeout(timeoutId);
-      window.removeEventListener("message", handleMessage);
-
-      if (event.data.key) {
-        resolve(event.data.key);
-      } else {
-        console.error("No API key received from content script.");
-        resolve(null);
-      }
-    };
-
-    window.addEventListener("message", handleMessage);
-    window.postMessage({ type: "CoPromptGetAPIKey" }, "*");
-  });
-}
 
 // Modified enhancePrompt: Sends request TO content script, doesn't handle response directly
 window.enhancePrompt = async (promptText, conversationContext, requestId) => { // Removed port parameter
@@ -114,11 +77,6 @@ window.addEventListener("message", (event) => {
       } else {
           console.error("[Injected Listener] enhancePrompt function not found locally!");
       }
-      break;
-
-    case "CoPromptAPIKeyResponse":
-      // This logic is likely handled within getAPIKeyFromContentScript promise
-      // If getAPIKey uses this listener, ensure no conflicts
       break;
 
     case "CoPromptEnhanceResponse":
@@ -238,43 +196,6 @@ function updateInputElement(element, text) {
     console.error("[UPDATE_INPUT_DEBUG] Error occurred during updateInputElement:", error); // Keep Error
     window.postMessage({ type: "CoPromptReportError", detail: { code: 'E_UPDATE_INPUT_FAILED', message: error.message, stack: error.stack } }, "*");
   }
-}
-
-// Function to create and add the enhance button
-function addEnhanceButton(inputElement) {
-  console.log("[ADD_BUTTON] Creating enhance button for:", inputElement);
-  if (inputElement.dataset.enhanceButtonAdded === 'true') {
-    console.log("[ADD_BUTTON] Button already added for this element.");
-    return;
-  }
-
-  // Define labels locally or get from constants if needed elsewhere
-  const ORIGINAL_LABEL = 'Enhance';
-  const ENHANCING_LABEL = 'Enhancing...';
-
-  // Create the button element locally
-  const button = document.createElement('button');
-  button.textContent = ORIGINAL_LABEL;
-  button.style.position = 'absolute'; 
-  button.style.zIndex = '1000'; 
-  button.className = 'coprompt-enhance-button'; 
-
-  // Generate and assign unique ID
-  const requestId = generateUniqueId();
-  button.dataset.coPromptRequestId = requestId;
-
-  // Positioning logic (needs refinement based on target sites)
-  // ... (Positioning logic) ...
-
-  document.body.appendChild(button);
-  inputElement.dataset.enhanceButtonAdded = 'true'; 
-  console.log("[ADD_BUTTON] Enhance button created and appended with ID:", requestId, button);
-
-  // REMOVED direct onclick handler assignment
-  /* 
-  button.onclick = (event) => { ... };
-  */
-  // Click handling is now initiated via message from content.js -> makeDraggable callback
 }
 
 // Helper to get active input value/textContent
