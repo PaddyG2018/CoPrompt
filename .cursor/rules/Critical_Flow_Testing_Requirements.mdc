@@ -1,0 +1,61 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+Rule Name: Critical Flow Testing Requirements
+Description: Defines the minimum testing requirements (both automated and manual End-to-End) for the essential user flows introduced or significantly modified in the CoPrompt V2 architecture. Ensures core functionality, billing, and authentication are reliable before release.
+
+**General Requirements:**
+
+*   Tests should cover success paths, expected failure paths (e.g., insufficient credits, invalid input), and edge cases where applicable.
+*   Where possible, prioritize automated tests (unit tests for helper functions, integration tests for API endpoints or component interactions).
+*   Manual E2E (End-to-End) testing is required for flows involving UI interactions, browser storage, and multiple system components (extension, proxy, database, Stripe).
+*   Document manual test cases clearly with steps, expected results, and actual results.
+
+**Specific Flow Testing Requirements:**
+
+1.  **Anonymous Authentication & First Enhance (Phase A):**
+    *   **Test:** New user install -> `deviceId` generated and stored -> First `/enhance` call -> JWT issued by backend -> Successful AI response -> Subsequent `/enhance` call uses JWT.
+    *   **Coverage:** Automated (backend JWT issuance/validation logic), Manual E2E.
+
+2.  **Email Magic Link Authentication (Phase B):**
+    *   **Test:** Existing anonymous user -> Clicks "Link Email" -> Enters email -> Receives magic link -> Clicks link -> Successful authentication -> `deviceId` linked to Supabase `user_id` -> `users` table updated.
+    *   **Test:** Authenticated user logs in on a *new* browser/profile -> Enters email -> Clicks magic link -> Accesses the *same* credit balance and account state.
+    *   **Coverage:** Automated (backend link generation/verification logic), Manual E2E.
+
+3.  **BYOK Migration (Phase M):**
+    *   **Test:** Install extension with existing BYOK API key in `chrome.storage.local` -> Migration banner shown -> User clicks grant -> Backend grants 500 credits associated with `deviceId` -> Balance updated in UI -> BYOK key is ignored/removed -> Enhance requests use proxy.
+    *   **Test:** After 30 days (simulate time), modal blocker appears if migration not completed.
+    *   **Coverage:** Manual E2E.
+
+4.  **Credit Purchase (Stripe Checkout - Phase 3):**
+    *   **Test:** User clicks "Buy Credits" (e.g., Starter Pack) -> Redirected to Stripe Checkout -> Completes payment (using test card) -> Redirected back -> `checkout.session.completed` webhook received by backend -> Webhook signature verified -> Credits granted in database (check idempotency - process same event twice, ensure credits granted only once) -> Balance updated in UI.
+    *   **Coverage:** Automated (backend webhook handler logic, especially idempotency), Manual E2E (full flow including Stripe interaction).
+
+5.  **Enhance Request - Success (Credit Debit):**
+    *   **Test:** User with sufficient credits -> Submits prompt via `/enhance` -> Backend validates JWT, checks balance -> Calls OpenAI -> Receives response -> OpenMeter event sent -> `usage_event` logged -> Credits debited correctly based on token usage (check rounding/ceiling logic) -> Balance updated in UI -> User sees successful response.
+    *   **Coverage:** Automated (backend credit debit logic), Manual E2E.
+
+6.  **Enhance Request - Failure (Insufficient Credits):**
+    *   **Test:** User with 0 or insufficient credits -> Submits prompt via `/enhance` -> Backend validates JWT, checks balance -> Returns `402 Payment Required` error -> User sees "Insufficient Credits" message/modal in UI.
+    *   **Coverage:** Automated (backend balance check logic), Manual E2E.
+
+7.  **Enhance Request - Failure (Rate Limit):**
+    *   **Test:** User triggers rate limit (hammer `/enhance` endpoint) -> Backend returns `429 Too Many Requests` -> User sees rate limit message in UI.
+    *   **Coverage:** Automated (backend rate limit logic), Manual E2E.
+
+8.  **Auto Top-Up (Phase 4):**
+    *   **Test:** User enables auto top-up -> Balance drops below threshold (e.g., < 50) -> Backend detects low balance (via cron or check during enhance) -> Initiates Stripe charge for configured pack (e.g., Starter) using saved payment method -> `invoice.paid` (or similar) webhook received -> Credits granted -> Balance updated.
+    *   **Coverage:** Automated (backend logic for detection and charge initiation), Manual E2E (requires Stripe test setup for recurring/off-session payments).
+
+9.  **Free Tier Cap Enforcement (5.4):**
+    *   **Test:** Free tier user approaches monthly credit cap -> Usage is tracked -> Enhance request that *would* exceed cap is blocked (e.g., with 402/specific error).
+    *   **Coverage:** Automated (backend logic checking usage against cap), Manual E2E.
+
+**Applies To:**
+
+*   Testing frameworks and scripts.
+*   CI/CD pipeline (integration test steps).
+*   Manual testing procedures and documentation.
+*   All code involved in the critical flows mentioned above.

@@ -1,0 +1,51 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+Rule Name: Backend Security Practices (Supabase Edge Functions)
+Description: Defines mandatory security checks for all code within `supabase/functions/`. This rule ensures that backend functions handling API requests, especially the `/enhance` proxy and future auth/billing endpoints, are built securely.
+
+**Requirements:**
+
+1.  **Input Validation & Sanitization:**
+    *   All data received from the client extension (e.g., prompts, tokens, user identifiers like `deviceId`, authentication tokens) MUST be rigorously validated before processing.
+    *   Use a schema validation library (e.g., Zod) to define expected data structures, types, and constraints (e.g., length limits for prompts).
+    *   Sanitize inputs where necessary to prevent injection attacks (e.g., ensuring prompt content doesn't contain executable scripts if ever rendered elsewhere, though primarily focus on validating structure/type).
+
+2.  **Secret Management:**
+    *   Sensitive keys (OpenAI API key, JWT signing secret, Stripe webhook secret, Stripe API key) MUST be stored securely using Supabase Secrets or environment variables.
+    *   Secrets MUST NOT be hardcoded in the source code, committed to version control, or logged.
+    *   Implement procedures for key rotation where applicable.
+
+3.  **Authentication & Authorization (JWT Handling):**
+    *   Every protected API endpoint (e.g., `/enhance` after Phase A) MUST verify the incoming JWT.
+    *   Validation MUST include checking the signature, expiration time (`exp`), issuer (`iss`), and audience (`aud`) claims against expected values.
+    *   Use established libraries (e.g., `djwt` for Deno/Supabase) for JWT validation. Do not attempt to manually implement validation.
+    *   Authorization logic (checking if the user identified by the JWT is allowed to perform the action, e.g., has sufficient credits) must occur *after* successful authentication.
+
+4.  **Database Access Control:**
+    *   Database interactions (e.g., fetching/updating user balance) MUST adhere to the principle of least privilege.
+    *   Use specific, narrowly scoped database roles or RLS (Row-Level Security) policies if possible, rather than connecting as a database superuser.
+    *   Validate that data fetched belongs to the authenticated user where applicable (e.g., prevent one user from accessing another's balance).
+
+5.  **Rate Limiting Implementation:**
+    *   Ensure rate limiting logic (initially per `deviceId`, later per authenticated user ID) is correctly implemented and enforced early in the request lifecycle to prevent resource exhaustion.
+    *   Protect against trivial bypass attempts (e.g., ensure the correct identifier is used consistently).
+
+6.  **Secure Error Handling:**
+    *   API responses for errors (e.g., 500 Internal Server Error, 400 Bad Request, 401 Unauthorized, 403 Forbidden, 429 Too Many Requests) MUST NOT leak sensitive internal information.
+    *   Avoid sending raw error messages, stack traces, or database error details back to the client. Return generic, user-friendly error messages.
+    *   Log detailed error information securely on the backend for debugging purposes, ensuring logs don't contain secrets or excessive PII.
+
+7.  **Dependency Management:**
+    *   Regularly run `npm audit` (or the equivalent for the runtime, e.g., `deno check --remote` for Deno) within the function's directory (`supabase/functions/<function_name>`).
+    *   Address or mitigate identified vulnerabilities in dependencies promptly.
+
+8.  **HTTPS Enforcement:**
+    *   Ensure Supabase Edge Functions are configured to only accept HTTPS traffic (this is typically the default).
+
+**Applies To:**
+
+*   `supabase/functions/**/*.ts`
+*   Any backend code responsible for handling client requests or interacting with external services like OpenAI or Stripe.

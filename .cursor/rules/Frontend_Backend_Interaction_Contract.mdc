@@ -1,0 +1,79 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+Rule Name: Frontend-Backend Interaction Contract
+Description: Specifies the communication protocol and data contracts between the CoPrompt browser extension components (frontend) and the backend API services (primarily the `/enhance` proxy, but also future authentication or billing-related endpoints).
+
+**Requirements:**
+
+1.  **API Endpoint Definition:**
+    *   Clearly document the expected base URL for the backend API (potentially configurable for different environments like development, staging, production).
+    *   Define the specific routes (e.g., `/enhance`, `/auth/magiclink`, `/billing/checkout-session`) and the HTTP methods used (POST, GET, etc.).
+
+2.  **Request/Response Schemas:**
+    *   Define the exact JSON structure for request bodies sent from the frontend.
+    *   Define the exact JSON structure for response bodies sent from the backend for both success and error cases.
+    *   Consider using shared TypeScript interfaces/types defined in a common location (e.g., a `shared-types` directory or package) that both the frontend (extension code) and backend (Supabase functions) can import to ensure consistency. Validate data against these types/schemas on both ends where feasible.
+    *   Example Request (`/enhance`):
+        ```json
+        {
+          "prompt": "User's prompt text",
+          "context": "Optional context scraped from page",
+          "targetLanguage": "e.g., Python"
+        }
+        ```
+    *   Example Success Response (`/enhance`):
+        ```json
+        {
+          "enhancedText": "AI-generated response",
+          "usage": {
+            "prompt_tokens": 150,
+            "completion_tokens": 300,
+            "total_tokens": 450
+          }
+        }
+        ```
+
+3.  **Authentication Token Handling:**
+    *   Specify how the frontend obtains the JWT (e.g., from the backend upon `deviceId` registration or successful magic link authentication).
+    *   Define where the JWT is stored in the browser extension: `chrome.storage.session` is preferred for session tokens to limit persistence, but `chrome.storage.local` might be needed depending on the desired session length and refresh strategy. Document the choice and rationale.
+    *   JWTs MUST be sent in the `Authorization: Bearer <token>` HTTP header for all authenticated requests to the backend.
+    *   Define the process for handling token expiry and refresh (if implementing silent refresh).
+
+4.  **Error Handling Conventions:**
+    *   Backend MUST use standard HTTP status codes to indicate the outcome:
+        *   `200 OK`: Success.
+        *   `400 Bad Request`: Invalid input from the client (validation failure).
+        *   `401 Unauthorized`: Missing, invalid, or expired JWT.
+        *   `402 Payment Required`: User has insufficient credits.
+        *   `403 Forbidden`: User is authenticated but not authorized for the action (e.g., trying to access admin features).
+        *   `429 Too Many Requests`: Rate limit exceeded.
+        *   `500 Internal Server Error`: Unexpected backend error.
+        *   `503 Service Unavailable`: Backend dependency (e.g., OpenAI) is down.
+    *   Backend error responses SHOULD follow a consistent JSON format:
+        ```json
+        {
+          "error": {
+            "code": "INSUFFICIENT_CREDITS", // Or e.g., "INVALID_INPUT", "AUTH_ERROR"
+            "message": "User-friendly error message."
+          }
+        }
+        ```
+    *   Frontend MUST gracefully handle these status codes and error responses, displaying appropriate feedback to the user.
+
+5.  **Client-Side State Management:**
+    *   Define how client-side state derived from the backend (e.g., current credit balance, user email if authenticated) is fetched, stored, and updated.
+    *   Use `chrome.runtime.sendMessage` and `chrome.runtime.onMessage` for communication between different parts of the extension (e.g., content script requesting balance from background script, which fetches it from storage or the backend).
+    *   Ensure state is refreshed or invalidated appropriately (e.g., update balance after a successful enhancement or purchase).
+
+**Applies To:**
+
+*   `background.js`
+*   `content.js`
+*   `injected.js`
+*   `popup.js`
+*   `options.js`
+*   `supabase/functions/**/*.ts` (as the provider of the API contract)
+*   Shared type definition files (if created)

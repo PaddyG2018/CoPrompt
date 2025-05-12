@@ -1,0 +1,50 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+Rule Name: Stripe Integration Security & Idempotency
+Description: Governs the secure implementation of Stripe for payment processing (credit pack purchases, subscriptions) and ensures financial operations are reliable and idempotent.
+
+**Requirements:**
+
+1.  **API Key Security:**
+    *   Stripe Secret API keys MUST only be stored and used on the backend (Supabase Edge Function).
+    *   Keys MUST be stored securely using Supabase Secrets or environment variables, never hardcoded or exposed client-side.
+    *   Use distinct API keys for test and live modes.
+    *   Frontend code (popup.js, options.js) MUST use the Stripe Publishable Key only.
+
+2.  **Client-Side Payment Collection:**
+    *   Use Stripe Elements, Stripe Checkout, or Payment Links for collecting payment information.
+    *   Raw payment card details (PAN, CVC, expiry) MUST NOT be sent to or processed by your backend API directly. Rely on Stripe's secure components to tokenize this information.
+
+3.  **Webhook Security:**
+    *   All backend endpoints handling Stripe webhooks (e.g., `checkout.session.completed`, `invoice.paid`) MUST verify the webhook signature.
+    *   Use the correct Stripe webhook signing secret (obtained from the Stripe dashboard for the specific webhook endpoint) and a secure signature comparison method.
+    *   Reject any webhook request that fails signature verification immediately with a `400 Bad Request` response.
+    *   Process webhooks promptly and return a `2xx` status code to Stripe to acknowledge receipt. Failure to do so will cause Stripe to retry, potentially leading to duplicate processing if idempotency isn't handled correctly.
+
+4.  **Webhook Idempotency:**
+    *   Webhook handlers that perform actions with side effects (e.g., creating a Stripe customer, granting credits in the database, updating subscription status) MUST be idempotent.
+    *   Use Stripe's `Idempotency-Key` header if making API calls *from* your webhook handler back to Stripe.
+    *   For actions within your system (e.g., updating the database), check if the event has already been processed before performing the action. This can be done by:
+        *   Storing the Stripe `event.id` in a dedicated table (`processed_stripe_events`) and checking for its existence before processing.
+        *   Designing database updates to be safe for repetition (e.g., using `INSERT ... ON CONFLICT DO NOTHING` or checking the current state before applying the update).
+    *   Document the chosen idempotency strategy for each webhook handler.
+
+5.  **Secure Customer Creation & Management:**
+    *   Create Stripe Customer objects to associate payments and subscriptions with users.
+    *   Securely link the Stripe `customer.id` to your internal user representation (`deviceId` initially, then `user_id` after email linking) in your database.
+    *   Do not store excessive user PII in Stripe metadata unless necessary and compliant with privacy policies.
+
+6.  **Error Handling & Monitoring:**
+    *   Implement robust error handling within webhook handlers. Log errors securely on the backend.
+    *   Monitor Stripe webhook endpoints for failures (e.g., via Stripe dashboard alerts or backend logging alerts).
+    *   Have a process for manually investigating and retrying failed webhook events if necessary (e.g., if credits weren't granted due to a temporary database issue).
+
+**Applies To:**
+
+*   Backend code handling Stripe API calls (e.g., creating Checkout sessions). (`supabase/functions/**/*.ts`)
+*   Backend code handling Stripe webhook events. (`supabase/functions/**/*.ts`)
+*   Frontend code integrating Stripe Elements or redirecting to Stripe Checkout. (`popup.js`, `options.js`, related HTML)
+*   Database schemas related to storing Stripe IDs or tracking processed events.

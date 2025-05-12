@@ -1,0 +1,48 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+Rule Name: Chrome Extension Security Fundamentals
+Description: Defines baseline security practices specifically for the Chrome Extension client-side components (manifest, scripts, storage, UI pages). These fundamentals apply regardless of backend architecture and complement backend-specific security rules.
+
+**Requirements:**
+
+1.  **Manifest (`manifest.json`) Hardening:**
+    *   **Minimum Permissions:** Only request permissions absolutely required for core functionality in the `permissions` array (e.g., `storage`, `activeTab`, potentially `scripting` if needed). Avoid overly broad permissions.
+    *   **Minimum Host Permissions:** Restrict `host_permissions` to the narrowest set of domains necessary for content scripts or API interactions originating *directly* from the extension (though most API calls should go via the backend proxy in V2). Example: `https://*.openai.com/*`, `https://claude.ai/*`, etc. Do not use `<all_urls>` unless absolutely unavoidable and justified.
+    *   **Scoped Web Accessible Resources:** Define `web_accessible_resources` precisely. Only list resources (like `injected.js`, images, CSS) that *must* be accessible by web pages, and restrict the `matches` pattern to *only* the specific host domains where they are needed (e.g., `https://*.openai.com/*`). Do not use `<all_urls>`.
+
+2.  **Content Security Policy (CSP) for Extension Pages:**
+    *   **Strict Defaults:** Define a strong default CSP under `content_security_policy.extension_pages` in the manifest. Start with `script-src 'self'; object-src 'self';`.
+    *   **Avoid Unsafe Practices:** Do NOT allow `unsafe-inline` or `unsafe-eval` unless there is a compelling, documented reason and no alternative exists. Avoid loading remote scripts directly in extension pages (`popup.html`, `options.html`).
+    *   **Review `connect-src` for V2:** **CRITICAL:** Explicitly review and update the `connect-src` directive to allow connections ONLY to necessary endpoints. For V2, this must include the Supabase Function URL(s) (for `/enhance`, etc.) and Supabase Auth URL(s). Add Stripe domains *only if* direct client-side interaction is required by the chosen integration method (prefer backend interactions).
+
+3.  **Secure DOM Manipulation (Content & UI Scripts):**
+    *   **Prevent XSS:** When inserting data originating from web pages, user input, or potentially insecure backend responses into the DOM (in `content.js`, `popup.js`, `options.js`), strongly prefer using safe methods like `element.textContent = ...` instead of `element.innerHTML = ...`.
+    *   **Sanitization:** If `innerHTML` is unavoidable, ensure the content is properly sanitized using a trusted library or method to remove potential script execution vectors.
+
+4.  **Client-Side Dependency Management:**
+    *   **Regular Audits:** Regularly run `npm audit` (or equivalent) on the root `package.json` to check for known vulnerabilities in frontend dependencies.
+    *   **Update Promptly:** Update or replace dependencies with known critical or high-severity vulnerabilities.
+
+5.  **Secure Inter-Component Communication:**
+    *   Use standard Chrome messaging APIs (`chrome.runtime.sendMessage`, `chrome.tabs.sendMessage`, `chrome.runtime.onMessage`) for communication between background scripts, content scripts, popups, and options pages.
+    *   Avoid insecure methods like relying solely on manipulating the shared DOM for communication where possible.
+    *   Validate message senders and origins where appropriate, especially in the background script receiving messages from potentially untrusted content scripts.
+
+6.  **Secure Client-Side Storage:**
+    *   Use `chrome.storage.local`, `chrome.storage.session`, or `chrome.storage.sync` appropriately.
+    *   Minimize storage of sensitive data client-side. Avoid storing API keys (now handled by backend), full user PII, or long-lived sensitive tokens locally if they can be securely fetched/managed by the backend when needed.
+    *   Be mindful that `chrome.storage.local` and `sync` persist across browser sessions.
+
+7.  **Conditional Logging:**
+    *   Ensure debugging `console.log` statements are conditional (e.g., based on a `DEBUG` flag) and that the flag is set to `false` in production builds to prevent leaking internal operational details.
+
+**Applies To:**
+
+*   `manifest.json`
+*   `content.js`, `popup.js`, `options.js`, `injected.js`
+*   HTML pages (`popup.html`, `options.html`)
+*   Build/packaging process (for DEBUG flags, audits)
+*   `package.json` (dependency management)

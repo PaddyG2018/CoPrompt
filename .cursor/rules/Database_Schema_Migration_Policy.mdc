@@ -1,0 +1,60 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+Rule Name: Database Schema & Migration Policy
+Description: Establishes rules and best practices for designing, modifying, and managing the Supabase Postgres database schema used in CoPrompt V2.
+
+**Requirements:**
+
+1.  **Migration Management:**
+    *   All changes to the database schema (creating tables, altering columns, adding constraints, creating indexes) MUST be performed using Supabase Migrations (`supabase/migrations`).
+    *   Do not make schema changes directly through the Supabase Studio UI or direct SQL commands in production without a corresponding migration file.
+    *   Migration files should be clearly named and contain idempotent SQL statements (e.g., use `CREATE TABLE IF NOT EXISTS`, `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`).
+    *   Test migrations thoroughly in a development or staging environment before applying them to production.
+
+2.  **Naming Conventions:**
+    *   Use consistent naming conventions for database objects:
+        *   Tables: `snake_case`, plural (e.g., `users`, `credit_transactions`, `processed_stripe_events`).
+        *   Columns: `snake_case`, singular (e.g., `user_id`, `device_id`, `stripe_customer_id`, `balance`, `created_at`).
+        *   Primary Keys: Typically `id` (UUID or BigSerial depending on need).
+        *   Foreign Keys: `[referenced_table_singular]_id` (e.g., `user_id` in `credit_transactions` referencing `users.id`).
+
+3.  **Data Types:**
+    *   Choose appropriate data types for columns.
+        *   Use `UUID` for primary keys where possible, especially for publicly exposed identifiers.
+        *   Use `TIMESTAMPTZ` (Timestamp with Time Zone) for all timestamp columns (e.g., `created_at`, `updated_at`). Store timestamps in UTC.
+        *   Use `INTEGER` or `BIGINT` for counters like credit balances, ensuring they are sufficient for expected values.
+        *   Use `TEXT` for variable-length strings (like `deviceId`, `email`, `stripe_customer_id`). Avoid `VARCHAR(n)` unless there's a strict, known length limit.
+        *   Use `BOOLEAN` for true/false flags (e.g., `auto_reload_enabled`).
+        *   Use `NUMERIC` or `DECIMAL` for precise monetary values if ever stored directly (though typically handle cents as integers).
+
+4.  **Constraints and Integrity:**
+    *   Define primary keys for all tables.
+    *   Define foreign key constraints to maintain relational integrity (e.g., ensure `credit_transactions.user_id` exists in `users.id`).
+    *   Use `NOT NULL` constraints where appropriate.
+    *   Use `CHECK` constraints to enforce data rules (e.g., `CHECK (balance >= 0)`).
+    *   Use `UNIQUE` constraints where necessary (e.g., potentially on `users.email` if used as a unique login identifier, `processed_stripe_events.event_id`).
+
+5.  **Indexing:**
+    *   Create indexes on columns frequently used in `WHERE` clauses, `JOIN` conditions, or `ORDER BY` clauses to optimize query performance.
+    *   Index primary keys automatically.
+    *   Index foreign key columns.
+    *   Index columns used for lookups (e.g., `deviceId`, `user_id`, `stripe_customer_id`, `email`).
+    *   Analyze query performance (`EXPLAIN ANALYZE`) to identify missing or ineffective indexes.
+
+6.  **Row Level Security (RLS):**
+    *   Enable RLS on tables containing user-specific data (e.g., `users`, `credit_transactions`).
+    *   Define RLS policies to ensure users (or backend roles) can only access or modify data they are authorized for (e.g., a user can only see their own balance, the backend service role can access data based on the authenticated user's ID from the JWT).
+
+7.  **Auditing:**
+    *   Consider adding standard auditing columns like `created_at` and `updated_at` to tables, automatically populated using default values or triggers.
+    *   For critical financial data like `credit_transactions`, ensure the table structure provides a clear audit trail of balance changes.
+
+**Applies To:**
+
+*   `supabase/migrations/*.sql` files.
+*   Database schema design decisions.
+*   SQL queries written in backend code (`supabase/functions/**/*.ts`).
+*   Supabase Studio configurations related to RLS and policies.

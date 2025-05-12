@@ -1,0 +1,47 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+Rule Name: User Data Handling & Privacy
+Description: Ensures that user data is handled responsibly, securely, and in compliance with privacy regulations (like GDPR) and the project's stated privacy policy throughout the V2 implementation.
+
+**Requirements:**
+
+1.  **Data Minimization:**
+    *   Only collect and store user data that is strictly necessary for the functionality being implemented.
+    *   For anonymous users (Phase A), the primary identifier is the `deviceId`. Avoid collecting other PII.
+    *   For authenticated users (Phase B onwards), primarily store the `user_id` provided by the auth system (Supabase Auth) and the linked `stripe_customer_id`. Store email addresses only as required for authentication (magic link) and potentially essential communication.
+    *   Regularly review stored data and remove anything no longer needed.
+
+2.  **Anonymization/Pseudonymization for Third Parties:**
+    *   When sending usage data to third-party analytics or metering services (like OpenMeter), user identifiers MUST be pseudonymized.
+    *   Use a strong, irreversible hashing method (e.g., SHA-256) with a unique, securely stored salt to hash the `deviceId` or `user_id` before sending it as `anon_user_id` to OpenMeter. The salt MUST NOT be compromised.
+    *   Ensure the mapping between the original identifier and the hashed identifier is not exposed or easily reversible.
+
+3.  **Logging Practices:**
+    *   Production logs (both frontend and backend) MUST NOT contain sensitive user PII (e.g., email addresses, full IP addresses where not strictly required for security/rate-limiting, Stripe payment details).
+    *   Critically, logs MUST NOT contain the content of user prompts or AI-generated responses, as this is highly sensitive user data.
+    *   Log user identifiers (e.g., hashed ID, Supabase user ID) only where necessary for debugging specific user issues or tracking requests through the system. Redact or minimize these where possible in general operational logs.
+    *   Implement appropriate log levels (DEBUG, INFO, WARN, ERROR) and ensure verbose DEBUG logs are disabled in production builds/deployments.
+
+4.  **Secure Storage:**
+    *   User data stored in the database (Supabase Postgres) MUST be protected by appropriate access controls (RLS policies, secure connection strings).
+    *   Ensure data is encrypted at rest (Supabase typically provides this by default, but verify).
+    *   Data stored client-side (`chrome.storage.local`, `chrome.storage.session`, `chrome.storage.sync`) should be minimized. Avoid storing sensitive data locally if it can be fetched securely from the backend when needed.
+
+5.  **Compliance Documentation:**
+    *   Ensure implementation aligns with the project's Privacy Policy and Terms of Service.
+    *   Update the Privacy Policy and any relevant RoPA (Record of Processing Activities) documentation to reflect the new data processing activities introduced in V2 (e.g., use of proxy, OpenMeter, Stripe, user accounts).
+    *   Be prepared to handle user data access and deletion requests as required by regulations like GDPR.
+
+6.  **Consent:**
+    *   Ensure necessary user consent is obtained for data processing activities where required (e.g., explicit opt-in for non-essential cookies or tracking, clear notice about data use in the Privacy Policy).
+
+**Applies To:**
+
+*   All frontend code handling user identifiers or interacting with storage (`background.js`, `content.js`, `popup.js`, `options.js`).
+*   All backend code processing requests, interacting with the database, or sending data to third parties (`supabase/functions/**/*.ts`).
+*   Database schema design (`supabase/migrations`).
+*   Logging configurations and practices.
+*   Compliance documentation (`privacy.html`, internal RoPA).
