@@ -446,9 +446,10 @@ export function getConversationContext() { // Moved to top level and Exported
             });
         } else if (hostname.includes("gemini.google.com")) {
             debugLog("Extracting context for Gemini");
-            // Select all message containers/segments within the main chat area
-            // NOTE: These selectors are based on observed Gemini structure and may need updates
-            const messageElements = document.querySelectorAll('.user-query, .model-response-text'); 
+            // Use the more specific custom element tags identified
+            const messageElements = document.querySelectorAll(
+                "user-query-content, model-response",
+            );
             
             messageElements.forEach(el => {
                 let role = "";

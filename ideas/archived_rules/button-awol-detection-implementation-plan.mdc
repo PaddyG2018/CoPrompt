@@ -3,3 +3,188 @@ description:
 globs: 
 alwaysApply: false
 ---
+# Implementation Plan: Button AWOL Detection & Recovery
+
+## Project Goal
+
+**To rapidly detect when the extension's enhance-button stops working with host chat inputs (due to selector changes, shadow-DOM tweaks, etc.), while maintaining privacy hygiene and minimal code-privilege.**
+
+This plan provides a pragmatic, lightweight approach to detecting and recovering from failures in the CoPrompt button's ability to interact with input fields across supported sites.
+
+## Phase 1: Core Detection & Resilience
+
+### Story 1.1: Comprehensive Error Detection System
+
+**As a** developer
+**I want** a robust system to detect different failure modes
+**So that** I can quickly identify and resolve issues with specific error context
+
+**Acceptance Criteria:**
+- Implement all core error types:
+  - `E_NO_INPUT_FIELD`: Input selector not found on page load/navigation
+  - `E_DETACHED_HANDLE`: Element found but became detached/inaccessible
+  - `E_INPUT_SEND_FAILED`: Button clicks but can't update input
+  - `E_ALL_SELECTORS_STALE`: All known selectors failing
+- Add heuristic health scoring (success vs. errors over last 20 operations)
+- Implement lightweight localStorage-based metrics to track frequency
+- Add non-mutating periodic "sanity check" that verifies input field is still accessible
+
+### Story 1.2: Privacy-First Diagnostic Context Capture
+
+**As a** developer
+**I want** to capture diagnostic information without compromising user privacy
+**So that** I can troubleshoot issues effectively while respecting GDPR and privacy best practices
+
+**Acceptance Criteria:**
+- Implement text scrubbing from DOM context captures
+- Hash sensitive information like selectors
+- Generate anonymous user ID (UUIDv4) stored locally
+- Create session ID that rotates every 4 hours
+- Store only minimal information in error reports:
+  - Timestamp (ISO 8601)
+  - Error code
+  - Hashed selector
+  - Minimal DOM context (scrubbed)
+  - Browser info
+  - Extension version
+  - Host site (eTLD+1 only)
+
+### Story 1.3: User-Focused Graceful Degradation
+
+**As a** user
+**I want** helpful feedback when something goes wrong
+**So that** I understand what's happening and have options to recover
+**Acceptance Criteria:**
+- Create informative toast notifications for different error states:
+  - Can't find input field: "Can't find the chat box—site layout may have changed."
+  - Input update failed: "Couldn't update input—try pasting your enhanced prompt manually."
+- Provide "Retry" option in error messages
+- Hide button after 3 consecutive `E_NO_INPUT_FIELD` errors to avoid dead clicks
+- Store the last prompt in `chrome.storage.session` for recovery
+- Offer "Restore Last Prompt" option
+- Implement auto-retry when observer detects input field has reappeared
+
+## Phase 2: Telemetry & Monitoring
+
+### Story 2.1: Minimal Anonymous Error Telemetry
+
+**As a** developer
+**I want** to collect anonymous error data with user consent
+**So that** I can identify and fix common issues before they affect many users
+
+**Acceptance Criteria:**
+- Add explicit opt-in/opt-out toggle in extension options
+- Send error telemetry only, not success events (with optional 1% sampling for baseline)
+- Limit DOM context capture to persistent errors only (>3 occurrences)
+- Implement complete telemetry payload with privacy measures:
+  - All fields from Story 1.2
+  - Feature flag state (if applicable)
+  - Anonymous health score
+- Create simple firewall to prevent excessive reports (rate limiting)
+
+### Story 2.2: Simple Monitoring Dashboard
+
+**As a** developer
+**I want** a basic dashboard showing error patterns
+**So that** I can quickly identify issues and prioritize fixes
+
+**Acceptance Criteria:**
+- Create simple dashboard showing:
+  - Error rates over time
+  - Error distribution by browser/version
+  - Error distribution by extension version
+  - Error distribution by site
+  - Top error codes
+- Implement basic alerting for error spikes
+- Create simple admin view of recent raw error reports for debugging
+
+## Phase 3: Advanced Resilience
+
+### Story 3.1: Remote Selector Registry
+
+**As a** developer
+**I want** to update selectors without requiring extension updates
+**So that** I can rapidly respond to site changes
+
+**Acceptance Criteria:**
+- Implement remote selector registry service
+- Create daily selector refresh in extension
+- Add fallback mechanism to try alternate selectors
+- Track selector successes to identify most reliable ones
+- Create admin interface for managing selectors
+
+### Story 3.2: Self-Healing UI
+
+**As a** user
+**I want** the extension to recover automatically when possible
+**So that** temporary site changes don't permanently break functionality
+
+**Acceptance Criteria:**
+- Store last successful selector per site
+- Implement auto-retry logic with exponential backoff
+- Create recovery mechanisms for common failure patterns
+- Restore input state automatically when field is found again
+- Log recovery attempts and successes (`E_RECOVERED` events)
+
+## Prioritization & Timeline
+
+| Phase | Story | Priority | Effort | Dependencies |
+|----|----|----|-----|-----|
+| 1 | 1.1: Comprehensive Error Detection | High | Medium | None |
+| 1 | 1.2: Privacy-First Diagnostic Context | High | Medium | None |
+| 1 | 1.3: User-Focused Graceful Degradation | High | Medium | 1.1 |
+| 2 | 2.1: Minimal Anonymous Error Telemetry | Medium | Medium | 1.1, 1.2 |
+| 2 | 2.2: Simple Monitoring Dashboard | Medium | Medium | 2.1 |
+| 3 | 3.1: Remote Selector Registry | Medium | High | 1.1 |
+| 3 | 3.2: Self-Healing UI | Medium | Medium | 1.3, 3.1 |
+
+**Week 1-2:** Implement Phase 1 (Core Detection & Resilience)
+**Week 3-4:** Implement Phase 2 (Telemetry & Monitoring)
+**Week 5-6:** Implement Phase 3 (Advanced Resilience)
+
+## Success Metrics
+
+- **Detection Speed:** Time from site change to error detection < 24 hours
+- **Resolution Speed:** Time from detection to selector fix < 48 hours
+- **User Impact:** < 5% of active users experiencing button failures at any time
+- **Auto-Recovery Rate:** > 70% of failures automatically resolved without user intervention
+
+## Key Simplifications & Pragmatic Choices
+
+- Using simple serverless functions instead of complex data pipelines
+- Leveraging existing MutationObserver functionality rather than building parallel systems
+- Focusing on user-facing improvements before backend telemetry
+- Implementing basic localStorage error tracking before full analytics
+- Using a lightweight approach for early phases with option to scale later
+- Prioritizing privacy by default in all data collection
+- Building an iterative solution where each phase delivers stand-alone value
+
+## Appendix: Refined Hybrid Button Injection Strategy (Proposed 2025-05-12)
+
+*Goal: Balance optimal button placement with resilience against injection failures due to selector changes.*
+
+**Approach:** Targeted First, Dynamic Floating Fallback
+
+1.  **Platform Detection:** Identify the current platform (e.g., Claude, ChatGPT, Gemini) based on hostname within `content.js` (likely within the `createFloatingButton` function or a helper).
+2.  **Retrieve Target Selector:** Get the platform-specific `Button Injection Target` selector documented in `@platform-specific-details.mdc` (ideally accessed via a constants module).
+3.  **Attempt Targeted Injection (Primary):**
+    *   Use `document.querySelector()` to find the element matching the retrieved target selector.
+    *   **If Found:** Create the button container (`#coprompt-container`) and append it as a child to this target element. Apply appropriate CSS for positioning within the container.
+    *   **If NOT Found:** Log a warning (e.g., `console.warn("CoPrompt: Preferred button injection target '[selector]' not found for [platform]. Falling back to floating button.");`).
+4.  **Dynamic Floating Injection (Fallback):**
+    *   This step is executed **only if** the targeted injection target was not found in step 3.
+    *   Create the button container (`#coprompt-container`) and style it as a draggable, floating element (similar to the implementation prior to this strategy).
+    *   Append the container directly to `document.body`.
+    *   Set an initial position (e.g., bottom-right, or relative to the input field found by `findActiveInputElement()` if available), allowing the user to drag it.
+5.  **Button Creation:** The actual button element (`#coprompt-button`) creation logic remains largely the same, appended inside the container created in either Step 3 or Step 4.
+
+**Implementation Notes:**
+
+*   Refactor `createFloatingButton()` in `content.js` to accommodate this conditional logic.
+*   Ensure platform detection logic is robust.
+*   Maintain `platform-specific-details.mdc` and corresponding constants diligently.
+*   Consider how the fallback floating button's initial position is determined (e.g., fixed default, near input field).
+
+**Related Stories:**
+
+*   This approach could be considered a more resilient implementation related to the goals of **Story 1.3 (User-Focused Graceful Degradation)** and potentially **Story 3.2 (Self-Healing UI)**, although the original stories might have envisioned different mechanisms.

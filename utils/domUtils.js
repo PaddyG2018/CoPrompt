@@ -15,7 +15,7 @@ export function findActiveInputElement() {
 
   // Strategy 1: Direct ID selector for contenteditable (ChatGPT)
   inputField = document.querySelector(
-    "#prompt-textarea[contenteditable='true']",
+    "div#prompt-textarea[contenteditable='true']",
   );
   if (inputField) {
     // debugLog("Found via #prompt-textarea[contenteditable]"); // Quieted
@@ -23,15 +23,16 @@ export function findActiveInputElement() {
   }
 
   // Strategy 2: Direct ID selector for textarea (Legacy ChatGPT, others?)
-  if (!inputField) {
-    inputField = document.querySelector("textarea#prompt-textarea");
-    if (inputField) {
-      // debugLog("Found via textarea#prompt-textarea"); // Quieted
-      return inputField;
-    }
-  }
+  // REMOVED - This selector is likely outdated based on recent inspection
+  // if (!inputField) {
+  //   inputField = document.querySelector("textarea#prompt-textarea");
+  //   if (inputField) {
+  //     // debugLog("Found via textarea#prompt-textarea"); // Quieted
+  //     return inputField;
+  //   }
+  // }
 
-  // Strategy 3: Look for ProseMirror contenteditable (Newer ChatGPT)
+  // Strategy 3: Look for ProseMirror contenteditable (Claude)
   if (!inputField) {
     inputField = document.querySelector(
       "div.ProseMirror[contenteditable='true']",
@@ -42,7 +43,18 @@ export function findActiveInputElement() {
     }
   }
 
-  // Strategy 4: Any visible textarea (Claude, Gemini, others)
+  // Strategy 3.5: Look for Gemini contenteditable
+  if (!inputField) {
+    inputField = document.querySelector(
+      "div.ql-editor[contenteditable='true']",
+    );
+    if (inputField) {
+      // debugLog("Found via div.ql-editor[contenteditable]"); // Quieted
+      return inputField;
+    }
+  }
+
+  // Strategy 4: Any visible textarea (General fallback, might catch Claude/others if Strategy 3 fails)
   if (!inputField) {
     const textareas = document.querySelectorAll("textarea");
     for (const textarea of textareas) {
