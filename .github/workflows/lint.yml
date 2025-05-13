@@ -32,7 +32,7 @@ jobs:
     - name: Lint JavaScript/TypeScript
       run: |
         # Use npx to ensure the locally installed eslint is used
-        npx eslint --ext .js,.ts .
+        npx eslint .
 
     # - name: Validate manifest.json
     #   run: |
