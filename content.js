@@ -44,7 +44,10 @@ function debounce(func, wait) {
 function isAllowedHostname(hostname, allowedBaseDomains) {
   const lowerHostname = hostname.toLowerCase();
   for (const baseDomain of allowedBaseDomains) {
-    if (lowerHostname === baseDomain || lowerHostname.endsWith('.' + baseDomain)) {
+    if (
+      lowerHostname === baseDomain ||
+      lowerHostname.endsWith("." + baseDomain)
+    ) {
       return true;
     }
   }
@@ -399,7 +402,7 @@ function createFloatingButton() {
       // getConversationContext was called, or if different context functions were called based on hostname,
       // that specific branching logic would need to be restored here, using isAllowedHostname.
       // For now, this restores the simple call as indicated by the diff.
-      conversationContext = getConversationContext(); 
+      conversationContext = getConversationContext();
       logInteractionHandlerDebug(
         "Context captured:",
         JSON.stringify(conversationContext),
@@ -419,14 +422,14 @@ function createFloatingButton() {
         "*",
       );
       logInteractionHandlerDebug("CoPromptExecuteEnhance message sent.");
-
     } catch (error) {
       logInteractionHandlerError("Error in handleEnhanceClick:", error);
       // Reset button state on error
-      if (buttonElement) { // Check if buttonElement still exists
+      if (buttonElement) {
+        // Check if buttonElement still exists
         // Ensure resetButtonState is defined and handles this scenario
         // For example, it should re-enable the button, remove loading class, restore original text/icon.
-        resetButtonState(buttonElement); 
+        resetButtonState(buttonElement);
       }
       // Optionally, provide more specific user feedback to the user via the UI
       buttonElement.title = "Error during enhancement. Please try again.";
@@ -480,7 +483,7 @@ export function getConversationContext() {
   const hostname = window.location.hostname;
 
   try {
-    if (hostname.includes("openai.com") || hostname.includes("chatgpt.com")) {
+    if (isAllowedHostname(hostname, ["openai.com", "chatgpt.com"])) {
       debugLog("Extracting context for ChatGPT/OpenAI");
       const messageElements = document.querySelectorAll(
         "[data-message-author-role]",
@@ -495,7 +498,7 @@ export function getConversationContext() {
           messages.push({ role: role, content: content });
         }
       });
-    } else if (hostname.includes("claude.ai")) {
+    } else if (isAllowedHostname(hostname, ["claude.ai"])) {
       debugLog("Extracting context for Claude");
       const messageElements = document.querySelectorAll(
         '[data-testid="user-message"], .font-claude-message',
@@ -513,7 +516,7 @@ export function getConversationContext() {
           messages.push({ role: role, content: content });
         }
       });
-    } else if (hostname.includes("gemini.google.com")) {
+    } else if (isAllowedHostname(hostname, ["gemini.google.com"])) {
       debugLog("Extracting context for Gemini");
       // Use the more specific custom element tags identified
       const messageElements = document.querySelectorAll(
