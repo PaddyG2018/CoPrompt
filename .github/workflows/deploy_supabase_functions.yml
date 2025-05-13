@@ -1,0 +1,33 @@
+name: Deploy Supabase Edge Functions
+
+on:
+  push:
+    branches:
+      - main # Or your preferred deployment branch
+    paths:
+      - 'supabase/functions/**' # Only run if functions change
+
+jobs:
+  deploy_enhance_function:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x # Specify your Deno version
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest # Or a specific CLI version
+
+      - name: Deploy Supabase Edge Function (enhance)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }} # Often required for linking or other operations
+        run: |
+          supabase functions deploy enhance --project-ref $SUPABASE_PROJECT_ID --no-verify-jwt 
