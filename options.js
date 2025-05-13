@@ -10,7 +10,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const confirmClearBtn = document.getElementById("confirmClearBtn");
   const cancelClearBtn = document.getElementById("cancelClearBtn");
 
-  // Load saved API Key 
+  // Load saved API Key
   chrome.storage.local.get("openai_api_key", (data) => {
     if (data.openai_api_key) {
       // We don't actually show the decrypted key for security

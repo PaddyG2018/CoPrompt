@@ -8,7 +8,7 @@ const DEBUG = false; // Set true for development logs
 // Inject `injected.js` into the page properly
 const script = document.createElement("script");
 // Point to the correct path relative to the manifest/dist root
-script.src = chrome.runtime.getURL("injected.js"); 
+script.src = chrome.runtime.getURL("injected.js");
 // script.type = "module"; // Keep this commented out for now
 script.onload = function () {
   // this.remove(); // Temporarily disable removing the script tag after load
@@ -17,7 +17,10 @@ script.onload = function () {
 
 // --- Imports ---
 // REMOVED import { DEBUG } from "./config.js";
-import { /* findActiveInputElementValue, */ findActiveInputElement, updateInputElement } from "./utils/domUtils.js";
+import {
+  /* findActiveInputElementValue, */ findActiveInputElement,
+  updateInputElement,
+} from "./utils/domUtils.js";
 import { makeDraggable } from "./content/interactionHandler.js";
 import { handleWindowMessage } from "./content/messageHandler.js"; // Ensure this name matches export
 import { generateUniqueId } from "./utils/helpers.js";
@@ -35,6 +38,20 @@ function debounce(func, wait) {
     clearTimeout(timeout);
     timeout = setTimeout(later, wait);
   };
+}
+
+// --- Utility function to check hostname ---
+function isAllowedHostname(hostname, allowedBaseDomains) {
+  const lowerHostname = hostname.toLowerCase();
+  for (const baseDomain of allowedBaseDomains) {
+    if (
+      lowerHostname === baseDomain ||
+      lowerHostname.endsWith("." + baseDomain)
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 // Track if we've already injected the button
@@ -142,7 +159,8 @@ if (!window.coPromptObserver) {
 
   // Observe only necessary parts of the DOM
   const observerTarget = document.querySelector("main") || document.body;
-  if (observerTarget) { // Ensure target exists before observing
+  if (observerTarget) {
+    // Ensure target exists before observing
     window.coPromptObserver.observe(observerTarget, {
       childList: true,
       subtree: true,
@@ -167,59 +185,61 @@ setInterval(() => {
 
   // If no target input exists, ensure button is removed
   if (!targetInput) {
-      if (container) {
-         debugLog("Periodic Check: No target input found, removing container.");
-         container.remove();
-         buttonInjected = false;
-      }
-      return;
+    if (container) {
+      debugLog("Periodic Check: No target input found, removing container.");
+      container.remove();
+      buttonInjected = false;
+    }
+    return;
   }
 
   // If target input exists, but button/container don't, try to recreate
   if ((!existingButton || !container) && targetInput) {
-    debugLog("Periodic Check: Button/Container not found but target exists, recreating");
+    debugLog(
+      "Periodic Check: Button/Container not found but target exists, recreating",
+    );
     buttonInjected = false;
     createFloatingButton();
     return;
   }
 
   // If button and container exist, proceed with visibility/position checks
-  if(existingButton && container){
-      // Check if button is visible (getBoundingClientRect is sufficient)
-      const rect = existingButton.getBoundingClientRect();
-      const style = window.getComputedStyle(existingButton);
+  if (existingButton && container) {
+    // Check if button is visible (getBoundingClientRect is sufficient)
+    const rect = existingButton.getBoundingClientRect();
+    const style = window.getComputedStyle(existingButton);
 
-      // Check basic visibility properties handled by CSS
-      if (
-        rect.width === 0 ||
-        rect.height === 0 ||
-        style.display === "none" ||
-        style.visibility === "hidden" ||
-        parseFloat(style.opacity) < 0.1 // Check opacity if needed
-      ) {
-        debugLog(
-          "Periodic Check: Button exists but computed style indicates it's not visible. CSS should handle this with !important.",
-        );
-        // Removed direct style manipulation here
-      }
+    // Check basic visibility properties handled by CSS
+    if (
+      rect.width === 0 ||
+      rect.height === 0 ||
+      style.display === "none" ||
+      style.visibility === "hidden" ||
+      parseFloat(style.opacity) < 0.1 // Check opacity if needed
+    ) {
+      debugLog(
+        "Periodic Check: Button exists but computed style indicates it's not visible. CSS should handle this with !important.",
+      );
+      // Removed direct style manipulation here
+    }
 
-      // If button is outside viewport, reset position
-      // Keep this logic as it relates to position, not just visibility
-      if (
-        rect.top < 0 ||
-        rect.left < 0 ||
-        rect.top > window.innerHeight ||
-        rect.left > window.innerWidth
-      ) {
-        debugLog("Periodic Check: Button outside viewport, resetting position");
-        container.style.top = "auto";
-        container.style.left = "auto";
-        container.style.bottom = "80px"; // Position higher to avoid input box
-        container.style.right = "20px";
+    // If button is outside viewport, reset position
+    // Keep this logic as it relates to position, not just visibility
+    if (
+      rect.top < 0 ||
+      rect.left < 0 ||
+      rect.top > window.innerHeight ||
+      rect.left > window.innerWidth
+    ) {
+      debugLog("Periodic Check: Button outside viewport, resetting position");
+      container.style.top = "auto";
+      container.style.left = "auto";
+      container.style.bottom = "80px"; // Position higher to avoid input box
+      container.style.right = "20px";
 
-        // Clear saved position
-        localStorage.removeItem("coPromptButtonPosition");
-      }
+      // Clear saved position
+      localStorage.removeItem("coPromptButtonPosition");
+    }
   }
 }, 5000); // Check every 5 seconds
 
@@ -230,8 +250,8 @@ function createFloatingButton() {
   // NEW: Find the target input field *first*
   const targetInputElement = findActiveInputElement(); // This function already logs errors/warnings
   if (!targetInputElement) {
-      // debugLog("Cannot create button: No active input element found."); // REMOVE redundant log
-      return; // Don't create if no target
+    // debugLog("Cannot create button: No active input element found."); // REMOVE redundant log
+    return; // Don't create if no target
   }
 
   // Check if container already exists
@@ -305,37 +325,61 @@ function createFloatingButton() {
   document.body.appendChild(buttonContainer);
 
   // --- Define the onClick handler ---
-  const handleEnhanceClick = async (buttonElement, reqId, targetInputElement) => {
-    logInteractionHandlerDebug("handleEnhanceClick called with:", buttonElement, reqId, targetInputElement);
+  const handleEnhanceClick = async (
+    buttonElement,
+    reqId,
+    targetInputElement,
+  ) => {
+    // --- Original Validations and Debug Logging ---
+    logInteractionHandlerDebug(
+      "handleEnhanceClick called with:",
+      buttonElement,
+      reqId,
+      targetInputElement,
+    );
+    logInteractionHandlerDebug(
+      "Active element on click (debug):",
+      document.activeElement,
+    );
 
-    // --- DEBUG: Log active element AT THE MOMENT OF CLICK ---
-    logInteractionHandlerDebug("Active element on click (debug):", document.activeElement);
-    // --- END DEBUG ---
-
-    // Ensure buttonElement is valid
-     if (!buttonElement) {
-      logInteractionHandlerError("handleEnhanceClick: buttonElement is missing.");
+    if (!buttonElement) {
+      logInteractionHandlerError(
+        "handleEnhanceClick: buttonElement is missing.",
+      );
       return;
     }
 
-    // Use the passed-in targetInputElement
-    const promptValue = targetInputElement ? targetInputElement.value ?? targetInputElement.textContent : null;
-    logInteractionHandlerDebug("Using target input element passed from pointerdown:", targetInputElement);
-    logInteractionHandlerDebug("Retrieved prompt value (length):", promptValue?.length);
+    const promptValue = targetInputElement
+      ? (targetInputElement.value ?? targetInputElement.textContent)
+      : null;
+    logInteractionHandlerDebug(
+      "Using target input element passed from pointerdown:",
+      targetInputElement,
+    );
+    logInteractionHandlerDebug(
+      "Retrieved prompt value (length):",
+      promptValue?.length,
+    );
 
-    if (promptValue === null || promptValue === undefined) { // Check explicitly for null/undefined
-      logInteractionHandlerError("Cannot enhance: No active input value found from stored element.");
+    if (promptValue === null || promptValue === undefined) {
+      logInteractionHandlerError(
+        "Cannot enhance: No active input value found from stored element.",
+      );
       // Optionally provide user feedback here
       return;
     }
     if (!reqId) {
-      logInteractionHandlerError("Cannot enhance: Button is missing request ID.");
+      logInteractionHandlerError(
+        "Cannot enhance: Button is missing request ID.",
+      );
       // Optionally provide user feedback here
       return;
     }
 
-    logInteractionHandlerDebug("Setting button state to Enhancing (in content.js)...");
-    
+    // --- Restore Button Loading State UI ---
+    logInteractionHandlerDebug(
+      "Setting button state to Enhancing (in content.js)...",
+    );
     buttonElement.disabled = true;
     buttonElement.style.cursor = "wait"; // Or rely on .coprompt-loading class from CSS
     buttonElement.classList.add("coprompt-loading");
@@ -350,36 +394,56 @@ function createFloatingButton() {
       <span>${ENHANCING_LABEL}</span> 
     `; // Using ENHANCING_LABEL constant
 
-    // 1. Get Conversation Context
-    let conversationContext = [];
     try {
+      // 1. Get Conversation Context (Restored generic call)
+      let conversationContext = [];
+      // Assuming getConversationContext() is defined elsewhere and handles site-specifics or is generic.
+      // The CodeQL errors were about hostname checks. If those checks were originally part of how
+      // getConversationContext was called, or if different context functions were called based on hostname,
+      // that specific branching logic would need to be restored here, using isAllowedHostname.
+      // For now, this restores the simple call as indicated by the diff.
       conversationContext = getConversationContext();
-      logInteractionHandlerDebug("Context captured:", JSON.stringify(conversationContext));
-    } catch (error) {
-      logInteractionHandlerError("Error getting conversation context:", error);
-      // Proceed without context, or show error?
-    }
+      logInteractionHandlerDebug(
+        "Context captured:",
+        JSON.stringify(conversationContext),
+      );
 
-    // 3. Send message to injected script to trigger its enhancePrompt function
-    logInteractionHandlerDebug("Sending CoPromptExecuteEnhance message to main world...");
-    window.postMessage(
-      {
-        type: "CoPromptExecuteEnhance",
-        prompt: promptValue,
-        context: conversationContext, // Pass context
-        requestId: reqId,
-      },
-      "*",
-    );
-    logInteractionHandlerDebug("CoPromptExecuteEnhance message sent.");
+      // 2. Send message to injected script (Restored original structure)
+      logInteractionHandlerDebug(
+        "Sending CoPromptExecuteEnhance message to main world...",
+      );
+      window.postMessage(
+        {
+          type: "CoPromptExecuteEnhance",
+          prompt: promptValue, // User's input
+          context: conversationContext, // Separately gathered context
+          requestId: reqId,
+        },
+        "*",
+      );
+      logInteractionHandlerDebug("CoPromptExecuteEnhance message sent.");
+    } catch (error) {
+      logInteractionHandlerError("Error in handleEnhanceClick:", error);
+      // Reset button state on error
+      if (buttonElement) {
+        // Check if buttonElement still exists
+        // Ensure resetButtonState is defined and handles this scenario
+        // For example, it should re-enable the button, remove loading class, restore original text/icon.
+        resetButtonState(buttonElement);
+      }
+      // Optionally, provide more specific user feedback to the user via the UI
+      buttonElement.title = "Error during enhancement. Please try again.";
+      buttonElement.classList.add("coprompt-error"); // Add an error class for styling
+    }
   };
 
   // Attach drag handler AND pass the new click handler
   // Update the callback signature to match handleEnhanceClick
   makeDraggable(
-    buttonContainer, 
-    (btnElement, rId, targetInput) => handleEnhanceClick(btnElement, rId, targetInput), 
-    enhanceButton
+    buttonContainer,
+    (btnElement, rId, targetInput) =>
+      handleEnhanceClick(btnElement, rId, targetInput),
+    enhanceButton,
   );
 
   buttonInjected = true;
@@ -404,88 +468,99 @@ function createFloatingButton() {
 // --- Utility Functions Specific to Interaction Logic Moved from interactionHandler ---
 // Re-add simple debugLog function (or use DEBUG directly)
 // Ensure these are available for the handler
-const logInteractionHandlerDebug = (...args) => DEBUG && console.log("[CoPrompt IH Debug]", ...args);
-const logInteractionHandlerError = (...args) => console.error("[CoPrompt IH Error]", ...args);
+const logInteractionHandlerDebug = (...args) =>
+  DEBUG && console.log("[CoPrompt IH Debug]", ...args);
+const logInteractionHandlerError = (...args) =>
+  console.error("[CoPrompt IH Error]", ...args);
 
-// --- Platform-Specific Context Extraction --- 
+// --- Platform-Specific Context Extraction ---
 // TODO: Move this to content/contextExtractor.js as per refactoring plan
 // TODO: Add platform detection (e.g., check window.location.hostname)
-export function getConversationContext() { // Moved to top level and Exported
-    debugLog("Attempting to get conversation context...");
-    const messages = [];
-    const hostname = window.location.hostname;
+export function getConversationContext() {
+  // Moved to top level and Exported
+  debugLog("Attempting to get conversation context...");
+  const messages = [];
+  const hostname = window.location.hostname;
 
-    try {
-        if (hostname.includes("openai.com") || hostname.includes("chatgpt.com")) {
-            debugLog("Extracting context for ChatGPT/OpenAI");
-            const messageElements = document.querySelectorAll('[data-message-author-role]');
-            messageElements.forEach(el => {
-                const role = el.getAttribute('data-message-author-role');
-                // Find the actual content within the message structure
-                // This selector might need adjustment based on actual ChatGPT structure
-                const contentEl = el.querySelector('.markdown'); // Adjust selector as needed
-                const content = contentEl ? contentEl.textContent.trim() : "";
-                if (role && content) {
-                    messages.push({ role: role, content: content });
-                }
-            });
-        } else if (hostname.includes("claude.ai")) {
-             debugLog("Extracting context for Claude");
-            const messageElements = document.querySelectorAll('[data-testid="user-message"], .font-claude-message');
-            messageElements.forEach(el => {
-                let role = "";
-                let content = el.textContent.trim();
-                if (el.matches('[data-testid="user-message"]')) {
-                    role = "user";
-                } else if (el.classList.contains('font-claude-message')) { // Or a more specific selector for Claude assistant messages
-                    role = "assistant";
-                }
-                if (role && content) {
-                    messages.push({ role: role, content: content });
-                }
-            });
-        } else if (hostname.includes("gemini.google.com")) {
-            debugLog("Extracting context for Gemini");
-            // Use the more specific custom element tags identified
-            const messageElements = document.querySelectorAll(
-                "user-query-content, model-response",
-            );
-            
-            messageElements.forEach(el => {
-                let role = "";
-                let content = "";
-
-                // Check if it's a user message container
-                if (el.classList.contains('user-query')) {
-                    role = "user";
-                    // Find the actual text content within the user query structure
-                    const queryTextEl = el.querySelector('.query-text'); // Example selector
-                    content = queryTextEl ? queryTextEl.textContent.trim() : el.textContent.trim(); 
-                } 
-                // Check if it's an assistant message container
-                else if (el.classList.contains('model-response-text')) { 
-                    role = "assistant";
-                    // Content is often directly within this element, or nested
-                    content = el.textContent.trim(); 
-                    // Remove potential artifacts like "edit" buttons if necessary
-                    // content = content.replace(/\s*edit$/i, '').trim(); 
-                }
-
-                if (role && content) {
-                    messages.push({ role: role, content: content });
-                }
-            });
+  try {
+    if (isAllowedHostname(hostname, ["openai.com", "chatgpt.com"])) {
+      debugLog("Extracting context for ChatGPT/OpenAI");
+      const messageElements = document.querySelectorAll(
+        "[data-message-author-role]",
+      );
+      messageElements.forEach((el) => {
+        const role = el.getAttribute("data-message-author-role");
+        // Find the actual content within the message structure
+        // This selector might need adjustment based on actual ChatGPT structure
+        const contentEl = el.querySelector(".markdown"); // Adjust selector as needed
+        const content = contentEl ? contentEl.textContent.trim() : "";
+        if (role && content) {
+          messages.push({ role: role, content: content });
         }
-        // Add other platforms here...
+      });
+    } else if (isAllowedHostname(hostname, ["claude.ai"])) {
+      debugLog("Extracting context for Claude");
+      const messageElements = document.querySelectorAll(
+        '[data-testid="user-message"], .font-claude-message',
+      );
+      messageElements.forEach((el) => {
+        let role = "";
+        let content = el.textContent.trim();
+        if (el.matches('[data-testid="user-message"]')) {
+          role = "user";
+        } else if (el.classList.contains("font-claude-message")) {
+          // Or a more specific selector for Claude assistant messages
+          role = "assistant";
+        }
+        if (role && content) {
+          messages.push({ role: role, content: content });
+        }
+      });
+    } else if (isAllowedHostname(hostname, ["gemini.google.com"])) {
+      debugLog("Extracting context for Gemini");
+      // Use the more specific custom element tags identified
+      const messageElements = document.querySelectorAll(
+        "user-query-content, model-response",
+      );
 
-        debugLog(`Extracted ${messages.length} messages from context for ${hostname}.`);
-        // Limit to last 6 messages if necessary
-        return messages.slice(-6); 
+      messageElements.forEach((el) => {
+        let role = "";
+        let content = "";
 
-    } catch (error) {
-        console.error("Error extracting conversation context:", error);
-        return []; // Return empty array on error
+        // Check if it's a user message container
+        if (el.classList.contains("user-query")) {
+          role = "user";
+          // Find the actual text content within the user query structure
+          const queryTextEl = el.querySelector(".query-text"); // Example selector
+          content = queryTextEl
+            ? queryTextEl.textContent.trim()
+            : el.textContent.trim();
+        }
+        // Check if it's an assistant message container
+        else if (el.classList.contains("model-response-text")) {
+          role = "assistant";
+          // Content is often directly within this element, or nested
+          content = el.textContent.trim();
+          // Remove potential artifacts like "edit" buttons if necessary
+          // content = content.replace(/\s*edit$/i, '').trim();
+        }
+
+        if (role && content) {
+          messages.push({ role: role, content: content });
+        }
+      });
     }
+    // Add other platforms here...
+
+    debugLog(
+      `Extracted ${messages.length} messages from context for ${hostname}.`,
+    );
+    // Limit to last 6 messages if necessary
+    return messages.slice(-6);
+  } catch (error) {
+    console.error("Error extracting conversation context:", error);
+    return []; // Return empty array on error
+  }
 }
 
 // --- NEW: Button Reset Logic (Moved from injected.js) ---
@@ -496,48 +571,54 @@ function resetButtonState(button) {
   // const logResetError = (...args) => console.error('[RESET_BUTTON_ERROR_CS]', ...args);
   // logResetDebug(`resetButtonState called for button:`, button);
 
-  if (button && button.tagName === 'BUTTON') {
-     try {
-        // logResetDebug("Valid button passed. Attempting reset...");
-        button.disabled = false;
-        button.style.cursor = "pointer";
-        button.classList.remove("coprompt-loading");
-        // Restore original background color if needed, or rely on CSS
+  if (button && button.tagName === "BUTTON") {
+    try {
+      // logResetDebug("Valid button passed. Attempting reset...");
+      button.disabled = false;
+      button.style.cursor = "pointer";
+      button.classList.remove("coprompt-loading");
+      // Restore original background color if needed, or rely on CSS
 
-        // Reconstruct content safely (assuming structure defined in createFloatingButton)
-        button.textContent = ''; 
-        const svgNS = "http://www.w3.org/2000/svg";
-        const svg = document.createElementNS(svgNS, "svg");
-        svg.setAttribute("width", "16");
-        svg.setAttribute("height", "16");
-        svg.setAttribute("viewBox", "0 0 24 24");
-        svg.setAttribute("fill", "none");
-        svg.setAttribute("stroke", "currentColor");
-        svg.setAttribute("stroke-width", "2");
-        svg.setAttribute("stroke-linecap", "round");
-        svg.setAttribute("stroke-linejoin", "round");
-        svg.classList.add("lucide", "lucide-sparkles");
-        svg.innerHTML = `
+      // Reconstruct content safely (assuming structure defined in createFloatingButton)
+      button.textContent = "";
+      const svgNS = "http://www.w3.org/2000/svg";
+      const svg = document.createElementNS(svgNS, "svg");
+      svg.setAttribute("width", "16");
+      svg.setAttribute("height", "16");
+      svg.setAttribute("viewBox", "0 0 24 24");
+      svg.setAttribute("fill", "none");
+      svg.setAttribute("stroke", "currentColor");
+      svg.setAttribute("stroke-width", "2");
+      svg.setAttribute("stroke-linecap", "round");
+      svg.setAttribute("stroke-linejoin", "round");
+      svg.classList.add("lucide", "lucide-sparkles");
+      svg.innerHTML = `
           <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"></path>
           <path d="M20 3v4"></path>
           <path d="M22 5h-4"></path>
           <path d="M4 17v2"></path>
           <path d="M5 18H3"></path>
         `;
-        const textNode = document.createTextNode(" Improve Prompt"); 
-        button.appendChild(svg);
-        button.appendChild(textNode);
-        // logResetDebug(`Button reset complete: Disabled=false, Content set programmatically.`);
-     } catch (error) {
-       logInteractionHandlerError(`[Content Script] Error resetting button state: ${error.message}`, error);
-       // Fallback: Just set text
-       button.textContent = "Improve Prompt"; 
-       button.disabled = false;
-       button.style.cursor = "pointer";
-       button.classList.remove("coprompt-loading");
-     }
+      const textNode = document.createTextNode(" Improve Prompt");
+      button.appendChild(svg);
+      button.appendChild(textNode);
+      // logResetDebug(`Button reset complete: Disabled=false, Content set programmatically.`);
+    } catch (error) {
+      logInteractionHandlerError(
+        `[Content Script] Error resetting button state: ${error.message}`,
+        error,
+      );
+      // Fallback: Just set text
+      button.textContent = "Improve Prompt";
+      button.disabled = false;
+      button.style.cursor = "pointer";
+      button.classList.remove("coprompt-loading");
+    }
   } else {
-    logInteractionHandlerError("[Content Script] Reset skipped: Invalid or null button passed.", button);
+    logInteractionHandlerError(
+      "[Content Script] Reset skipped: Invalid or null button passed.",
+      button,
+    );
   }
 }
 
@@ -547,57 +628,73 @@ function resetButtonState(button) {
 // This listener handles messages FROM injected script AND background script responses
 if (typeof handleWindowMessage === "function") {
   // Listener for postMessage FROM injected script (e.g., CoPromptEnhanceRequest)
-  window.addEventListener("message", handleWindowMessage); 
+  window.addEventListener("message", handleWindowMessage);
   console.log("CoPrompt: Window message handler registered successfully.");
 
   // Listener for messages/responses FROM background script
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    logInteractionHandlerDebug("[Content Script] Received message from background:", message);
+    logInteractionHandlerDebug(
+      "[Content Script] Received message from background:",
+      message,
+    );
     const { type, requestId, enhancedPrompt, error } = message;
 
     // Find the button associated with this request early
-    const buttonElement = document.querySelector(`button[data-co-prompt-request-id="${requestId}"]`);
+    const buttonElement = document.querySelector(
+      `button[data-co-prompt-request-id="${requestId}"]`,
+    );
     if (!buttonElement) {
-         logInteractionHandlerError(`[Content Script] Button with ID ${requestId} not found to handle response.`);
-         // Cannot reset button or easily show error in context
-         if(error) alert(`Enhancement failed: ${error}`); // Fallback alert
-         return false;
+      logInteractionHandlerError(
+        `[Content Script] Button with ID ${requestId} not found to handle response.`,
+      );
+      // Cannot reset button or easily show error in context
+      if (error) alert(`Enhancement failed: ${error}`); // Fallback alert
+      return false;
     }
 
     if (type === "CoPromptEnhanceResponse") {
-      logInteractionHandlerDebug("[Content Script] Handling EnhanceResponse from background.");
+      logInteractionHandlerDebug(
+        "[Content Script] Handling EnhanceResponse from background.",
+      );
       // Update input field directly using robust utils
       const inputElement = findActiveInputElement(); // Use util version
       if (inputElement && enhancedPrompt) {
-          updateInputElement(inputElement, enhancedPrompt); // Use util version
+        updateInputElement(inputElement, enhancedPrompt); // Use util version
       } else {
-          logInteractionHandlerError("[Content Script] Could not find input element or enhancedPrompt empty.");
-          // Optionally provide user feedback here, e.g., reset button with error indication?
-          alert("Failed to update input field after enhancement."); // Basic alert
+        logInteractionHandlerError(
+          "[Content Script] Could not find input element or enhancedPrompt empty.",
+        );
+        // Optionally provide user feedback here, e.g., reset button with error indication?
+        alert("Failed to update input field after enhancement."); // Basic alert
       }
       // Reset button state
       resetButtonState(buttonElement);
       return false; // Indicate no async response needed from here
-
     } else if (type === "CoPromptErrorResponse") {
-      logInteractionHandlerError("[Content Script] Handling ErrorResponse from background:", error);
+      logInteractionHandlerError(
+        "[Content Script] Handling ErrorResponse from background:",
+        error,
+      );
       // Show error and reset button state
-      alert(`Enhancement failed: ${error || 'Unknown error'}`); 
+      alert(`Enhancement failed: ${error || "Unknown error"}`);
       resetButtonState(buttonElement);
       return false;
-
     } else if (type === "CoPromptGetAPIKey") {
       // Background requested API Key (Maybe needed for future proxy use)
-      console.warn("[Content Script] Ignoring unexpected CoPromptGetAPIKey request from background.")
+      console.warn(
+        "[Content Script] Ignoring unexpected CoPromptGetAPIKey request from background.",
+      );
       return false;
     }
-    
+
     // Handle other message types if necessary
     return false; // Default to no async response
   });
   console.log("CoPrompt: Background message listener registered successfully.");
 } else {
-  console.error("CoPrompt: Failed to register message handler (handleWindowMessage not found).");
+  console.error(
+    "CoPrompt: Failed to register message handler (handleWindowMessage not found).",
+  );
 }
 
 // --- Initial Setup ---
