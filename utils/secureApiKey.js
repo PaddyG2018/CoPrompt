@@ -75,6 +75,6 @@ export async function decryptAPIKey(encryptedString) {
   } catch (error) {
     console.error("Decryption failed:", error);
     // Consider throwing a custom error or logging more formally
-    return null; 
+    return null;
   }
-} 
+}

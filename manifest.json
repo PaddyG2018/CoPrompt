@@ -50,9 +50,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": [
-        "injected.js"
-      ],
+      "resources": ["injected.js"],
       "matches": [
         "https://chat.openai.com/*",
         "https://chatgpt.com/*",
