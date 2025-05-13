@@ -4,7 +4,7 @@
 
 **Context:**
 
-When CoPrompt enhances a prompt, especially in no-context scenarios where it uses placeholders, it currently appends a helpful instruction for the *user*, such as:
+When CoPrompt enhances a prompt, especially in no-context scenarios where it uses placeholders, it currently appends a helpful instruction for the _user_, such as:
 `[Please review and customize the above sections with specific details relevant to your project.]`
 
 **Potential Problem:**
@@ -26,4 +26,4 @@ The guidance line is valuable for the user of CoPrompt. The current expectation 
 2.  **Copy Option:** Provide an alternative copy button like "Copy for LLM" that automatically strips known guidance patterns before copying to the clipboard.
 3.  **Refine System Prompt:** Tweak the `MAIN_SYSTEM_INSTRUCTION` to format user guidance differently (e.g., prefix with "Note to User:"), although this could be less clean.
 
-**Action:** Keep this documented. Monitor user feedback for instances where this confusion occurs. 
+**Action:** Keep this documented. Monitor user feedback for instances where this confusion occurs.

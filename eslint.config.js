@@ -75,7 +75,7 @@ export default tseslint.config(
       // but usually, just disabling no-require-imports is enough.
       // We might also need to set sourceType: "commonjs" explicitly here if ESLint
       // tries to parse it as a module due to global settings.
-    }
+    },
   },
 
   // Disable rules conflicting with Prettier - MUST BE LAST

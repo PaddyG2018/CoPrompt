@@ -55,7 +55,12 @@ function constrainToViewport(initialPos, offset, maxDimension, elementSize) {
  * @param {HTMLElement} [handleElement=draggableElement] The element to attach the initial pointerdown listener to. Defaults to draggableElement.
  */
 export function makeDraggable(draggableElement, onClick, handleElement = null) {
-  logInteractionHandlerDebug("makeDraggable called for container:", draggableElement, "and button:", handleElement);
+  logInteractionHandlerDebug(
+    "makeDraggable called for container:",
+    draggableElement,
+    "and button:",
+    handleElement,
+  );
   const listenerTarget = handleElement || draggableElement;
 
   if (!draggableElement) {
@@ -96,8 +101,11 @@ export function makeDraggable(draggableElement, onClick, handleElement = null) {
 
     // --- Find and Store Target Input Element ---
     draggableElement._dragState.targetInputElement = findActiveInputElement();
-    logInteractionHandlerDebug("Target input element found on pointerdown:", draggableElement._dragState.targetInputElement);
-    // --- End Store --- 
+    logInteractionHandlerDebug(
+      "Target input element found on pointerdown:",
+      draggableElement._dragState.targetInputElement,
+    );
+    // --- End Store ---
 
     // Set state on the draggable element
     draggableElement._dragState.isPointerDown = true;
@@ -236,18 +244,25 @@ export function makeDraggable(draggableElement, onClick, handleElement = null) {
     // Call onClick callback if it wasn't a drag
     if (!wasDragging) {
       if (typeof onClick === "function") {
-        logInteractionHandlerDebug("Click detected (isDragging is false), calling provided onClick callback...");
+        logInteractionHandlerDebug(
+          "Click detected (isDragging is false), calling provided onClick callback...",
+        );
         try {
           // Pass the handleElement, its requestId, AND the stored target input to the callback
           const requestId = handleElement?.dataset.coPromptRequestId;
-          const targetInput = draggableElement._dragState.targetInputElement; 
+          const targetInput = draggableElement._dragState.targetInputElement;
           onClick(handleElement, requestId, targetInput); // Pass targetInput
         } catch (error) {
-          logInteractionHandlerError("Error executing onClick callback:", error);
+          logInteractionHandlerError(
+            "Error executing onClick callback:",
+            error,
+          );
         }
       }
     } else {
-      logInteractionHandlerDebug("Drag detected (isDragging is true), click skipped.");
+      logInteractionHandlerDebug(
+        "Drag detected (isDragging is true), click skipped.",
+      );
     }
   };
 
