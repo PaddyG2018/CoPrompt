@@ -9,8 +9,8 @@ entrypoint = "./functions/feedback/index.ts"
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/feedback/*.html" ]
 
-# [local_database]
-# port = 54322
+[local_database]
+port = 54322
 
 [functions.enhance]
 enabled = true
