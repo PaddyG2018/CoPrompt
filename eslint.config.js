@@ -66,6 +66,18 @@ export default tseslint.config(
     },
   },
 
+  // Configuration specific for webpack.config.cjs
+  {
+    files: ["webpack.config.cjs"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+      // Potentially also disable sourceType: "module" if it causes issues for .cjs
+      // but usually, just disabling no-require-imports is enough.
+      // We might also need to set sourceType: "commonjs" explicitly here if ESLint
+      // tries to parse it as a module due to global settings.
+    }
+  },
+
   // Disable rules conflicting with Prettier - MUST BE LAST
   eslintConfigPrettier,
 
