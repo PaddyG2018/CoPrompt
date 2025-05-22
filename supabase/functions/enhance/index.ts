@@ -6,8 +6,11 @@
 // Setup type definitions for built-in Supabase Runtime APIs
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2"; // Import Supabase client
 
 console.log("Hello from Functions!");
+
+const RATE_LIMIT_WINDOW_SECONDS = 1; // Allow 1 request per second per IP
 
 serve(async (req: Request) => {
   // Common CORS headers
@@ -23,6 +26,56 @@ serve(async (req: Request) => {
   }
 
   try {
+    // --- Rate Limiting Logic (PX-04) ---
+    const clientIp = Deno.serveHttp?.(req)?.remoteAddr?.hostname;
+    if (!clientIp) {
+      console.warn("Could not determine client IP for rate limiting.");
+      // Optionally, you could deny the request or allow it if IP is undeterminable
+      // For now, we'll allow it to proceed but log a warning.
+    } else {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL");
+      const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+      if (!supabaseUrl || !supabaseServiceKey) {
+        console.error("Supabase URL or Service Role Key not set for rate limiting DB access.");
+        // If these are missing, we can't perform rate limiting via DB. 
+        // Depending on policy, you might fail open (allow) or fail closed (deny with 500).
+        // For now, proceeding without DB-based rate limiting if keys are missing.
+      } else {
+        const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+        const { data: logData, error: selectError } = await supabase
+          .from("request_logs")
+          .select("last_request_at")
+          .eq("identifier", clientIp)
+          .single();
+
+        if (selectError && selectError.code !== 'PGRST116') { // PGRST116: "Row to append not found" (means no record yet)
+          console.error("Error fetching request log:", selectError);
+          // Potentially fail open or closed here too.
+        } else if (logData) {
+          const lastRequestTime = new Date(logData.last_request_at).getTime();
+          const currentTime = Date.now();
+          if ((currentTime - lastRequestTime) < (RATE_LIMIT_WINDOW_SECONDS * 1000)) {
+            return new Response(JSON.stringify({ error: "Too Many Requests" }), {
+              status: 429,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+        }
+        // If no error or rate limit not exceeded, upsert the new request time
+        const { error: upsertError } = await supabase
+          .from("request_logs")
+          .upsert({ identifier: clientIp, last_request_at: new Date().toISOString() });
+
+        if (upsertError) {
+          console.error("Error upserting request log:", upsertError);
+          // Potentially fail open or closed.
+        }
+      }
+    }
+    // --- End Rate Limiting Logic ---
+
     // 1. Retrieve OpenAI API key from secrets
     const openAIApiKey = Deno.env.get("OPENAI_API_KEY");
     if (!openAIApiKey) {
