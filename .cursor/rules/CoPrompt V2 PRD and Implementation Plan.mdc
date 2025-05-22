@@ -119,6 +119,13 @@ Security: HttpOnly SameSite=Lax cookies; AES‑256 at rest. GDPR: only email + s
 
 ## 7. Implementation Phases, Stories & Technical Breakdown
 
+**Progress Summary (as of 2025-05-14):**
+*   **Phase -1 (Proxy Skeleton)** is largely complete.
+    *   PX-00: CI/CD for Supabase Edge Functions is operational.
+    *   PX-01: A minimal `/enhance` Supabase Edge Function is deployed and callable.
+*   Troubleshooting included resolving Supabase CLI version compatibility with `config.toml`, Docker connectivity, port conflicts, and CI linting/formatting issues.
+*   The `supabase/config.toml` requires the `[local_database]` section to be commented out for CI/CD deployments via GitHub Actions, but can remain uncommented for local development. The live deployed function reflects a state where this section was commented.
+
 Below each story we list **Files / Areas**, **Complexity** (T-shirt), and **Test Notes** so the dev squad can turn them straight into tickets.
 
 ### legend
@@ -135,8 +142,8 @@ Below each story we list **Files / Areas**, **Complexity** (T-shirt), and **Test
 
 | ID      | Title                                                        | Files / Areas                        | Complexity | Test Notes                                                           |
 | ------- | ------------------------------------------------------------ | ------------------------------------ | ---------- | -------------------------------------------------------------------- |
-| PX‑00   | CI/CD – GH Action auto-deploy Supabase Edge Function           | infra/.github                        | S          | push to main builds & publishes function; staging url health 200     |
-| PX‑01   | Deploy minimal `/enhance` Supabase Edge Function             | PX (supabase/functions/enhance.ts)   | M          | `curl` returns OpenAI echo JSON                                      |
+| PX‑00   | CI/CD – GH Action auto-deploy Supabase Edge Function           | infra/.github                        | S          | **[COMPLETED]** push to main (affecting `supabase/functions/**`) builds & publishes function. Workflow `.github/workflows/deploy_supabase_functions.yml` is live. Secrets (`SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_ID`, `SUPABASE_DB_PASSWORD`) configured. `config.toml` `[local_database]` section managed for CI vs. local. Staging URL health 200. |
+| PX‑01   | Deploy minimal `/enhance` Supabase Edge Function             | PX (supabase/functions/enhance.ts)   | M          | **[COMPLETED]** `curl` to `https://evfuyrixpjgfytwfijpx.supabase.co/functions/v1/enhance` (with anon key) returns expected JSON. Placeholder function `supabase/functions/enhance/index.ts` created. Local dev with `supabase start` & `supabase functions serve` functional. |
 | PX‑02   | Inject server URL & update `connect_src`                     | CS, manifest.json                    | S          | Enhance works via new endpoint                                       |
 | PX‑03   | Store OpenAI key in Supabase secrets                         | infra                                | S          | Key never in logs; rotated monthly                                   |
 | PX‑04   | Simple request quota (1 req/sec/device) using Supabase RLS   | PX                                   | M          | 429 returned on hammer test                                          |

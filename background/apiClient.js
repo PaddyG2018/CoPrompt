@@ -10,8 +10,7 @@ const DEBUG = false; // Or find a way to share this flag
  * @throws {Error} Rejects with an error message if the API call fails or returns an error.
  */
 export async function callOpenAI(apiKey, systemInstruction, userPrompt) {
-  if (DEBUG) console.log("[apiClient] Sending request to OpenAI API...");
-  if (DEBUG) console.log("[apiClient] Using model: gpt-4.1-mini"); // Consider making model configurable
+  if (DEBUG) console.log("[apiClient] Sending request to Supabase /enhance function...");
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => {
@@ -19,108 +18,96 @@ export async function callOpenAI(apiKey, systemInstruction, userPrompt) {
   }, 50000); // 50 second timeout
 
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    // MODIFIED: URL points to Supabase Edge Function
+    const response = await fetch("https://evfuyrixpjgfytwfijpx.supabase.co/functions/v1/enhance", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
+        // MODIFIED: Authorization uses Supabase anon key
+        Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2ZnV5cml4cGpnZnl0d2ZpanB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwODA0MDIsImV4cCI6MjA1OTY1NjQwMn0.GD6oTrvjKMdqSK4LgyRmD0E1k0zbKFg79sAlXy-fLyc`,
+        // ADDED: apikey header for Supabase
+        apikey: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2ZnV5cml4cGpnZnl0d2ZpanB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwODA0MDIsImV4cCI6MjA1OTY1NjQwMn0.GD6oTrvjKMdqSK4LgyRmD0E1k0zbKFg79sAlXy-fLyc`,
       },
+      // The body remains the same for now, the proxy will eventually use this.
       body: JSON.stringify({
-        model: "gpt-4.1-mini", // Consider making model configurable
+        model: "gpt-4.1-mini",
         messages: [
           { role: "system", content: systemInstruction },
           { role: "user", content: userPrompt },
         ],
-        temperature: 0.7, // Consider making temperature configurable
+        temperature: 0.7,
       }),
       signal: controller.signal,
     });
 
+    clearTimeout(timeoutId); // Clear timeout as soon as headers are received
+
     if (DEBUG)
-      console.log(`[apiClient] API response status: ${response.status}`);
+      console.log(`[apiClient] Supabase function response status: ${response.status}`);
 
     if (!response.ok) {
       let errorBody = null;
       try {
-        // Attempt to parse the error body for more details
         errorBody = await response.json();
-        console.error(`[apiClient] API error (${response.status}):`, errorBody);
+        console.error(`[apiClient] Supabase function error (${response.status}):`, errorBody);
       } catch (parseError) {
-        // If parsing fails, try to get text
         try {
           const errorText = await response.text();
           console.error(
-            `[apiClient] API error (${response.status}), could not parse JSON body:`,
+            `[apiClient] Supabase function error (${response.status}), could not parse JSON body:`,
             errorText,
           );
-          errorBody = {
-            error: { message: errorText || "Failed to read error body." },
-          }; // Mimic OpenAI error structure
+          errorBody = { error: { message: errorText || "Failed to read error body." } };
         } catch (textError) {
           console.error(
-            `[apiClient] API error (${response.status}), failed to read error body as text:`,
+            `[apiClient] Supabase function error (${response.status}), failed to read error body as text:`,
             textError,
           );
-          errorBody = {
-            error: {
-              message: `Status ${response.status}, unreadable error body.`,
-            },
-          };
+          errorBody = { error: { message: `Status ${response.status}, unreadable error body.` } };
         }
       }
-      // Construct a user-friendly error message
-      let errorMessage = `API Error (${response.status})`;
-      if (errorBody?.error?.message) {
+      let errorMessage = `Supabase Function Error (${response.status})`;
+      if (errorBody?.message) { // Supabase functions might return { "message": "error detail" } or { "error": "..." }
+        errorMessage += `: ${errorBody.message}`;
+      } else if (errorBody?.error?.message) {
         errorMessage += `: ${errorBody.error.message}`;
+      } else if (errorBody?.error) {
+        errorMessage += `: ${errorBody.error}`;
       } else {
-        errorMessage +=
-          ". Please check API key, model access, or OpenAI status.";
+        errorMessage += ". Check Supabase function logs.";
       }
-      // Add specific guidance for common errors
-      if (response.status === 401) errorMessage += " (Invalid API Key?)";
-      if (response.status === 429)
-        errorMessage += " (Rate limit exceeded or quota issue?)";
-      if (response.status === 404)
-        errorMessage += " (Model not found or API endpoint issue?)";
-
       throw new Error(errorMessage);
     }
 
-    // Success case: parse the response
     const data = await response.json();
 
-    if (data.choices && data.choices.length > 0 && data.choices[0].message) {
+    // MODIFIED: Expecting { "message": "response string" } from the proxy
+    if (data && typeof data.message === 'string') {
       if (DEBUG)
         console.log(
-          "[apiClient] Received response: ",
-          data.choices[0].message.content,
+          "[apiClient] Received response from Supabase: ",
+          data.message,
         );
-      return data.choices[0].message.content;
+      return data.message; // Return the message string directly
     } else {
       console.error(
-        "[apiClient] Invalid response structure from OpenAI:",
+        "[apiClient] Invalid response structure from Supabase function:",
         data,
       );
-      throw new Error("Received invalid response structure from OpenAI API.");
+      throw new Error("Received invalid response structure from Supabase function. Expected { message: string }.");
     }
   } catch (error) {
-    clearTimeout(timeoutId); // Ensure timeout is cleared on fetch errors too
+    if (timeoutId && error.name !== "AbortError") { // Check if timeoutId is still defined
+        clearTimeout(timeoutId);
+    }
     if (error.name === "AbortError") {
       console.error(
-        "[apiClient] OpenAI API request timed out after 50 seconds.",
+        "[apiClient] Supabase function request timed out after 50 seconds.",
       );
-      throw new Error("OpenAI API request timed out (50s).");
+      throw new Error("Supabase function request timed out (50s).");
     } else {
-      console.error("[apiClient] Error calling OpenAI API:", error);
-      // Rethrow other errors (like the ones we created for non-OK status)
-      // Or potentially wrap them if needed, but rethrowing is often fine
-      throw error;
-    }
-  } finally {
-    // Clear timeout only if it hasn't already been cleared or fired
-    // The try/catch above handles clearing in most cases, but this is belt-and-suspenders
-    if (timeoutId) {
-      clearTimeout(timeoutId);
+      console.error("[apiClient] Error calling Supabase function:", error);
+      throw error; // Rethrow other errors
     }
   }
 }

@@ -204,35 +204,21 @@ chrome.runtime.onConnect.addListener((port) => {
 
           // If we reach here, apiKey should be valid
 
-          // *** FIX: Format context and combine with prompt ***
-          const formattedContext = formatConversationContext(
-            conversationContext || [],
-          );
-          const finalUserPrompt = formattedContext
-            ? `${formattedContext}\n\n--- Original Prompt ---\n${originalPrompt}`
-            : originalPrompt; // Use original prompt if no context
+          // 3. Prepare the prompt
+          const contextString = formatConversationContext(conversationContext);
+          const systemContent = systemInstruction || MAIN_SYSTEM_INSTRUCTION;
+          const userPrompt = `${originalPrompt}${contextString ? `\n\n${contextString}` : ""}`;
 
-          // *** FIX: Use MAIN_SYSTEM_INSTRUCTION ***
-          // Use the passed systemInstruction if provided (e.g., category-specific), otherwise use MAIN
-          const finalSystemInstruction =
-            systemInstruction || MAIN_SYSTEM_INSTRUCTION;
+          // 4. Call Supabase Function (callOpenAI now calls Supabase and returns a string)
+          // console.log(`[Background Port Listener] Calling Supabase function (ID: ${requestId})...`);
+          const enhancedMessageString = await callOpenAI(apiKey, userPrompt, systemContent); // callOpenAI now returns a string
 
-          // Removed Temp Debug Block
-
-          // 4. Call OpenAI with the decrypted key and combined context/prompt
-          // console.log(`[Background Port Listener] Calling OpenAI API (ID: ${requestId})`); // REMOVE log
-          const result = await callOpenAI(
-            apiKey,
-            finalSystemInstruction,
-            finalUserPrompt,
-          );
-          // console.log(`[Background Port Listener] OpenAI API call successful (ID: ${requestId})`); // REMOVE log
-
-          // Include requestId in the success response
-          // console.log(`[Background Port Listener] Posting success response via port (ID: ${requestId})`); // REMOVE log
+          // console.log(`[Background Port Listener] Supabase function call successful (ID: ${requestId}), sending response.`);
+          // 5. Send the response back to the content script
           port.postMessage({
-            type: "CoPromptEnhanceResponse",
-            data: result,
+            type: "CoPromptEnhanceResponse",    // This is handled by injected.js
+            data: enhancedMessageString,        // Assign the string directly
+            usage: null,                        // Explicitly null for now
             requestId: requestId,
           });
         } catch (error) {
