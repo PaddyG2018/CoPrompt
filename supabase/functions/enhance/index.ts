@@ -37,6 +37,23 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    // 1. Validate that the request is a POST request
+    if (req.method !== "POST") {
+      return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
+        status: 405,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // 2. Extract data from the request body
+    const { model, messages, temperature, deviceId } = await req.json(); // --- PX-06: Destructure deviceId ---
+
+    // 2a. Log the received deviceId (for PX-06 verification)
+    console.log("[Supabase Function] Received request with Device ID:", deviceId);
+
+    // 3. Retrieve the OpenAI API Key from environment variables
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+
     // --- Rate Limiting Logic (PX-04) ---
     // Try to get client IP from headers first
     const xForwardedForHeader = req.headers.get("x-forwarded-for");
@@ -121,9 +138,9 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // 2. Parse incoming request body from the extension
-    // This is what background/apiClient.js sends currently
-    const { model, messages, temperature } = await req.json();
+    // 2. Parse incoming request body from the extension - THIS IS NOW REDUNDANT
+    // const { model, messages, temperature } = await req.json(); // REMOVE THIS LINE
+    // model, messages, temperature, and deviceId are already available from the earlier destructuring
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return new Response(
