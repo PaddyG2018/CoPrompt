@@ -5,14 +5,21 @@
 
 // Setup type definitions for built-in Supabase Runtime APIs
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+// import { serve } from "https://deno.land/std@0.168.0/http/server.ts"; // REMOVE THIS
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"; // Import Supabase client
 
-console.log("Hello from Functions!");
+console.log("Hello from Enhance Function (v2 structure)!");
 
 const RATE_LIMIT_WINDOW_SECONDS = 1; // Allow 1 request per second per IP
 
-serve(async (req: Request) => {
+Deno.serve(async (req: Request) => { // USE Deno.serve
+  // Test environment variable
+  const testVar = Deno.env.get("MY_TEST_VARIABLE_123");
+  console.log(`MY_TEST_VARIABLE_123 value: ${testVar}`);
+
+  const openAIApiKeyFromEnv = Deno.env.get("OPENAI_API_KEY");
+  console.log(`OPENAI_API_KEY from env: ${openAIApiKeyFromEnv ? "found" : "NOT FOUND"}`);
+
   // Common CORS headers
   const corsHeaders = {
     "Access-Control-Allow-Origin": "*", // Or restrict to your extension ID
@@ -27,59 +34,69 @@ serve(async (req: Request) => {
 
   try {
     // --- Rate Limiting Logic (PX-04) ---
-    const clientIp = Deno.serveHttp?.(req)?.remoteAddr?.hostname;
+    // Try to get client IP from headers first
+    const xForwardedForHeader = req.headers.get("x-forwarded-for");
+    let xForwardedFor: string | null = null;
+    if (xForwardedForHeader) {
+        const parts = xForwardedForHeader.split(",");
+        if (parts.length > 0 && parts[0]) {
+            xForwardedFor = parts[0].trim();
+        }
+    }
+    const xRealIp = req.headers.get("x-real-ip");
+    let clientIp = xForwardedFor || xRealIp;
+
     if (!clientIp) {
-      console.warn("Could not determine client IP for rate limiting.");
-      // Optionally, you could deny the request or allow it if IP is undeterminable
-      // For now, we'll allow it to proceed but log a warning.
+      console.warn("Could not determine client IP from headers. Using fallback for local testing.");
+      clientIp = "local-dev-ip"; // Fallback IP for local testing
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error("Supabase URL or Service Role Key not set for rate limiting DB access.");
+      // If these are missing, we can't perform rate limiting via DB. 
+      // Depending on policy, you might fail open (allow) or fail closed (deny with 500).
+      // For now, proceeding without DB-based rate limiting if keys are missing.
     } else {
-      const supabaseUrl = Deno.env.get("SUPABASE_URL");
-      const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-      if (!supabaseUrl || !supabaseServiceKey) {
-        console.error("Supabase URL or Service Role Key not set for rate limiting DB access.");
-        // If these are missing, we can't perform rate limiting via DB. 
-        // Depending on policy, you might fail open (allow) or fail closed (deny with 500).
-        // For now, proceeding without DB-based rate limiting if keys are missing.
-      } else {
-        const supabase = createClient(supabaseUrl, supabaseServiceKey);
+      const { data: logData, error: selectError } = await supabase
+        .from("request_logs")
+        .select("last_request_at")
+        .eq("identifier", clientIp)
+        .single();
 
-        const { data: logData, error: selectError } = await supabase
-          .from("request_logs")
-          .select("last_request_at")
-          .eq("identifier", clientIp)
-          .single();
-
-        if (selectError && selectError.code !== 'PGRST116') { // PGRST116: "Row to append not found" (means no record yet)
-          console.error("Error fetching request log:", selectError);
-          // Potentially fail open or closed here too.
-        } else if (logData) {
-          const lastRequestTime = new Date(logData.last_request_at).getTime();
-          const currentTime = Date.now();
-          if ((currentTime - lastRequestTime) < (RATE_LIMIT_WINDOW_SECONDS * 1000)) {
-            return new Response(JSON.stringify({ error: "Too Many Requests" }), {
-              status: 429,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-          }
+      if (selectError && selectError.code !== 'PGRST116') { // PGRST116: "Row to append not found" (means no record yet)
+        console.error("Error fetching request log:", selectError);
+        // Potentially fail open or closed here too.
+      } else if (logData) {
+        const lastRequestTime = new Date(logData.last_request_at).getTime();
+        const currentTime = Date.now();
+        if ((currentTime - lastRequestTime) < (RATE_LIMIT_WINDOW_SECONDS * 1000)) {
+          return new Response(JSON.stringify({ error: "Too Many Requests" }), {
+            status: 429,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
         }
-        // If no error or rate limit not exceeded, upsert the new request time
-        const { error: upsertError } = await supabase
-          .from("request_logs")
-          .upsert({ identifier: clientIp, last_request_at: new Date().toISOString() });
+      }
+      // If no error or rate limit not exceeded, upsert the new request time
+      const { error: upsertError } = await supabase
+        .from("request_logs")
+        .upsert({ identifier: clientIp, last_request_at: new Date().toISOString() });
 
-        if (upsertError) {
-          console.error("Error upserting request log:", upsertError);
-          // Potentially fail open or closed.
-        }
+      if (upsertError) {
+        console.error("Error upserting request log:", upsertError);
+        // Potentially fail open or closed.
       }
     }
     // --- End Rate Limiting Logic ---
 
     // 1. Retrieve OpenAI API key from secrets
-    const openAIApiKey = Deno.env.get("OPENAI_API_KEY");
-    if (!openAIApiKey) {
-      console.error("OPENAI_API_KEY not set in Supabase secrets.");
+    // const openAIApiKey = Deno.env.get("OPENAI_API_KEY"); // Already got it as openAIApiKeyFromEnv
+    if (!openAIApiKeyFromEnv) { // Check the one we got from env
+      console.error("OPENAI_API_KEY not set in Deno.env."); // Updated error message
       return new Response(JSON.stringify({ error: "Server configuration error: Missing API key." }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -102,7 +119,7 @@ serve(async (req: Request) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${openAIApiKey}`,
+        "Authorization": `Bearer ${openAIApiKeyFromEnv}`, // Use the env var
       },
       body: JSON.stringify({
         model: model || "gpt-4.1-mini", // Default to gpt-4.1-mini if not provided
@@ -127,13 +144,8 @@ serve(async (req: Request) => {
     const openaiData = await openaiResponse.json();
 
     // 5. Return the relevant part of OpenAI's response to the extension
-    // The client (background/apiClient.js) currently expects a simple string in `data.message`.
-    // We need to adjust background/apiClient.js later to handle this fuller response if we want usage stats etc.
-    // For now, to match PX-02 client expectation temporarily and then move to PX-05, let's send OpenAI's message.
-    // This completes PX-03 and sets up for PX-05 where client handles this properly.
-    
     const enhancedPromptContent = openaiData.choices?.[0]?.message?.content;
-    // const usageData = openaiData.usage; // We'll use this in PX-05
+    const usageData = openaiData.usage; // Extract usage data
 
     if (!enhancedPromptContent) {
       console.error("Invalid response structure from OpenAI:", openaiData);
@@ -143,18 +155,16 @@ serve(async (req: Request) => {
       });
     }
 
-    // For PX-03, the goal is for the proxy to make the call.
-    // The client (background/apiClient.js) was last modified for PX-02 to expect { message: "..." }.
-    // We will return what background.js currently expects from callOpenAI (just the string).
-    // In PX-05, we'll update background.js to expect a richer object like { enhancedPrompt: "...", usage: "..." }
-    // and this function will send that richer object.
-    // For now, this function returns just the string to satisfy the current client.
-    return new Response(JSON.stringify({ message: enhancedPromptContent }), { // Simulate old apiClient response for now
+    // For PX-05, we want to return a richer object including usage.
+    return new Response(JSON.stringify({
+      message: enhancedPromptContent,
+      usage: usageData // Include the usage data
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
   } catch (error: any) {
-    console.error("Error in enhance function:", error);
+    console.error("Error in enhance function:", error.message, error.stack); // Log stack for more detail
     return new Response(JSON.stringify({ error: error.message || "An unexpected error occurred." }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
