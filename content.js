@@ -330,69 +330,58 @@ function createFloatingButton() {
     reqId,
     targetInputElement,
   ) => {
-    // --- Original Validations and Debug Logging ---
-    logInteractionHandlerDebug(
-      "handleEnhanceClick called with:",
+    console.log("[CoPrompt Debug] handleEnhanceClick: Entered", {
       buttonElement,
       reqId,
       targetInputElement,
-    );
-    logInteractionHandlerDebug(
-      "Active element on click (debug):",
-      document.activeElement,
-    );
+    }); // DEBUG
 
-    if (!buttonElement) {
-      logInteractionHandlerError(
-        "handleEnhanceClick: buttonElement is missing.",
-      );
-      return;
+    // Disable button and show loading state
+    if (buttonElement) {
+      buttonElement.disabled = true;
+      buttonElement.style.cursor = "wait"; // Or rely on .coprompt-loading class from CSS
+      buttonElement.classList.add("coprompt-loading");
     }
 
-    const promptValue = targetInputElement
-      ? (targetInputElement.value ?? targetInputElement.textContent)
-      : null;
-    logInteractionHandlerDebug(
-      "Using target input element passed from pointerdown:",
-      targetInputElement,
-    );
-    logInteractionHandlerDebug(
-      "Retrieved prompt value (length):",
-      promptValue?.length,
-    );
+    // Extract the prompt text from the active input field
+    // Use textContent for divs, value for inputs/textareas
+    const promptText = targetInputElement
+      ? targetInputElement.value !== undefined
+        ? targetInputElement.value
+        : targetInputElement.textContent
+      : "";
 
-    if (promptValue === null || promptValue === undefined) {
-      logInteractionHandlerError(
-        "Cannot enhance: No active input value found from stored element.",
-      );
-      // Optionally provide user feedback here
+    console.log(
+      "[CoPrompt Debug] handleEnhanceClick: Prompt text:",
+      promptText,
+    ); // DEBUG
+
+    if (!promptText || !promptText.trim()) {
+      // Check for null/undefined as well
+      console.error("CoPrompt: Prompt text is empty or invalid.");
+      if (buttonElement) {
+        // Reset button if prompt is empty
+        resetButtonState(buttonElement);
+      }
       return;
     }
     if (!reqId) {
-      logInteractionHandlerError(
-        "Cannot enhance: Button is missing request ID.",
-      );
+      console.error("CoPrompt: Button is missing request ID.");
       // Optionally provide user feedback here
       return;
     }
 
-    // --- Restore Button Loading State UI ---
-    logInteractionHandlerDebug(
-      "Setting button state to Enhancing (in content.js)...",
-    );
-    buttonElement.disabled = true;
-    buttonElement.style.cursor = "wait"; // Or rely on .coprompt-loading class from CSS
-    buttonElement.classList.add("coprompt-loading");
-
     // Set loading content (dots + text from ENHANCING_LABEL)
-    buttonElement.innerHTML = `
-      <div class="coprompt-loading-dots-container">
-        <div class="coprompt-loading-dot"></div>
-        <div class="coprompt-loading-dot"></div>
-        <div class="coprompt-loading-dot"></div>
-      </div>
-      <span>${ENHANCING_LABEL}</span> 
-    `; // Using ENHANCING_LABEL constant
+    if (buttonElement) {
+      buttonElement.innerHTML = `
+        <div class="coprompt-loading-dots-container">
+          <div class="coprompt-loading-dot"></div>
+          <div class="coprompt-loading-dot"></div>
+          <div class="coprompt-loading-dot"></div>
+        </div>
+        <span>${ENHANCING_LABEL}</span> 
+      `; // Using ENHANCING_LABEL constant
+    }
 
     try {
       // 1. Get Conversation Context (Restored generic call)
@@ -403,27 +392,92 @@ function createFloatingButton() {
       // that specific branching logic would need to be restored here, using isAllowedHostname.
       // For now, this restores the simple call as indicated by the diff.
       conversationContext = getConversationContext();
-      logInteractionHandlerDebug(
-        "Context captured:",
+      console.log(
+        "[CoPrompt Debug] handleEnhanceClick: Context captured:",
         JSON.stringify(conversationContext),
-      );
+      ); // DEBUG
 
-      // 2. Send message to injected script (Restored original structure)
-      logInteractionHandlerDebug(
-        "Sending CoPromptExecuteEnhance message to main world...",
-      );
-      window.postMessage(
+      // 2. Send message to background script
+      console.log(
+        "[CoPrompt Debug] handleEnhanceClick: About to send message to background script",
         {
-          type: "CoPromptExecuteEnhance",
-          prompt: promptValue, // User's input
+          type: "ENHANCE_PROMPT_REQUEST",
+          reqId,
+          promptText,
+          context: conversationContext,
+        },
+      ); // DEBUG
+      chrome.runtime.sendMessage(
+        {
+          type: "ENHANCE_PROMPT_REQUEST", // Action type
+          prompt: promptText, // User's input
           context: conversationContext, // Separately gathered context
           requestId: reqId,
         },
-        "*",
+        // NO second argument like "*" here for background script messages
+        (response) => {
+          // Add response handler callback
+          console.log(
+            "[CoPrompt Debug] handleEnhanceClick: Received response from background script:",
+            response,
+          );
+          if (chrome.runtime.lastError) {
+            console.error(
+              "CoPrompt: Error sending message to background script or receiving response:",
+              chrome.runtime.lastError.message,
+            );
+            if (buttonElement) {
+              resetButtonState(buttonElement);
+              // Optionally update button title or UI to show error
+              buttonElement.title =
+                "Error communicating with background script.";
+            }
+            return;
+          }
+
+          if (response && response.type === "ENHANCE_PROMPT_RESPONSE") {
+            if (response.enhancedPrompt && targetInputElement) {
+              updateInputElement(targetInputElement, response.enhancedPrompt);
+            } else if (response.error) {
+              console.error("CoPrompt: Enhancement failed:", response.error);
+              // Optionally update UI to show this error
+              if (targetInputElement) {
+                // Or show in a notification
+                updateInputElement(
+                  targetInputElement,
+                  `Error: ${response.error}`,
+                );
+              }
+            }
+          } else if (response && response.type === "ERROR_RESPONSE") {
+            console.error(
+              "CoPrompt: Background script returned an error:",
+              response.error,
+            );
+            // Optionally update UI
+            if (targetInputElement) {
+              // Or show in a notification
+              updateInputElement(
+                targetInputElement,
+                `Error: ${response.error}`,
+              );
+            }
+          } else {
+            console.warn(
+              "[CoPrompt Debug] handleEnhanceClick: Received unexpected response structure from background:",
+              response,
+            );
+          }
+
+          if (buttonElement) {
+            resetButtonState(buttonElement);
+          }
+        },
       );
-      logInteractionHandlerDebug("CoPromptExecuteEnhance message sent.");
+      // The console.log below was for the window.postMessage, which we are moving away from for this direct bg communication.
+      // console.log("[CoPrompt Debug] handleEnhanceClick: CoPromptExecuteEnhance message sent."); // DEBUG
     } catch (error) {
-      logInteractionHandlerError("Error in handleEnhanceClick:", error);
+      console.error("CoPrompt: Error in handleEnhanceClick:", error);
       // Reset button state on error
       if (buttonElement) {
         // Check if buttonElement still exists
@@ -432,8 +486,10 @@ function createFloatingButton() {
         resetButtonState(buttonElement);
       }
       // Optionally, provide more specific user feedback to the user via the UI
-      buttonElement.title = "Error during enhancement. Please try again.";
-      buttonElement.classList.add("coprompt-error"); // Add an error class for styling
+      if (buttonElement) {
+        buttonElement.title = "Error during enhancement. Please try again.";
+        buttonElement.classList.add("coprompt-error"); // Add an error class for styling
+      }
     }
   };
 
