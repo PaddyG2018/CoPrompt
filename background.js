@@ -75,7 +75,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       }
     });
     return true; // Indicate async response
-  } else if (request.type === "ENHANCE_PROMPT_REQUEST") { // New handler for direct messages
+  } else if (request.type === "ENHANCE_PROMPT_REQUEST") {
+    // New handler for direct messages
     (async () => {
       const {
         prompt: originalPrompt,
@@ -85,10 +86,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       } = request;
 
       if (!requestId) {
-        backgroundLogger.error("ENHANCE_PROMPT_REQUEST message missing requestId", {
-          code: "E_MISSING_REQUEST_ID_BG",
-          source: "onMessageListener",
-        });
+        backgroundLogger.error(
+          "ENHANCE_PROMPT_REQUEST message missing requestId",
+          {
+            code: "E_MISSING_REQUEST_ID_BG",
+            source: "onMessageListener",
+          },
+        );
         sendResponse({
           type: "ERROR_RESPONSE", // Consistent error response type
           error: "Request ID missing in ENHANCE_PROMPT_REQUEST.",
@@ -108,15 +112,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // For the simple proxy, we just forward the prompt for now.
         // Context and system instruction handling will be part of actual OpenAI call later.
 
-        console.log(`[Background] Calling Supabase function for ENHANCE_PROMPT_REQUEST (ID: ${requestId}). Prompt:`, originalPrompt);
+        console.log(
+          `[Background] Calling Supabase function for ENHANCE_PROMPT_REQUEST (ID: ${requestId}). Prompt:`,
+          originalPrompt,
+        );
         // callOpenAI now returns an object: { enhancedPrompt: string, usage: object }
         const apiResponse = await callOpenAI(
           null, // API key - not used by apiClient when talking to Supabase proxy (anon key is hardcoded there)
           systemContent, // Pass the system instruction
-          originalPrompt // Pass the original prompt as the userPrompt
+          originalPrompt, // Pass the original prompt as the userPrompt
         );
 
-        console.log(`[Background] Supabase function call successful (ID: ${requestId}), received:`, apiResponse);
+        console.log(
+          `[Background] Supabase function call successful (ID: ${requestId}), received:`,
+          apiResponse,
+        );
         sendResponse({
           type: "ENHANCE_PROMPT_RESPONSE", // Consistent response type
           enhancedPrompt: apiResponse.enhancedPrompt, // Pass the enhanced prompt string
@@ -133,7 +143,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         });
         sendResponse({
           type: "ERROR_RESPONSE", // Consistent error response type
-          error: error.message || "Unknown background error during enhancement.",
+          error:
+            error.message || "Unknown background error during enhancement.",
           requestId: requestId,
         });
       }
@@ -275,14 +286,18 @@ chrome.runtime.onConnect.addListener((port) => {
 
           // 4. Call Supabase Function (callOpenAI now calls Supabase and returns a string)
           // console.log(`[Background Port Listener] Calling Supabase function (ID: ${requestId})...`);
-          const enhancedMessageString = await callOpenAI(apiKey, userPrompt, systemContent); // callOpenAI now returns a string
+          const enhancedMessageString = await callOpenAI(
+            apiKey,
+            userPrompt,
+            systemContent,
+          ); // callOpenAI now returns a string
 
           // console.log(`[Background Port Listener] Supabase function call successful (ID: ${requestId}), sending response.`);
           // 5. Send the response back to the content script
           port.postMessage({
-            type: "CoPromptEnhanceResponse",    // This is handled by injected.js
-            data: enhancedMessageString,        // Assign the string directly
-            usage: null,                        // Explicitly null for now
+            type: "CoPromptEnhanceResponse", // This is handled by injected.js
+            data: enhancedMessageString, // Assign the string directly
+            usage: null, // Explicitly null for now
             requestId: requestId,
           });
         } catch (error) {

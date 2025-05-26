@@ -10,7 +10,8 @@ const DEBUG = true; // Or find a way to share this flag
  * @throws {Error} Rejects with an error message if the API call fails or returns an error.
  */
 export async function callOpenAI(apiKey, systemInstruction, userPrompt) {
-  if (DEBUG) console.log("[apiClient] Sending request to Supabase /enhance function...");
+  if (DEBUG)
+    console.log("[apiClient] Sending request to Supabase /enhance function...");
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => {
@@ -19,37 +20,45 @@ export async function callOpenAI(apiKey, systemInstruction, userPrompt) {
 
   try {
     // MODIFIED: URL points to Supabase Edge Function
-    const response = await fetch("https://evfuyrixpjgfytwfijpx.supabase.co/functions/v1/enhance", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        // MODIFIED: Authorization uses Supabase anon key
-        Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2ZnV5cml4cGpnZnl0d2ZpanB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwODA0MDIsImV4cCI6MjA1OTY1NjQwMn0.GD6oTrvjKMdqSK4LgyRmD0E1k0zbKFg79sAlXy-fLyc`,
-        // ADDED: apikey header for Supabase
-        apikey: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2ZnV5cml4cGpnZnl0d2ZpanB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwODA0MDIsImV4cCI6MjA1OTY1NjQwMn0.GD6oTrvjKMdqSK4LgyRmD0E1k0zbKFg79sAlXy-fLyc`,
+    const response = await fetch(
+      "https://evfuyrixpjgfytwfijpx.supabase.co/functions/v1/enhance",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          // MODIFIED: Authorization uses Supabase anon key
+          Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2ZnV5cml4cGpnZnl0d2ZpanB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwODA0MDIsImV4cCI6MjA1OTY1NjQwMn0.GD6oTrvjKMdqSK4LgyRmD0E1k0zbKFg79sAlXy-fLyc`,
+          // ADDED: apikey header for Supabase
+          apikey: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2ZnV5cml4cGpnZnl0d2ZpanB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwODA0MDIsImV4cCI6MjA1OTY1NjQwMn0.GD6oTrvjKMdqSK4LgyRmD0E1k0zbKFg79sAlXy-fLyc`,
+        },
+        // The body remains the same for now, the proxy will eventually use this.
+        body: JSON.stringify({
+          model: "gpt-4.1-mini",
+          messages: [
+            { role: "system", content: systemInstruction },
+            { role: "user", content: userPrompt },
+          ],
+          temperature: 0.7,
+        }),
+        signal: controller.signal,
       },
-      // The body remains the same for now, the proxy will eventually use this.
-      body: JSON.stringify({
-        model: "gpt-4.1-mini",
-        messages: [
-          { role: "system", content: systemInstruction },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.7,
-      }),
-      signal: controller.signal,
-    });
+    );
 
     clearTimeout(timeoutId); // Clear timeout as soon as headers are received
 
     if (DEBUG)
-      console.log(`[apiClient] Supabase function response status: ${response.status}`);
+      console.log(
+        `[apiClient] Supabase function response status: ${response.status}`,
+      );
 
     if (!response.ok) {
       let errorBody = null;
       try {
         errorBody = await response.json();
-        console.error(`[apiClient] Supabase function error (${response.status}):`, errorBody);
+        console.error(
+          `[apiClient] Supabase function error (${response.status}):`,
+          errorBody,
+        );
       } catch (parseError) {
         try {
           const errorText = await response.text();
@@ -57,17 +66,24 @@ export async function callOpenAI(apiKey, systemInstruction, userPrompt) {
             `[apiClient] Supabase function error (${response.status}), could not parse JSON body:`,
             errorText,
           );
-          errorBody = { error: { message: errorText || "Failed to read error body." } };
+          errorBody = {
+            error: { message: errorText || "Failed to read error body." },
+          };
         } catch (textError) {
           console.error(
             `[apiClient] Supabase function error (${response.status}), failed to read error body as text:`,
             textError,
           );
-          errorBody = { error: { message: `Status ${response.status}, unreadable error body.` } };
+          errorBody = {
+            error: {
+              message: `Status ${response.status}, unreadable error body.`,
+            },
+          };
         }
       }
       let errorMessage = `Supabase Function Error (${response.status})`;
-      if (errorBody?.message) { // Supabase functions might return { "message": "error detail" } or { "error": "..." }
+      if (errorBody?.message) {
+        // Supabase functions might return { "message": "error detail" } or { "error": "..." }
         errorMessage += `: ${errorBody.message}`;
       } else if (errorBody?.error?.message) {
         errorMessage += `: ${errorBody.error.message}`;
@@ -82,7 +98,8 @@ export async function callOpenAI(apiKey, systemInstruction, userPrompt) {
     const data = await response.json();
 
     // MODIFIED: Expecting { "message": "response string", "usage": { ... } } from the proxy
-    if (data && typeof data.message === 'string' && data.usage) { // Also check for data.usage
+    if (data && typeof data.message === "string" && data.usage) {
+      // Also check for data.usage
       if (DEBUG)
         console.log(
           "[apiClient] Received response from Supabase: ",
@@ -94,11 +111,14 @@ export async function callOpenAI(apiKey, systemInstruction, userPrompt) {
         "[apiClient] Invalid response structure from Supabase function:",
         data,
       );
-      throw new Error("Received invalid response structure from Supabase function. Expected { message: string, usage: object }.");
+      throw new Error(
+        "Received invalid response structure from Supabase function. Expected { message: string, usage: object }.",
+      );
     }
   } catch (error) {
-    if (timeoutId && error.name !== "AbortError") { // Check if timeoutId is still defined
-        clearTimeout(timeoutId);
+    if (timeoutId && error.name !== "AbortError") {
+      // Check if timeoutId is still defined
+      clearTimeout(timeoutId);
     }
     if (error.name === "AbortError") {
       console.error(
