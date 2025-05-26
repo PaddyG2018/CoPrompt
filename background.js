@@ -81,52 +81,63 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       const {
         prompt: originalPrompt,
         // systemInstruction, // System instruction can be default for now or added later
-        context: conversationContext, // Renamed from context for clarity
-        requestId,
+        context,
+        requestId, // from content script
       } = request;
 
-      if (!requestId) {
-        backgroundLogger.error(
-          "ENHANCE_PROMPT_REQUEST message missing requestId",
-          {
-            code: "E_MISSING_REQUEST_ID_BG",
-            source: "onMessageListener",
-          },
-        );
-        sendResponse({
-          type: "ERROR_RESPONSE", // Consistent error response type
-          error: "Request ID missing in ENHANCE_PROMPT_REQUEST.",
-          requestId: requestId, // Echo back if possible, though it might be null
-        });
-        return;
-      }
+      // Default system instruction if not provided in request (though it usually is)
+      const systemContent =
+        context?.systemInstruction ||
+        "You are a helpful AI assistant. Your primary goal is to rephrase and enhance the user's prompt to be more effective when interacting with a Large Language Model. You should make the prompt clearer, more concise, and more specific. Your response should ONLY be the enhanced prompt itself, without any preamble or explanation.";
 
       try {
-        // For the Supabase proxy, we use the ANON_KEY, not a user's OpenAI key.
-        // The apiClient.js should already be configured to use this.
-        // No need to retrieve/decrypt user's OpenAI key here for the proxy.
+        console.log(`[Background] Calling Supabase function for ENHANCE_PROMPT_REQUEST (ID: ${requestId}). Prompt:`, originalPrompt);
+        
+        // --- PX-06: Get Device ID ---
+        const deviceId = await getOrCreateDeviceId();
+        console.log(`[Background] Using Device ID for request (ID: ${requestId}):`, deviceId);
 
-        const systemContent = MAIN_SYSTEM_INSTRUCTION; // Use default system instruction
-        // const contextString = formatConversationContext(conversationContext); // We can simplify for now
-        // const userPrompt = `${originalPrompt}${contextString ? `\n\n${contextString}` : ""}`;
-        // For the simple proxy, we just forward the prompt for now.
-        // Context and system instruction handling will be part of actual OpenAI call later.
-
-        console.log(
-          `[Background] Calling Supabase function for ENHANCE_PROMPT_REQUEST (ID: ${requestId}). Prompt:`,
-          originalPrompt,
-        );
         // callOpenAI now returns an object: { enhancedPrompt: string, usage: object }
         const apiResponse = await callOpenAI(
           null, // API key - not used by apiClient when talking to Supabase proxy (anon key is hardcoded there)
           systemContent, // Pass the system instruction
           originalPrompt, // Pass the original prompt as the userPrompt
+          deviceId // --- PX-06: Pass Device ID ---
         );
 
-        console.log(
-          `[Background] Supabase function call successful (ID: ${requestId}), received:`,
-          apiResponse,
-        );
+        console.log(`[Background] Supabase function call successful (ID: ${requestId}), received:`, apiResponse);
+        
+        // --- PX-05: Store Token Usage --- 
+        if (apiResponse.usage) {
+          try {
+            const currentUsage = await chrome.storage.local.get([
+              "total_prompt_tokens", 
+              "total_completion_tokens", 
+              "total_tokens_all_time"
+            ]);
+            
+            const newPromptTokens = (currentUsage.total_prompt_tokens || 0) + (apiResponse.usage.prompt_tokens || 0);
+            const newCompletionTokens = (currentUsage.total_completion_tokens || 0) + (apiResponse.usage.completion_tokens || 0);
+            const newTotalTokensAllTime = (currentUsage.total_tokens_all_time || 0) + (apiResponse.usage.total_tokens || 0);
+
+            await chrome.storage.local.set({
+              total_prompt_tokens: newPromptTokens,
+              total_completion_tokens: newCompletionTokens,
+              total_tokens_all_time: newTotalTokensAllTime,
+              last_usage_update: new Date().toISOString(),
+            });
+            console.log("[Background] Token usage updated in storage.", 
+              { newPromptTokens, newCompletionTokens, newTotalTokensAllTime });
+          } catch (storageError) {
+            backgroundLogger.error("Error updating token usage in storage", {
+              code: "E_TOKEN_STORAGE_ERROR",
+              error: storageError,
+              requestId: requestId,
+            });
+          }
+        }
+        // --- End PX-05 --- 
+
         sendResponse({
           type: "ENHANCE_PROMPT_RESPONSE", // Consistent response type
           enhancedPrompt: apiResponse.enhancedPrompt, // Pass the enhanced prompt string
@@ -138,7 +149,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           code: "E_BACKGROUND_ENHANCE_ERROR",
           error: error,
           prompt: originalPrompt,
-          context: conversationContext,
+          context: context,
           requestId: requestId,
         });
         sendResponse({
@@ -172,6 +183,28 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   // Default return for synchronous handlers (or handlers not using sendResponse)
   return false;
 });
+
+// --- PX-06/A-01: Device ID Management ---
+async function getOrCreateDeviceId() {
+  const result = await chrome.storage.sync.get("coprompt_device_id");
+  let deviceId = result.coprompt_device_id;
+
+  if (!deviceId) {
+    deviceId = crypto.randomUUID();
+    await chrome.storage.sync.set({ "coprompt_device_id": deviceId });
+    console.log("[Background] New Device ID created and stored in sync storage:", deviceId);
+  } else {
+    console.log("[Background] Existing Device ID retrieved from sync storage:", deviceId);
+  }
+  return deviceId;
+}
+
+// Example of how to call it (e.g., on service worker startup, or when needed)
+// We can call this when the service worker first loads to ensure a deviceId exists.
+getOrCreateDeviceId().then(id => {
+  console.log("[Background] Current Device ID for session:", id);
+});
+// --- End PX-06/A-01 ---
 
 // --- Listener for Long-Lived Port Connections ---
 chrome.runtime.onConnect.addListener((port) => {
