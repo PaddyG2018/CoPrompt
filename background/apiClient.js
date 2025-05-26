@@ -1,4 +1,4 @@
-const DEBUG = false; // Or find a way to share this flag
+const DEBUG = true; // Or find a way to share this flag
 
 /**
  * Calls the OpenAI Chat Completions API.
@@ -81,20 +81,20 @@ export async function callOpenAI(apiKey, systemInstruction, userPrompt) {
 
     const data = await response.json();
 
-    // MODIFIED: Expecting { "message": "response string" } from the proxy
-    if (data && typeof data.message === 'string') {
+    // MODIFIED: Expecting { "message": "response string", "usage": { ... } } from the proxy
+    if (data && typeof data.message === 'string' && data.usage) { // Also check for data.usage
       if (DEBUG)
         console.log(
           "[apiClient] Received response from Supabase: ",
-          data.message,
+          data, // Log the whole data object
         );
-      return data.message; // Return the message string directly
+      return { enhancedPrompt: data.message, usage: data.usage }; // Return an object
     } else {
       console.error(
         "[apiClient] Invalid response structure from Supabase function:",
         data,
       );
-      throw new Error("Received invalid response structure from Supabase function. Expected { message: string }.");
+      throw new Error("Received invalid response structure from Supabase function. Expected { message: string, usage: object }.");
     }
   } catch (error) {
     if (timeoutId && error.name !== "AbortError") { // Check if timeoutId is still defined
