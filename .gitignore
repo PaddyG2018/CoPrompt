@@ -52,6 +52,7 @@ dist/
 # Supabase specific
 .supabase/
 supabase/.temp/
+supabase/functions/*/.env
 
 # Other
 *.log
