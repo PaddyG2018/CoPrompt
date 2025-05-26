@@ -75,6 +75,70 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       }
     });
     return true; // Indicate async response
+  } else if (request.type === "ENHANCE_PROMPT_REQUEST") { // New handler for direct messages
+    (async () => {
+      const {
+        prompt: originalPrompt,
+        // systemInstruction, // System instruction can be default for now or added later
+        context: conversationContext, // Renamed from context for clarity
+        requestId,
+      } = request;
+
+      if (!requestId) {
+        backgroundLogger.error("ENHANCE_PROMPT_REQUEST message missing requestId", {
+          code: "E_MISSING_REQUEST_ID_BG",
+          source: "onMessageListener",
+        });
+        sendResponse({
+          type: "ERROR_RESPONSE", // Consistent error response type
+          error: "Request ID missing in ENHANCE_PROMPT_REQUEST.",
+          requestId: requestId, // Echo back if possible, though it might be null
+        });
+        return;
+      }
+
+      try {
+        // For the Supabase proxy, we use the ANON_KEY, not a user's OpenAI key.
+        // The apiClient.js should already be configured to use this.
+        // No need to retrieve/decrypt user's OpenAI key here for the proxy.
+
+        const systemContent = MAIN_SYSTEM_INSTRUCTION; // Use default system instruction
+        // const contextString = formatConversationContext(conversationContext); // We can simplify for now
+        // const userPrompt = `${originalPrompt}${contextString ? `\n\n${contextString}` : ""}`;
+        // For the simple proxy, we just forward the prompt for now.
+        // Context and system instruction handling will be part of actual OpenAI call later.
+
+        console.log(`[Background] Calling Supabase function for ENHANCE_PROMPT_REQUEST (ID: ${requestId}). Prompt:`, originalPrompt);
+        // callOpenAI now returns an object: { enhancedPrompt: string, usage: object }
+        const apiResponse = await callOpenAI(
+          null, // API key - not used by apiClient when talking to Supabase proxy (anon key is hardcoded there)
+          systemContent, // Pass the system instruction
+          originalPrompt // Pass the original prompt as the userPrompt
+        );
+
+        console.log(`[Background] Supabase function call successful (ID: ${requestId}), received:`, apiResponse);
+        sendResponse({
+          type: "ENHANCE_PROMPT_RESPONSE", // Consistent response type
+          enhancedPrompt: apiResponse.enhancedPrompt, // Pass the enhanced prompt string
+          usage: apiResponse.usage, // Pass the usage object
+          requestId: requestId,
+        });
+      } catch (error) {
+        backgroundLogger.error("Error during ENHANCE_PROMPT_REQUEST process", {
+          code: "E_BACKGROUND_ENHANCE_ERROR",
+          error: error,
+          prompt: originalPrompt,
+          context: conversationContext,
+          requestId: requestId,
+        });
+        sendResponse({
+          type: "ERROR_RESPONSE", // Consistent error response type
+          error: error.message || "Unknown background error during enhancement.",
+          requestId: requestId,
+        });
+      }
+    })();
+    return true; // Crucial: Indicate async response for sendResponse
   } else if (request.type === "REPORT_ERROR_FROM_CONTENT") {
     // Synchronous handler now, just calls the simplified reportError
     console.log(
