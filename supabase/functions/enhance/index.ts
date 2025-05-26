@@ -49,7 +49,10 @@ Deno.serve(async (req: Request) => {
     const { model, messages, temperature, deviceId } = await req.json(); // --- PX-06: Destructure deviceId ---
 
     // 2a. Log the received deviceId (for PX-06 verification)
-    console.log("[Supabase Function] Received request with Device ID:", deviceId);
+    console.log(
+      "[Supabase Function] Received request with Device ID:",
+      deviceId,
+    );
 
     // 3. Retrieve the OpenAI API Key from environment variables
     const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");

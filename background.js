@@ -91,34 +91,49 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         "You are a helpful AI assistant. Your primary goal is to rephrase and enhance the user's prompt to be more effective when interacting with a Large Language Model. You should make the prompt clearer, more concise, and more specific. Your response should ONLY be the enhanced prompt itself, without any preamble or explanation.";
 
       try {
-        console.log(`[Background] Calling Supabase function for ENHANCE_PROMPT_REQUEST (ID: ${requestId}). Prompt:`, originalPrompt);
-        
+        console.log(
+          `[Background] Calling Supabase function for ENHANCE_PROMPT_REQUEST (ID: ${requestId}). Prompt:`,
+          originalPrompt,
+        );
+
         // --- PX-06: Get Device ID ---
         const deviceId = await getOrCreateDeviceId();
-        console.log(`[Background] Using Device ID for request (ID: ${requestId}):`, deviceId);
+        console.log(
+          `[Background] Using Device ID for request (ID: ${requestId}):`,
+          deviceId,
+        );
 
         // callOpenAI now returns an object: { enhancedPrompt: string, usage: object }
         const apiResponse = await callOpenAI(
           null, // API key - not used by apiClient when talking to Supabase proxy (anon key is hardcoded there)
           systemContent, // Pass the system instruction
           originalPrompt, // Pass the original prompt as the userPrompt
-          deviceId // --- PX-06: Pass Device ID ---
+          deviceId, // --- PX-06: Pass Device ID ---
         );
 
-        console.log(`[Background] Supabase function call successful (ID: ${requestId}), received:`, apiResponse);
-        
-        // --- PX-05: Store Token Usage --- 
+        console.log(
+          `[Background] Supabase function call successful (ID: ${requestId}), received:`,
+          apiResponse,
+        );
+
+        // --- PX-05: Store Token Usage ---
         if (apiResponse.usage) {
           try {
             const currentUsage = await chrome.storage.local.get([
-              "total_prompt_tokens", 
-              "total_completion_tokens", 
-              "total_tokens_all_time"
+              "total_prompt_tokens",
+              "total_completion_tokens",
+              "total_tokens_all_time",
             ]);
-            
-            const newPromptTokens = (currentUsage.total_prompt_tokens || 0) + (apiResponse.usage.prompt_tokens || 0);
-            const newCompletionTokens = (currentUsage.total_completion_tokens || 0) + (apiResponse.usage.completion_tokens || 0);
-            const newTotalTokensAllTime = (currentUsage.total_tokens_all_time || 0) + (apiResponse.usage.total_tokens || 0);
+
+            const newPromptTokens =
+              (currentUsage.total_prompt_tokens || 0) +
+              (apiResponse.usage.prompt_tokens || 0);
+            const newCompletionTokens =
+              (currentUsage.total_completion_tokens || 0) +
+              (apiResponse.usage.completion_tokens || 0);
+            const newTotalTokensAllTime =
+              (currentUsage.total_tokens_all_time || 0) +
+              (apiResponse.usage.total_tokens || 0);
 
             await chrome.storage.local.set({
               total_prompt_tokens: newPromptTokens,
@@ -126,8 +141,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
               total_tokens_all_time: newTotalTokensAllTime,
               last_usage_update: new Date().toISOString(),
             });
-            console.log("[Background] Token usage updated in storage.", 
-              { newPromptTokens, newCompletionTokens, newTotalTokensAllTime });
+            console.log("[Background] Token usage updated in storage.", {
+              newPromptTokens,
+              newCompletionTokens,
+              newTotalTokensAllTime,
+            });
           } catch (storageError) {
             backgroundLogger.error("Error updating token usage in storage", {
               code: "E_TOKEN_STORAGE_ERROR",
@@ -136,7 +154,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             });
           }
         }
-        // --- End PX-05 --- 
+        // --- End PX-05 ---
 
         sendResponse({
           type: "ENHANCE_PROMPT_RESPONSE", // Consistent response type
@@ -191,17 +209,23 @@ async function getOrCreateDeviceId() {
 
   if (!deviceId) {
     deviceId = crypto.randomUUID();
-    await chrome.storage.sync.set({ "coprompt_device_id": deviceId });
-    console.log("[Background] New Device ID created and stored in sync storage:", deviceId);
+    await chrome.storage.sync.set({ coprompt_device_id: deviceId });
+    console.log(
+      "[Background] New Device ID created and stored in sync storage:",
+      deviceId,
+    );
   } else {
-    console.log("[Background] Existing Device ID retrieved from sync storage:", deviceId);
+    console.log(
+      "[Background] Existing Device ID retrieved from sync storage:",
+      deviceId,
+    );
   }
   return deviceId;
 }
 
 // Example of how to call it (e.g., on service worker startup, or when needed)
 // We can call this when the service worker first loads to ensure a deviceId exists.
-getOrCreateDeviceId().then(id => {
+getOrCreateDeviceId().then((id) => {
   console.log("[Background] Current Device ID for session:", id);
 });
 // --- End PX-06/A-01 ---

@@ -11,13 +11,21 @@ const DEBUG = true; // Or find a way to share this flag
  * @returns {Promise<object>} A promise that resolves to an object containing the enhanced prompt string and usage data.
  *                           Example: { enhancedPrompt: "response text", usage: { prompt_tokens: X, completion_tokens: Y, total_tokens: Z } }
  */
-export async function callOpenAI(apiKey, systemInstruction, userPrompt, deviceId) {
+export async function callOpenAI(
+  apiKey,
+  systemInstruction,
+  userPrompt,
+  deviceId,
+) {
   if (DEBUG)
-    console.log("[apiClient] callOpenAI called with (system, user, deviceId):", {
-      systemInstruction,
-      userPrompt,
-      deviceId,
-    });
+    console.log(
+      "[apiClient] callOpenAI called with (system, user, deviceId):",
+      {
+        systemInstruction,
+        userPrompt,
+        deviceId,
+      },
+    );
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => {

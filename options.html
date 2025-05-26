@@ -110,6 +110,31 @@
 
     <div id="status" class="status" style="display: none"></div>
 
+    <hr style="margin-top: 30px; margin-bottom: 30px" />
+
+    <h2>Usage Statistics</h2>
+    <div class="form-group">
+      <p>
+        <strong>Total Prompt Tokens:</strong>
+        <span id="totalPromptTokens">N/A</span>
+      </p>
+      <p>
+        <strong>Total Completion Tokens:</strong>
+        <span id="totalCompletionTokens">N/A</span>
+      </p>
+      <p>
+        <strong>Total Tokens (All Time):</strong>
+        <span id="totalTokensAllTime">N/A</span>
+      </p>
+      <p>
+        <strong>Last Usage Update:</strong>
+        <span id="lastUsageUpdate">N/A</span>
+      </p>
+      <button id="refreshUsageButton" style="margin-top: 10px">
+        Refresh Stats
+      </button>
+    </div>
+
     <script src="options.js"></script>
 
     <!-- Confirmation Modal Structure -->
