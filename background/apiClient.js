@@ -2,16 +2,30 @@ const DEBUG = true; // Or find a way to share this flag
 
 /**
  * Calls the OpenAI Chat Completions API.
+ * Now adapted to call the Supabase proxy, which then calls OpenAI.
  *
- * @param {string} apiKey The decrypted OpenAI API key.
- * @param {string} systemInstruction The system instruction content.
- * @param {string} userPrompt The user prompt content (including context if any).
- * @returns {Promise<string>} Resolves with the enhanced prompt text.
- * @throws {Error} Rejects with an error message if the API call fails or returns an error.
+ * @param {string | null} apiKey - The user's OpenAI API key (currently not used by this function, as Supabase proxy uses anon key).
+ * @param {string} systemInstruction - The system message for the AI.
+ * @param {string} userPrompt - The user's prompt.
+ * @param {string} deviceId - The unique device identifier.
+ * @returns {Promise<object>} A promise that resolves to an object containing the enhanced prompt string and usage data.
+ *                           Example: { enhancedPrompt: "response text", usage: { prompt_tokens: X, completion_tokens: Y, total_tokens: Z } }
  */
-export async function callOpenAI(apiKey, systemInstruction, userPrompt) {
+export async function callOpenAI(
+  apiKey,
+  systemInstruction,
+  userPrompt,
+  deviceId,
+) {
   if (DEBUG)
-    console.log("[apiClient] Sending request to Supabase /enhance function...");
+    console.log(
+      "[apiClient] callOpenAI called with (system, user, deviceId):",
+      {
+        systemInstruction,
+        userPrompt,
+        deviceId,
+      },
+    );
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => {
@@ -39,6 +53,7 @@ export async function callOpenAI(apiKey, systemInstruction, userPrompt) {
             { role: "user", content: userPrompt },
           ],
           temperature: 0.7,
+          deviceId: deviceId,
         }),
         signal: controller.signal,
       },

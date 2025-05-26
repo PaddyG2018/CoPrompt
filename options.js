@@ -10,6 +10,15 @@ document.addEventListener("DOMContentLoaded", () => {
   const confirmClearBtn = document.getElementById("confirmClearBtn");
   const cancelClearBtn = document.getElementById("cancelClearBtn");
 
+  // --- Token Usage Elements ---
+  const totalPromptTokensEl = document.getElementById("totalPromptTokens");
+  const totalCompletionTokensEl = document.getElementById(
+    "totalCompletionTokens",
+  );
+  const totalTokensAllTimeEl = document.getElementById("totalTokensAllTime");
+  const lastUsageUpdateEl = document.getElementById("lastUsageUpdate");
+  const refreshUsageButton = document.getElementById("refreshUsageButton");
+
   // Load saved API Key
   chrome.storage.local.get("openai_api_key", (data) => {
     if (data.openai_api_key) {
@@ -114,4 +123,56 @@ document.addEventListener("DOMContentLoaded", () => {
       statusDiv.style.display = "none";
     }, 3000);
   }
+
+  // --- Token Usage Logic ---
+  async function loadAndDisplayUsageStats() {
+    if (!chrome.storage || !chrome.storage.local) {
+      console.error("Chrome storage API is not available.");
+      if (totalPromptTokensEl) totalPromptTokensEl.textContent = "Error";
+      // ... set other elements to Error too
+      return;
+    }
+
+    try {
+      const usageData = await chrome.storage.local.get([
+        "total_prompt_tokens",
+        "total_completion_tokens",
+        "total_tokens_all_time",
+        "last_usage_update",
+      ]);
+
+      if (totalPromptTokensEl) {
+        totalPromptTokensEl.textContent = (
+          usageData.total_prompt_tokens || 0
+        ).toLocaleString();
+      }
+      if (totalCompletionTokensEl) {
+        totalCompletionTokensEl.textContent = (
+          usageData.total_completion_tokens || 0
+        ).toLocaleString();
+      }
+      if (totalTokensAllTimeEl) {
+        totalTokensAllTimeEl.textContent = (
+          usageData.total_tokens_all_time || 0
+        ).toLocaleString();
+      }
+      if (lastUsageUpdateEl) {
+        lastUsageUpdateEl.textContent = usageData.last_usage_update
+          ? new Date(usageData.last_usage_update).toLocaleString()
+          : "N/A";
+      }
+    } catch (error) {
+      console.error("Error loading token usage stats:", error);
+      if (totalPromptTokensEl)
+        totalPromptTokensEl.textContent = "Error loading stats";
+      // Potentially update other fields to show error state
+    }
+  }
+
+  if (refreshUsageButton) {
+    refreshUsageButton.addEventListener("click", loadAndDisplayUsageStats);
+  }
+
+  // Initial load of usage stats
+  loadAndDisplayUsageStats();
 });

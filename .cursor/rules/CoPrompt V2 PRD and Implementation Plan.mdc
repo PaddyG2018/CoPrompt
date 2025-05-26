@@ -138,17 +138,35 @@ Below each story we list **Files / Areas**, **Complexity** (T-shirt), and **Test
 
 ---
 
-### Phase ‑1 – Proxy Skeleton (1 wk)
+### Phase -1: Proxy Skeleton (PX)
 
-| ID      | Title                                                        | Files / Areas                        | Complexity | Test Notes                                                           |
-| ------- | ------------------------------------------------------------ | ------------------------------------ | ---------- | -------------------------------------------------------------------- |
-| PX‑00   | CI/CD – GH Action auto-deploy Supabase Edge Function           | infra/.github                        | S          | **[COMPLETED]** push to main (affecting `supabase/functions/**`) builds & publishes function. Workflow `.github/workflows/deploy_supabase_functions.yml` is live. Secrets (`SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_ID`, `SUPABASE_DB_PASSWORD`) configured. `config.toml` `[local_database]` section managed for CI vs. local. Staging URL health 200. |
-| PX‑01   | Deploy minimal `/enhance` Supabase Edge Function             | PX (supabase/functions/enhance.ts)   | M          | **[COMPLETED]** `curl` to `https://evfuyrixpjgfytwfijpx.supabase.co/functions/v1/enhance` (with anon key) returns expected JSON. Placeholder function `supabase/functions/enhance/index.ts` created. Local dev with `supabase start` & `supabase functions serve` functional. |
-| PX‑02   | Inject server URL & update `connect_src`                     | CS, manifest.json                    | S          | Enhance works via new endpoint                                       |
-| PX‑03   | Store OpenAI key in Supabase secrets                         | infra                                | S          | Key never in logs; rotated monthly                                   |
-| PX‑04   | Simple request quota (1 req/sec/device) using Supabase RLS   | PX                                   | M          | 429 returned on hammer test                                          |
-| PX‑05   | Non-stream JSON proxy (include `usage` flag)                 | PX                                   | S          | Response matches direct OpenAI call                                  |
-*(Streaming upgrade tracked in Backlog PX‑06)*
+**Objective:** Deploy a minimal Supabase Edge Function as a proxy, with CI/CD, and integrate it into the extension. This phase focuses on the "skeleton" – getting the pieces connected, not full functionality.
+
+**Summary of Progress (PX-00 to PX-04):**
+*   **PX-00 (CI/CD for Supabase Functions): COMPLETED.** GitHub Actions workflow successfully deploys Supabase functions.
+*   **PX-01 (Minimal Supabase Edge Function `/enhance`): COMPLETED.** Placeholder function deployed and tested.
+*   **PX-02 (Inject Server URL & Update `connect_src`): COMPLETED.** Extension now successfully calls the Supabase `/enhance` function using direct messaging (`chrome.runtime.sendMessage`) between `content.js` and `background.js`. The Supabase anon key is used for authorization, and `manifest.json` is updated.
+*   **PX-03 (Proxy Actual OpenAI Calls via Supabase Function): LARGELY COMPLETED.** The deployed Supabase function (`supabase/functions/enhance/index.ts`) was found to be already performing actual OpenAI calls using an `OPENAI_API_KEY` from its environment variables and returning the enhanced content. The extension successfully receives and displays this enhanced content.
+*   **PX-04 (Basic Rate Limiting Server-Side): LARGELY IMPLEMENTED.** The Supabase function also includes IP-based rate-limiting logic using a Supabase table (`request_logs`).
+
+**Next Steps & Detailed Goals:**
+
+*   **PX-05: Client-Side Usage and Token Handling**
+    *   **Objective:** Enable the extension and Supabase function to track and manage OpenAI token usage associated with the proxy.
+    *   **Tasks:**
+        *   Modify Supabase function (`/enhance`) to retrieve `usage` data from the OpenAI API response and include it in its JSON response to the extension (e.g., `{ "message": "...", "usage": { "prompt_tokens": X, "completion_tokens": Y, "total_tokens": Z } }`).
+        *   Update `background/apiClient.js` to parse this richer response structure, extracting both the `message` and the `usage` object.
+        *   Modify `background.js` to receive the `usage` object from `apiClient.js`.
+        *   Implement logic in `background.js` to store and aggregate token usage (e.g., in `chrome.storage.local`, potentially per-user if/when auth is added, or globally for the extension initially).
+        *   Design and implement UI elements (e.g., in `options.html` or `popup.html`) to display token usage to the user.
+        *   Consider mechanisms for handling token limits (e.g., warnings, disabling functionality if a quota is exceeded – depends on how the central `OPENAI_API_KEY` is managed).
+*   **PX-06: User Authentication (Basic)**
+    *   Integrate Supabase Auth UI or a simple email/password.
+    *   Associate API calls/token usage with authenticated users.
+    *   Secure the `/enhance` function to require authentication.
+*   **PX-07: UX for API Key Input & Management**
+    *   Refine `options.html`. Decision: The proxy will use a central `OPENAI_API_KEY` managed in Supabase environment variables. User-provided OpenAI keys are not the primary mechanism for the core proxy feature but could be an advanced option or for other direct-to-OpenAI features later.
+    *   Remove or repurpose UI for individual OpenAI key input if it's no longer central to the proxy.
 
 ### Phase M – BYOK Migration (1 wk)
 
