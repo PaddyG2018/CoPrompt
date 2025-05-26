@@ -22,7 +22,7 @@
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self';",
-    "connect-src": "https://api.openai.com https://chat.openai.com"
+    "connect-src": "https://api.openai.com https://chat.openai.com https://evfuyrixpjgfytwfijpx.supabase.co"
   },
   "content_scripts": [
     {
