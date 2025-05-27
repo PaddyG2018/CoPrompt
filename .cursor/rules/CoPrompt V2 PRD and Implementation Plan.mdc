@@ -142,31 +142,56 @@ Below each story we list **Files / Areas**, **Complexity** (T-shirt), and **Test
 
 **Objective:** Deploy a minimal Supabase Edge Function as a proxy, with CI/CD, and integrate it into the extension. This phase focuses on the "skeleton" – getting the pieces connected, not full functionality.
 
-**Summary of Progress (PX-00 to PX-04):**
+**Summary of Progress (PX-00 to PX-06):**
 *   **PX-00 (CI/CD for Supabase Functions): COMPLETED.** GitHub Actions workflow successfully deploys Supabase functions.
 *   **PX-01 (Minimal Supabase Edge Function `/enhance`): COMPLETED.** Placeholder function deployed and tested.
-*   **PX-02 (Inject Server URL & Update `connect_src`): COMPLETED.** Extension now successfully calls the Supabase `/enhance` function using direct messaging (`chrome.runtime.sendMessage`) between `content.js` and `background.js`. The Supabase anon key is used for authorization, and `manifest.json` is updated.
-*   **PX-03 (Proxy Actual OpenAI Calls via Supabase Function): LARGELY COMPLETED.** The deployed Supabase function (`supabase/functions/enhance/index.ts`) was found to be already performing actual OpenAI calls using an `OPENAI_API_KEY` from its environment variables and returning the enhanced content. The extension successfully receives and displays this enhanced content.
-*   **PX-04 (Basic Rate Limiting Server-Side): LARGELY IMPLEMENTED.** The Supabase function also includes IP-based rate-limiting logic using a Supabase table (`request_logs`).
+*   **PX-02 (Inject Server URL & Update `connect_src`): COMPLETED.** Extension successfully calls the Supabase `/enhance` function using direct messaging (`chrome.runtime.sendMessage`) between `content.js` and `background.js`. `manifest.json` updated.
+*   **PX-03 (Proxy OpenAI Call): COMPLETED.** Supabase function now proxies requests to the actual OpenAI API using a stored `OPENAI_API_KEY`.
+*   **PX-04 (Basic Rate Limiting): COMPLETED.** Supabase function includes IP-based rate limiting using a Supabase table (`request_logs`).
+*   **PX-05 (Token Usage Tracking & Display): COMPLETED.** Supabase function returns OpenAI `usage` data; extension stores and `options.html` displays it.
+*   **PX-06 (Pass `deviceId` to Proxy): COMPLETED.** A unique `deviceId` is generated, stored, and passed with each request to the Supabase `/enhance` function, which logs it.
 
-**Next Steps & Detailed Goals:**
+**Current Phase Tasks:**
 
-*   **PX-05: Client-Side Usage and Token Handling**
-    *   **Objective:** Enable the extension and Supabase function to track and manage OpenAI token usage associated with the proxy.
+*   **PX-07: Basic User Authentication (Supabase Auth)**
+    *   **Objective:** Implement user login/logout using Supabase Auth within the extension, initially just to associate the `deviceId` with a `user_id`.
+    *   **Note on Supabase Client Library:** Due to persistent and unusual CSP errors in the development environment preventing loading the Supabase client library from CDNs (`cdn.jsdelivr.net`, `unpkg.com`) in `options.html` (manifest loader reporting valid HTTPS URLs as "Insecure CSP value"), we will proceed by vendoring the `supabase-js` library (downloading it and including it directly in the extension package). This will ensure `options.html` can reliably load the library using `script-src 'self'`. This primarily affects PX-07.A-03.
     *   **Tasks:**
-        *   Modify Supabase function (`/enhance`) to retrieve `usage` data from the OpenAI API response and include it in its JSON response to the extension (e.g., `{ "message": "...", "usage": { "prompt_tokens": X, "completion_tokens": Y, "total_tokens": Z } }`).
-        *   Update `background/apiClient.js` to parse this richer response structure, extracting both the `message` and the `usage` object.
-        *   Modify `background.js` to receive the `usage` object from `apiClient.js`.
-        *   Implement logic in `background.js` to store and aggregate token usage (e.g., in `chrome.storage.local`, potentially per-user if/when auth is added, or globally for the extension initially).
-        *   Design and implement UI elements (e.g., in `options.html` or `popup.html`) to display token usage to the user.
-        *   Consider mechanisms for handling token limits (e.g., warnings, disabling functionality if a quota is exceeded – depends on how the central `OPENAI_API_KEY` is managed).
-*   **PX-06: User Authentication (Basic)**
-    *   Integrate Supabase Auth UI or a simple email/password.
-    *   Associate API calls/token usage with authenticated users.
-    *   Secure the `/enhance` function to require authentication.
-*   **PX-07: UX for API Key Input & Management**
-    *   Refine `options.html`. Decision: The proxy will use a central `OPENAI_API_KEY` managed in Supabase environment variables. User-provided OpenAI keys are not the primary mechanism for the core proxy feature but could be an advanced option or for other direct-to-OpenAI features later.
-    *   Remove or repurpose UI for individual OpenAI key input if it's no longer central to the proxy.
+        *   A-01: Set up Supabase Auth in the Supabase project (e.g., email/password provider, email confirmations initially disabled for easier testing). - **COMPLETED**
+        *   A-01b: Vendor `supabase-js` library: Download the library, add it to the project (e.g., `lib/supabase.js`), update `options.html` to load it locally, and revert `manifest.json` CSP for `script-src` to `\'self\'` for `extension_pages`. (New task due to CSP issues) - **COMPLETED**
+        *   A-02: Add basic UI elements in `options.html` for login/logout status, email/password inputs, and action buttons. - **COMPLETED**
+        *   A-03: Implement login/logout logic in `options.js` using the (now locally vendored) Supabase client library. - **COMPLETED**
+        *   A-04: Store user session/JWT (e.g., in `chrome.storage.local`) upon successful login and clear it on logout. `onAuthStateChange` should manage this. - **COMPLETED**
+        *   A-05: When a user is authenticated, associate the `deviceId` (from `chrome.storage.sync`) with their Supabase `user_id`. This might involve a new Supabase Edge Function or a direct authenticated call to a table if RLS allows. (Details TBD based on security best practices for this association). - **COMPLETED** (JWT containing user_id now passed to backend, enabling association)
+
+*   **PX-08: Store API Keys Securely (User-Specific)**
+    *   **Objective:** Allow authenticated users to store their OpenAI API key, associated with their user account, encrypted in the Supabase database.
+    *   **Tasks:**
+        *   A-01: Create a new Supabase table (e.g., `user_api_keys`) to store `user_id` and encrypted `openai_api_key`. Apply appropriate row-level security.
+        *   A-02: Create a Supabase Edge Function (e.g., `/store-user-api-key`) that takes a user's JWT and their API key, encrypts the API key (server-side, e.g., using Supabase Vault or another KMS), and stores it in `user_api_keys`.
+        *   A-03: Modify the `/enhance` function: if a user is authenticated (JWT provided), try to retrieve and decrypt their specific API key to use for the OpenAI call. Fall back to the globally stored `OPENAI_API_KEY` if no user-specific key is found.
+        *   A-04: Update `options.html`/`options.js` to allow authenticated users to save/update/clear their API key via this new mechanism.
+
+*   **PX-09: Basic Telemetry/Analytics (Supabase Table)**
+    *   **Objective:** Log basic, anonymized request data to a Supabase table for analytics.
+    *   **Tasks:**
+        *   A-01: Create a Supabase table (e.g., `event_logs`) with columns like `timestamp`, `deviceId` (anonymous ID), `user_id` (if authenticated, optional), `event_type` (e.g., "enhance_request", "error"), `token_prompt`, `token_completion`, `duration_ms`.
+        *   A-02: Modify the `/enhance` function to insert a record into this table after each successful or failed OpenAI call.
+        *   A-03: Consider privacy: ensure no prompt content or PII is logged here beyond what's necessary and consented to.
+
+**Future Phases (Beyond Proxy Skeleton):**
+*   Phase 0: Feature Parity (Port existing features to new architecture)
+*   Phase 1: UX/UI Overhaul
+*   Phase 2: New Features (Advanced context, prompt chaining, etc.)
+
+---
+**Notes & Decisions Log:**
+*   Decision (PX-02): Switched from long-lived port connection to `chrome.runtime.sendMessage` for `/enhance` calls for simplicity in the proxy skeleton phase. Port connection was causing context invalidation issues with dev reloads.
+*   Decision (PX-04): Implemented IP-based rate limiting. acknowledge potential issues with shared IPs / VPNs. User-specific rate limits would be better post-authentication.
+*   Decision (PX-05): Token counts stored in `chrome.storage.local`. Not synced across devices. This is acceptable for now. Future credit system might use server-side accounting.
+*   Decision (PX-06): `deviceId` stored in `chrome.storage.sync` to persist it for the user across browser sessions on the same profile, but not necessarily across different devices they log into with their browser profile.
+*   Decision (PX-07): Due to persistent CSP errors loading Supabase client from CDNs in `options.html`, the library will be vendored locally. This ensures `options.js` can initialize the client and proceed with authentication logic.
+---
 
 ### Phase M – BYOK Migration (1 wk)
 

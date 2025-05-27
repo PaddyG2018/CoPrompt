@@ -405,6 +405,7 @@ function createFloatingButton() {
           reqId,
           promptText,
           context: conversationContext,
+          targetInputId: targetInputElement?.id,
         },
       ); // DEBUG
       chrome.runtime.sendMessage(
@@ -413,6 +414,7 @@ function createFloatingButton() {
           prompt: promptText, // User's input
           context: conversationContext, // Separately gathered context
           requestId: reqId,
+          targetInputId: targetInputElement?.id,
         },
         // NO second argument like "*" here for background script messages
         (response) => {
@@ -693,47 +695,69 @@ if (typeof handleWindowMessage === "function") {
       "[Content Script] Received message from background:",
       message,
     );
-    const { type, requestId, enhancedPrompt, error } = message;
+    // Destructure all expected properties, including targetInputId and new requestId
+    const { type, requestId, enhancedPrompt, error, targetInputId } = message;
 
-    // Find the button associated with this request early
-    const buttonElement = document.querySelector(
-      `button[data-co-prompt-request-id="${requestId}"]`,
-    );
-    if (!buttonElement) {
+    // Find the button associated with this request early USING THE RECEIVED requestId
+    const buttonElement = requestId
+      ? document.querySelector(
+          `button[data-co-prompt-request-id="${requestId}"]`,
+        )
+      : null;
+
+    if (!buttonElement && requestId) {
+      // Only log error if requestId was present but button not found
       logInteractionHandlerError(
         `[Content Script] Button with ID ${requestId} not found to handle response.`,
       );
       // Cannot reset button or easily show error in context
-      if (error) alert(`Enhancement failed: ${error}`); // Fallback alert
+      // if (error) alert(`Enhancement failed: ${error}`); // Avoid alert if button not found, might be confusing
+      return false;
+    }
+    // If requestId itself is missing, something else is wrong, but we can't find the button.
+    if (!requestId) {
+      logInteractionHandlerError(
+        `[Content Script] Received response from background without a requestId. Cannot update button state. Message:`,
+        message,
+      );
+      // If error exists in message, maybe alert it as a last resort, but button state can't be fixed.
+      if (error) alert(`Enhancement error (no button context): ${error}`);
       return false;
     }
 
-    if (type === "CoPromptEnhanceResponse") {
+    // Use the correct message types
+    if (type === "ENHANCE_PROMPT_RESPONSE") {
       logInteractionHandlerDebug(
-        "[Content Script] Handling EnhanceResponse from background.",
+        "[Content Script] Handling ENHANCE_PROMPT_RESPONSE from background.",
       );
-      // Update input field directly using robust utils
-      const inputElement = findActiveInputElement(); // Use util version
+      // Use the targetInputId from the message to find the input element
+      const inputElement = targetInputId
+        ? document.getElementById(targetInputId)
+        : findActiveInputElement();
+
       if (inputElement && enhancedPrompt) {
-        updateInputElement(inputElement, enhancedPrompt); // Use util version
+        updateInputElement(inputElement, enhancedPrompt);
       } else {
         logInteractionHandlerError(
-          "[Content Script] Could not find input element or enhancedPrompt empty.",
+          "[Content Script] Could not find input element using ID: ",
+          targetInputId,
+          " or enhancedPrompt empty.",
         );
-        // Optionally provide user feedback here, e.g., reset button with error indication?
-        alert("Failed to update input field after enhancement."); // Basic alert
+        if (error)
+          alert(`Enhancement failed: ${error}`); // Show error if present in response
+        else if (!inputElement)
+          alert("Failed to find the text field to update.");
       }
-      // Reset button state
-      resetButtonState(buttonElement);
-      return false; // Indicate no async response needed from here
-    } else if (type === "CoPromptErrorResponse") {
+      if (buttonElement) resetButtonState(buttonElement);
+      return false;
+    } else if (type === "ENHANCE_PROMPT_ERROR") {
+      // Use the correct error type
       logInteractionHandlerError(
-        "[Content Script] Handling ErrorResponse from background:",
+        "[Content Script] Handling ENHANCE_PROMPT_ERROR from background:",
         error,
       );
-      // Show error and reset button state
       alert(`Enhancement failed: ${error || "Unknown error"}`);
-      resetButtonState(buttonElement);
+      if (buttonElement) resetButtonState(buttonElement);
       return false;
     } else if (type === "CoPromptGetAPIKey") {
       // Background requested API Key (Maybe needed for future proxy use)
@@ -744,6 +768,10 @@ if (typeof handleWindowMessage === "function") {
     }
 
     // Handle other message types if necessary
+    logInteractionHandlerDebug(
+      "[Content Script] Message type not handled by primary handlers:",
+      type,
+    );
     return false; // Default to no async response
   });
   console.log("CoPrompt: Background message listener registered successfully.");

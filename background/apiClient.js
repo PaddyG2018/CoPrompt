@@ -8,6 +8,7 @@ const DEBUG = true; // Or find a way to share this flag
  * @param {string} systemInstruction - The system message for the AI.
  * @param {string} userPrompt - The user's prompt.
  * @param {string} deviceId - The unique device identifier.
+ * @param {string | null} userAccessToken - The user's JWT for Supabase authentication (optional).
  * @returns {Promise<object>} A promise that resolves to an object containing the enhanced prompt string and usage data.
  *                           Example: { enhancedPrompt: "response text", usage: { prompt_tokens: X, completion_tokens: Y, total_tokens: Z } }
  */
@@ -16,14 +17,16 @@ export async function callOpenAI(
   systemInstruction,
   userPrompt,
   deviceId,
+  userAccessToken,
 ) {
   if (DEBUG)
     console.log(
-      "[apiClient] callOpenAI called with (system, user, deviceId):",
+      "[apiClient] callOpenAI called with (system, user, deviceId, userAccessToken present?):",
       {
         systemInstruction,
         userPrompt,
         deviceId,
+        userAccessToken: !!userAccessToken,
       },
     );
 
@@ -40,10 +43,10 @@ export async function callOpenAI(
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          // MODIFIED: Authorization uses Supabase anon key
-          Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2ZnV5cml4cGpnZnl0d2ZpanB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwODA0MDIsImV4cCI6MjA1OTY1NjQwMn0.GD6oTrvjKMdqSK4LgyRmD0E1k0zbKFg79sAlXy-fLyc`,
-          // ADDED: apikey header for Supabase
-          apikey: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2ZnV5cml4cGpnZnl0d2ZpanB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwODA0MDIsImV4cCI6MjA1OTY1NjQwMn0.GD6oTrvjKMdqSK4LgyRmD0E1k0zbKFg79sAlXy-fLyc`,
+          // MODIFIED: Authorization uses Supabase anon key OR user JWT if available
+          Authorization: `Bearer ${userAccessToken || process.env.SUPABASE_ANON_KEY}`,
+          // apikey header for Supabase (anon key)
+          apikey: process.env.SUPABASE_ANON_KEY,
         },
         // The body remains the same for now, the proxy will eventually use this.
         body: JSON.stringify({
