@@ -78,8 +78,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     });
     return true; // Indicate async response
   } else if (request.type === "ENHANCE_PROMPT_REQUEST") {
-    if (DEBUG) console.log("[Background] Received ENHANCE_PROMPT_REQUEST:", request);
-    
+    if (DEBUG)
+      console.log("[Background] Received ENHANCE_PROMPT_REQUEST:", request);
+
     // Correctly extract data based on what content.js sends (and sender object)
     const userPromptFromRequest = request.prompt; // content.js sends 'prompt'
     const contextFromRequest = request.context;
@@ -87,15 +88,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     const tabIdFromSender = sender.tab?.id; // Get tabId from sender
 
     // Derive system instruction
-    const systemInstructionForApi = contextFromRequest?.systemInstruction || DEFAULT_SYSTEM_INSTRUCTION;
+    const systemInstructionForApi =
+      contextFromRequest?.systemInstruction || DEFAULT_SYSTEM_INSTRUCTION;
 
     if (!tabIdFromSender) {
-      console.error("[Background] Missing tabId for ENHANCE_PROMPT_REQUEST. Cannot send response.", request);
+      console.error(
+        "[Background] Missing tabId for ENHANCE_PROMPT_REQUEST. Cannot send response.",
+        request,
+      );
       // Potentially send an error back to a generic error handler or log to Sentry if implemented
       return true; // Still async, but won't proceed to callOpenAI if no tabId
     }
     if (!userPromptFromRequest) {
-      console.error("[Background] Missing prompt for ENHANCE_PROMPT_REQUEST.", request);
+      console.error(
+        "[Background] Missing prompt for ENHANCE_PROMPT_REQUEST.",
+        request,
+      );
       chrome.tabs.sendMessage(tabIdFromSender, {
         type: "ENHANCE_PROMPT_ERROR",
         error: "Prompt was missing in the request.",
@@ -108,45 +116,72 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // PX-07.A-05: Get Device ID and User JWT
     Promise.all([
       getOrCreateDeviceId(),
-      chrome.storage.local.get("supabase_session").then(data => data.supabase_session)
-    ]).then(([deviceId, session]) => {
-      const userAccessToken = session?.access_token || null;
-      if (DEBUG) console.log("[Background] Retrieved Device ID:", deviceId, "User Access Token present:", !!userAccessToken);
+      chrome.storage.local
+        .get("supabase_session")
+        .then((data) => data.supabase_session),
+    ])
+      .then(([deviceId, session]) => {
+        const userAccessToken = session?.access_token || null;
+        if (DEBUG)
+          console.log(
+            "[Background] Retrieved Device ID:",
+            deviceId,
+            "User Access Token present:",
+            !!userAccessToken,
+          );
 
-      // Call the API client (now potentially with JWT)
-      callOpenAI(null, systemInstructionForApi, userPromptFromRequest, deviceId, userAccessToken)
-        .then(response => {
-          if (DEBUG) console.log("[Background] Response from callOpenAI:", response);
-          chrome.tabs.sendMessage(tabIdFromSender, { // Use tabIdFromSender
-            type: "ENHANCE_PROMPT_RESPONSE",
-            enhancedPrompt: response.enhancedPrompt,
-            targetInputId: targetInputIdFromRequest, // Use targetInputIdFromRequest
-            usage: response.usage,
-            requestId: request.requestId,
-          });
+        // Call the API client (now potentially with JWT)
+        callOpenAI(
+          null,
+          systemInstructionForApi,
+          userPromptFromRequest,
+          deviceId,
+          userAccessToken,
+        )
+          .then((response) => {
+            if (DEBUG)
+              console.log("[Background] Response from callOpenAI:", response);
+            chrome.tabs.sendMessage(tabIdFromSender, {
+              // Use tabIdFromSender
+              type: "ENHANCE_PROMPT_RESPONSE",
+              enhancedPrompt: response.enhancedPrompt,
+              targetInputId: targetInputIdFromRequest, // Use targetInputIdFromRequest
+              usage: response.usage,
+              requestId: request.requestId,
+            });
 
-          if (response.usage) {
-            storeTokenUsage(response.usage);
-          }
-        })
-        .catch(error => {
-          console.error("[Background] Error calling OpenAI or processing response:", error);
-          chrome.tabs.sendMessage(tabIdFromSender, { // Use tabIdFromSender
-            type: "ENHANCE_PROMPT_ERROR",
-            error: error.message,
-            targetInputId: targetInputIdFromRequest, // Use targetInputIdFromRequest
-            requestId: request.requestId,
+            if (response.usage) {
+              storeTokenUsage(response.usage);
+            }
+          })
+          .catch((error) => {
+            console.error(
+              "[Background] Error calling OpenAI or processing response:",
+              error,
+            );
+            chrome.tabs.sendMessage(tabIdFromSender, {
+              // Use tabIdFromSender
+              type: "ENHANCE_PROMPT_ERROR",
+              error: error.message,
+              targetInputId: targetInputIdFromRequest, // Use targetInputIdFromRequest
+              requestId: request.requestId,
+            });
           });
+      })
+      .catch((error) => {
+        console.error(
+          "[Background] Error retrieving deviceId or session:",
+          error,
+        );
+        chrome.tabs.sendMessage(tabIdFromSender, {
+          // Use tabIdFromSender
+          type: "ENHANCE_PROMPT_ERROR",
+          error:
+            "Failed to retrieve necessary authentication details. Please try again.",
+          targetInputId: targetInputIdFromRequest, // Use targetInputIdFromRequest
+          requestId: request.requestId,
         });
-    }).catch(error => {
-      console.error("[Background] Error retrieving deviceId or session:", error);
-      chrome.tabs.sendMessage(tabIdFromSender, { // Use tabIdFromSender
-        type: "ENHANCE_PROMPT_ERROR",
-        error: "Failed to retrieve necessary authentication details. Please try again.",
-        targetInputId: targetInputIdFromRequest, // Use targetInputIdFromRequest
-        requestId: request.requestId,
       });
-    });
     return true; // Indicates that the response will be sent asynchronously
   } else if (request.type === "REPORT_ERROR_FROM_CONTENT") {
     // Synchronous handler now, just calls the simplified reportError
@@ -185,14 +220,12 @@ async function storeTokenUsage(usage) {
     ]);
 
     const newPromptTokens =
-      (currentUsage.total_prompt_tokens || 0) +
-      (usage.prompt_tokens || 0);
+      (currentUsage.total_prompt_tokens || 0) + (usage.prompt_tokens || 0);
     const newCompletionTokens =
       (currentUsage.total_completion_tokens || 0) +
       (usage.completion_tokens || 0);
     const newTotalTokensAllTime =
-      (currentUsage.total_tokens_all_time || 0) +
-      (usage.total_tokens || 0);
+      (currentUsage.total_tokens_all_time || 0) + (usage.total_tokens || 0);
 
     await chrome.storage.local.set({
       total_prompt_tokens: newPromptTokens,
@@ -200,11 +233,12 @@ async function storeTokenUsage(usage) {
       total_tokens_all_time: newTotalTokensAllTime,
       last_usage_update: new Date().toISOString(),
     });
-    if (DEBUG) console.log("[Background] Token usage updated in storage:", {
-      newPromptTokens,
-      newCompletionTokens,
-      newTotalTokensAllTime,
-    });
+    if (DEBUG)
+      console.log("[Background] Token usage updated in storage:", {
+        newPromptTokens,
+        newCompletionTokens,
+        newTotalTokensAllTime,
+      });
   } catch (error) {
     console.error("[Background] Error updating token usage in storage:", error);
     // Optionally use backgroundLogger for more structured logging if available

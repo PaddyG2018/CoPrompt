@@ -17,7 +17,7 @@ export async function callOpenAI(
   systemInstruction,
   userPrompt,
   deviceId,
-  userAccessToken
+  userAccessToken,
 ) {
   if (DEBUG)
     console.log(

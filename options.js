@@ -34,7 +34,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const SUPABASE_URL = "https://evfuyrixpjgfytwfijpx.supabase.co";
   const SUPABASE_ANON_KEY =
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2ZnV5cml4cGpnZnl0d2ZpanB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwODA0MDIsImV4cCI6MjA1OTY1NjQwMn0.GD6oTrvjKMdqSK4LgyRmD0E1k0zbKFg79sAlXy-fLyc";
-  
+
   let supabaseClient = null; // Renamed for clarity
   if (window.supabase) {
     try {
@@ -43,8 +43,10 @@ document.addEventListener("DOMContentLoaded", () => {
       console.log("Supabase client initialized successfully.");
     } catch (error) {
       console.error("Error initializing Supabase client:", error);
-      if (authStatusDiv) { // Check if element exists before using it
-        authStatusDiv.textContent = "Error initializing auth service. Features may be limited.";
+      if (authStatusDiv) {
+        // Check if element exists before using it
+        authStatusDiv.textContent =
+          "Error initializing auth service. Features may be limited.";
         authStatusDiv.className = "status error";
         authStatusDiv.style.display = "block";
       }
@@ -52,7 +54,8 @@ document.addEventListener("DOMContentLoaded", () => {
   } else {
     console.error("Supabase client library not loaded.");
     if (authStatusDiv) {
-      authStatusDiv.textContent = "Auth service library not loaded. Features may be limited.";
+      authStatusDiv.textContent =
+        "Auth service library not loaded. Features may be limited.";
       authStatusDiv.className = "status error";
       authStatusDiv.style.display = "block";
     }
@@ -226,13 +229,21 @@ document.addEventListener("DOMContentLoaded", () => {
       if (userStatusEl) userStatusEl.textContent = "Logged In";
       if (userEmailEl) userEmailEl.textContent = user.email;
       if (authForm) authForm.style.display = "none"; // Hide login/signup form
-      
+
       if (logoutButton) {
-        console.log("[updateAuthUI] Before setting logoutButton display (user logged in):", logoutButton.style.display);
+        console.log(
+          "[updateAuthUI] Before setting logoutButton display (user logged in):",
+          logoutButton.style.display,
+        );
         logoutButton.style.display = "inline-block"; // Show logout button
-        console.log("[updateAuthUI] After setting logoutButton display:", logoutButton.style.display);
+        console.log(
+          "[updateAuthUI] After setting logoutButton display:",
+          logoutButton.style.display,
+        );
       } else {
-        console.error("[updateAuthUI] logoutButton element not found when trying to show it.");
+        console.error(
+          "[updateAuthUI] logoutButton element not found when trying to show it.",
+        );
       }
 
       if (apiKeyInput) apiKeyInput.disabled = true;
@@ -242,13 +253,21 @@ document.addEventListener("DOMContentLoaded", () => {
       if (userStatusEl) userStatusEl.textContent = "Not logged in";
       if (userEmailEl) userEmailEl.textContent = "N/A";
       if (authForm) authForm.style.display = "block"; // Show login/signup form
-      
+
       if (logoutButton) {
-        console.log("[updateAuthUI] Before setting logoutButton display (user logged out):", logoutButton.style.display);
+        console.log(
+          "[updateAuthUI] Before setting logoutButton display (user logged out):",
+          logoutButton.style.display,
+        );
         logoutButton.style.display = "none"; // Hide logout button
-        console.log("[updateAuthUI] After setting logoutButton display:", logoutButton.style.display);
+        console.log(
+          "[updateAuthUI] After setting logoutButton display:",
+          logoutButton.style.display,
+        );
       } else {
-        console.error("[updateAuthUI] logoutButton element not found when trying to hide it.");
+        console.error(
+          "[updateAuthUI] logoutButton element not found when trying to hide it.",
+        );
       }
 
       if (apiKeyInput) apiKeyInput.disabled = false;
@@ -291,25 +310,40 @@ document.addEventListener("DOMContentLoaded", () => {
         // data.user will be null if email confirmation is required and not turned off in Supabase settings.
         // data.session will also be null in that case.
         // If email confirmation is OFF, data.user and data.session should be populated.
-        console.log("Sign up successful (check Supabase dashboard & console):", data);
+        console.log(
+          "Sign up successful (check Supabase dashboard & console):",
+          data,
+        );
         if (data.user && data.user.aud === "authenticated") {
           // User is created and authenticated (email confirmation likely off or auto-confirmed)
-          showAuthStatus("Sign up successful! You are now logged in.", "success");
-          updateAuthUI(data.user); 
+          showAuthStatus(
+            "Sign up successful! You are now logged in.",
+            "success",
+          );
+          updateAuthUI(data.user);
           // The onAuthStateChange listener should also pick this up and manage session.
         } else if (data.user && !data.session) {
           // User is created but requires confirmation (e.g., email verification)
           // Since we turned "Confirm email" OFF, this state might mean something else or just be the default response.
-          showAuthStatus("Sign up successful! Please check your email to confirm. (If applicable)", "success");
+          showAuthStatus(
+            "Sign up successful! Please check your email to confirm. (If applicable)",
+            "success",
+          );
           // updateAuthUI(null); // Or handle as a pending confirmation state if needed
         } else {
-            // This case might occur if the user object exists but there's no session and no clear indication of next steps
-            // For now, we'll assume if there's a user, it's a success, but confirmation might be pending.
-            showAuthStatus("Sign up successful! Confirmation might be required.", "success");
+          // This case might occur if the user object exists but there's no session and no clear indication of next steps
+          // For now, we'll assume if there's a user, it's a success, but confirmation might be pending.
+          showAuthStatus(
+            "Sign up successful! Confirmation might be required.",
+            "success",
+          );
         }
       } catch (e) {
         console.error("Sign up exception:", e);
-        showAuthStatus("Sign up failed: An unexpected error occurred.", "error");
+        showAuthStatus(
+          "Sign up failed: An unexpected error occurred.",
+          "error",
+        );
       }
     });
   }
@@ -342,7 +376,10 @@ document.addEventListener("DOMContentLoaded", () => {
           passwordInput.value = "";
         } else {
           // This case should ideally not happen if there's no error.
-          showAuthStatus("Login completed, but no user data returned. Please check console.", "error");
+          showAuthStatus(
+            "Login completed, but no user data returned. Please check console.",
+            "error",
+          );
         }
       } catch (e) {
         console.error("Login exception:", e);
@@ -380,31 +417,42 @@ document.addEventListener("DOMContentLoaded", () => {
       updateAuthUI(user); // Update general UI elements
 
       // A-04: Store/remove user session
-      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+      if (
+        event === "SIGNED_IN" ||
+        event === "TOKEN_REFRESHED" ||
+        event === "USER_UPDATED"
+      ) {
         if (session) {
           try {
             await chrome.storage.local.set({ supabase_session: session });
-            console.log("Supabase session stored/updated in chrome.storage.local", session);
+            console.log(
+              "Supabase session stored/updated in chrome.storage.local",
+              session,
+            );
           } catch (e) {
             console.error("Error storing supabase session:", e);
           }
         } else {
-            // This case (SIGNED_IN with null session) should ideally not happen with email/password
-            // but good to be aware of for other auth methods.
-            console.warn("Auth event SIGNED_IN received, but session is null.");
-            try {
-              await chrome.storage.local.remove("supabase_session");
-              console.log("Supabase session removed from chrome.storage.local due to null session on SIGNED_IN.");
-            } catch (e) {
-                console.error("Error removing supabase session:", e);
-            }
+          // This case (SIGNED_IN with null session) should ideally not happen with email/password
+          // but good to be aware of for other auth methods.
+          console.warn("Auth event SIGNED_IN received, but session is null.");
+          try {
+            await chrome.storage.local.remove("supabase_session");
+            console.log(
+              "Supabase session removed from chrome.storage.local due to null session on SIGNED_IN.",
+            );
+          } catch (e) {
+            console.error("Error removing supabase session:", e);
+          }
         }
       } else if (event === "SIGNED_OUT") {
         try {
           await chrome.storage.local.remove("supabase_session");
-          console.log("Supabase session removed from chrome.storage.local on SIGNED_OUT.");
+          console.log(
+            "Supabase session removed from chrome.storage.local on SIGNED_OUT.",
+          );
         } catch (e) {
-            console.error("Error removing supabase session:", e);
+          console.error("Error removing supabase session:", e);
         }
       }
     });
@@ -418,23 +466,34 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     try {
       // Attempt to get current session from Supabase client (might involve a fetch if tokens need refresh)
-      const { data: { session }, error } = await supabaseClient.auth.getSession();
-      
+      const {
+        data: { session },
+        error,
+      } = await supabaseClient.auth.getSession();
+
       if (error) {
-        console.error("Error getting initial session from Supabase client:", error.message);
+        console.error(
+          "Error getting initial session from Supabase client:",
+          error.message,
+        );
         // If getSession fails, try to see if we have a stale session in chrome.storage.local
         // This is a fallback and might indicate token expiry issues if Supabase can't refresh.
         try {
-            const localData = await chrome.storage.local.get("supabase_session");
-            if (localData.supabase_session) {
-                console.warn("Using potentially stale session from local storage after getSession() error.");
-                updateAuthUI(localData.supabase_session.user);
-            } else {
-                updateAuthUI(null);
-            }
-        } catch (e) {
-            console.error("Error reading session from chrome.storage.local during fallback:", e);
+          const localData = await chrome.storage.local.get("supabase_session");
+          if (localData.supabase_session) {
+            console.warn(
+              "Using potentially stale session from local storage after getSession() error.",
+            );
+            updateAuthUI(localData.supabase_session.user);
+          } else {
             updateAuthUI(null);
+          }
+        } catch (e) {
+          console.error(
+            "Error reading session from chrome.storage.local during fallback:",
+            e,
+          );
+          updateAuthUI(null);
         }
         return;
       }
@@ -445,20 +504,27 @@ document.addEventListener("DOMContentLoaded", () => {
       // Sync chrome.storage.local with the session state from Supabase client
       if (session) {
         try {
-            await chrome.storage.local.set({ supabase_session: session });
-            console.log("Initial session synced to chrome.storage.local.");
+          await chrome.storage.local.set({ supabase_session: session });
+          console.log("Initial session synced to chrome.storage.local.");
         } catch (e) {
-            console.error("Error storing initial session to chrome.storage.local:", e);
+          console.error(
+            "Error storing initial session to chrome.storage.local:",
+            e,
+          );
         }
       } else {
         try {
-            await chrome.storage.local.remove("supabase_session");
-            console.log("Initial check found no active session, ensured chrome.storage.local is clear.");
+          await chrome.storage.local.remove("supabase_session");
+          console.log(
+            "Initial check found no active session, ensured chrome.storage.local is clear.",
+          );
         } catch (e) {
-            console.error("Error removing session from chrome.storage.local during initial check:", e);
+          console.error(
+            "Error removing session from chrome.storage.local during initial check:",
+            e,
+          );
         }
       }
-
     } catch (e) {
       console.error("Exception in checkInitialAuthState:", e);
       updateAuthUI(null); // Default to logged-out state on any unexpected error
@@ -472,6 +538,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // If supabaseClient is not yet initialized (e.g. lib not loaded), ensure UI is logged out.
     // This is a fallback, the main check runs if/when supabaseClient initializes.
     updateAuthUI(null);
-    console.warn("Supabase client not available at initial check time. UI set to logged out.");
+    console.warn(
+      "Supabase client not available at initial check time. UI set to logged out.",
+    );
   }
 });

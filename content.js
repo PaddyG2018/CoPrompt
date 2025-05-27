@@ -699,11 +699,14 @@ if (typeof handleWindowMessage === "function") {
     const { type, requestId, enhancedPrompt, error, targetInputId } = message;
 
     // Find the button associated with this request early USING THE RECEIVED requestId
-    const buttonElement = requestId ? document.querySelector(
-      `button[data-co-prompt-request-id="${requestId}"]`,
-    ) : null;
+    const buttonElement = requestId
+      ? document.querySelector(
+          `button[data-co-prompt-request-id="${requestId}"]`,
+        )
+      : null;
 
-    if (!buttonElement && requestId) { // Only log error if requestId was present but button not found
+    if (!buttonElement && requestId) {
+      // Only log error if requestId was present but button not found
       logInteractionHandlerError(
         `[Content Script] Button with ID ${requestId} not found to handle response.`,
       );
@@ -713,34 +716,42 @@ if (typeof handleWindowMessage === "function") {
     }
     // If requestId itself is missing, something else is wrong, but we can't find the button.
     if (!requestId) {
-        logInteractionHandlerError(
-            `[Content Script] Received response from background without a requestId. Cannot update button state. Message:`, message
-        );
-        // If error exists in message, maybe alert it as a last resort, but button state can't be fixed.
-        if (error) alert(`Enhancement error (no button context): ${error}`);
-        return false;
+      logInteractionHandlerError(
+        `[Content Script] Received response from background without a requestId. Cannot update button state. Message:`,
+        message,
+      );
+      // If error exists in message, maybe alert it as a last resort, but button state can't be fixed.
+      if (error) alert(`Enhancement error (no button context): ${error}`);
+      return false;
     }
 
     // Use the correct message types
     if (type === "ENHANCE_PROMPT_RESPONSE") {
       logInteractionHandlerDebug(
-        "[Content Script] Handling ENHANCE_PROMPT_RESPONSE from background."
+        "[Content Script] Handling ENHANCE_PROMPT_RESPONSE from background.",
       );
       // Use the targetInputId from the message to find the input element
-      const inputElement = targetInputId ? document.getElementById(targetInputId) : findActiveInputElement(); 
-      
+      const inputElement = targetInputId
+        ? document.getElementById(targetInputId)
+        : findActiveInputElement();
+
       if (inputElement && enhancedPrompt) {
-        updateInputElement(inputElement, enhancedPrompt); 
+        updateInputElement(inputElement, enhancedPrompt);
       } else {
         logInteractionHandlerError(
-          "[Content Script] Could not find input element using ID: ", targetInputId, " or enhancedPrompt empty."
+          "[Content Script] Could not find input element using ID: ",
+          targetInputId,
+          " or enhancedPrompt empty.",
         );
-        if (error) alert(`Enhancement failed: ${error}`); // Show error if present in response
-        else if (!inputElement) alert("Failed to find the text field to update.");
+        if (error)
+          alert(`Enhancement failed: ${error}`); // Show error if present in response
+        else if (!inputElement)
+          alert("Failed to find the text field to update.");
       }
       if (buttonElement) resetButtonState(buttonElement);
-      return false; 
-    } else if (type === "ENHANCE_PROMPT_ERROR") { // Use the correct error type
+      return false;
+    } else if (type === "ENHANCE_PROMPT_ERROR") {
+      // Use the correct error type
       logInteractionHandlerError(
         "[Content Script] Handling ENHANCE_PROMPT_ERROR from background:",
         error,
@@ -757,7 +768,10 @@ if (typeof handleWindowMessage === "function") {
     }
 
     // Handle other message types if necessary
-    logInteractionHandlerDebug("[Content Script] Message type not handled by primary handlers:", type);
+    logInteractionHandlerDebug(
+      "[Content Script] Message type not handled by primary handlers:",
+      type,
+    );
     return false; // Default to no async response
   });
   console.log("CoPrompt: Background message listener registered successfully.");
