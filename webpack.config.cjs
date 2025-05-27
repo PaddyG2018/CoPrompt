@@ -1,5 +1,7 @@
 const path = require('path');
 const CopyPlugin = require('copy-webpack-plugin'); // We still need to copy assets
+const webpack = require('webpack'); // Added for DefinePlugin
+require('dotenv').config(); // Added for DefinePlugin
 
 module.exports = {
   mode: process.env.NODE_ENV === 'production' ? 'production' : 'development',
@@ -40,6 +42,8 @@ module.exports = {
         { from: "content.css", to: "." },
         // Copy Icons
         { from: "icons", to: "icons" },
+        // Copy the lib directory
+        { from: "lib", to: "lib" },
         // Copy scripts that *don't* need bundling 
         { from: "options.js", to: "." },
         { from: "popup.js", to: "." },
@@ -47,6 +51,9 @@ module.exports = {
         // Example: { from: "background/apiClient.js", to: "background/apiClient.js" }, // Only if apiClient isn't imported by background.js
       ],
     }),
+    new webpack.DefinePlugin({
+      'process.env.SUPABASE_ANON_KEY': JSON.stringify(process.env.SUPABASE_ANON_KEY)
+    })
   ],
   // Enable source maps for debugging (consider 'source-map' for production if needed)
   devtool: 'cheap-module-source-map', 

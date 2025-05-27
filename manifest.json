@@ -21,8 +21,9 @@
     "https://api.openai.com/*"
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self';",
-    "connect-src": "https://api.openai.com https://chat.openai.com https://evfuyrixpjgfytwfijpx.supabase.co"
+    "extension_pages": "script-src 'self'; object-src 'self'",
+    "sandbox": "sandbox allow-scripts; script-src 'self' 'unsafe-eval'; child-src 'self';",
+    "connect-src": "'self' https://api.openai.com https://chat.openai.com https://evfuyrixpjgfytwfijpx.supabase.co"
   },
   "content_scripts": [
     {
@@ -46,7 +47,7 @@
   },
   "options_ui": {
     "page": "options.html",
-    "open_in_tab": false
+    "open_in_tab": true
   },
   "web_accessible_resources": [
     {
