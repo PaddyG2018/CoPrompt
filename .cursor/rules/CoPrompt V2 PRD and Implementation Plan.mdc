@@ -166,6 +166,59 @@ Below each story we list **Files / Areas**, **Complexity** (T-shirt), and **Test
 
 *   **PX-08: Store API Keys Securely (User-Specific)**
     *   **Objective:** Allow authenticated users to store their OpenAI API key, associated with their user account, encrypted in the Supabase database.
+    *   **Detailed Technical Approach & Considerations:**
+        *   **1. Table Schema (`user_api_keys`):**
+            *   `user_id` (UUID, foreign key to `auth.users.id`, primary key)
+            *   `encrypted_openai_api_key` (text - Supabase encrypts bytea as text, so text is fine)
+            *   `iv` (text - Initialization Vector for AES-GCM, stored as base64)
+            *   `created_at` (timestamp with time zone, default `now()`)
+            *   `updated_at` (timestamp with time zone, default `now()`)
+            *   **Row Level Security (RLS):**
+                *   Enable RLS for the table.
+                *   Users can only `SELECT` their own row (`auth.uid() = user_id`).
+                *   Users can `INSERT` a new row for themselves (`auth.uid() = user_id`).
+                *   Users can `UPDATE` their own row (`auth.uid() = user_id`).
+                *   Users can `DELETE` their own row (`auth.uid() = user_id`).
+                *   (Alternatively, `INSERT` and `UPDATE` could be restricted to only be possible via the `/store-user-api-key` Edge Function using its service_role key, which might be more secure than direct RLS for these operations if complex validation is needed.)
+        *   **2. Encryption Strategy & Supabase Vault:**
+            *   A master encryption key (MEK) for AES-GCM (e.g., 256-bit) will be generated securely and stored in Supabase Vault (e.g., named `USER_API_KEY_ENCRYPTION_KEY`).
+            *   The Edge Functions (`/store-user-api-key` and `/enhance`) will have permission to access this MEK from the Vault.
+        *   **3. New Supabase Edge Function: `/store-user-api-key`:**
+            *   **Authentication:** Must verify the incoming JWT from the user.
+            *   **Input:** User's OpenAI API key (plaintext).
+            *   **Process (Save/Update):**
+                *   Fetch MEK from Supabase Vault.
+                *   Generate a unique, random Initialization Vector (IV) (12 bytes for AES-GCM is common).
+                *   Encrypt the user's OpenAI API key using AES-GCM with the MEK and the generated IV. (Deno's `crypto.subtle.encrypt` can be used).
+                *   Convert the encrypted key (ArrayBuffer) and IV (ArrayBuffer) to base64 strings for storage.
+                *   Upsert the `user_id`, base64 `encrypted_openai_api_key`, and base64 `iv` into the `user_api_keys` table.
+            *   **Process (Clear):**
+                *   If the request is to clear the key (e.g., an empty API key is provided or a specific clear flag), delete the corresponding row from `user_api_keys` for the authenticated user.
+            *   **Output:** Success/failure status.
+            *   **Security:** Ensure the plaintext API key is handled only in memory and not logged.
+        *   **4. Modify `/enhance` Supabase Edge Function:**
+            *   **Authentication & JWT:** If a valid user JWT is provided in the request headers:
+                *   Extract `user_id` from the JWT.
+                *   Query `user_api_keys` table for `encrypted_openai_api_key` and `iv` for this `user_id`.
+                *   **If found:**
+                    *   Fetch MEK from Supabase Vault.
+                    *   Convert base64 `encrypted_openai_api_key` and `iv` back to ArrayBuffers.
+                    *   Decrypt the key using AES-GCM with MEK and IV. (Deno's `crypto.subtle.decrypt`).
+                    *   If decryption is successful, use this decrypted user-specific key for the OpenAI API call.
+                *   **If not found or decryption fails:** Fall back to using the global, server-side `OPENAI_API_KEY` configured for the `/enhance` function (this is a CoPrompt-owned key, *not* the client-side anon key). Log this fallback for the user if appropriate (e.g., if a key was found but decryption failed).
+            *   **If no JWT / anonymous user:** Use the global server-side `OPENAI_API_KEY` as is currently done.
+        *   **5. Frontend Updates (`options.html`/`options.js`):**
+            *   Adapt the existing API key input field and status messages for managing the user-specific OpenAI key.
+            *   "Save/Update Key" button:
+                *   If a key is entered, call the `/store-user-api-key` Edge Function with the user's JWT (from `chrome.storage.local.get('supabase_session')`) and the plaintext API key.
+            *   "Clear Key" button:
+                *   Call `/store-user-api-key` (or a dedicated clear endpoint) with the JWT and an indicator to clear the key.
+            *   **UX:**
+                *   Clearly indicate to the user whether they are using their own key or the CoPrompt-provided key.
+                *   Show a masked version of the stored key if one exists (e.g., `sk-**************1234`).
+                *   Provide clear error messages (e.g., "Invalid API key format," "Failed to save key," "Key cleared successfully").
+        *   **6. Server-Side Global OpenAI API Key:**
+            *   Ensure a separate, CoPrompt-owned OpenAI API key is securely configured as an environment variable for the `/enhance` Supabase function. This key serves as the default/fallback. This is distinct from the client-side Supabase anon key.
     *   **Tasks:**
         *   A-01: Create a new Supabase table (e.g., `user_api_keys`) to store `user_id` and encrypted `openai_api_key`. Apply appropriate row-level security.
         *   A-02: Create a Supabase Edge Function (e.g., `/store-user-api-key`) that takes a user's JWT and their API key, encrypts the API key (server-side, e.g., using Supabase Vault or another KMS), and stores it in `user_api_keys`.
