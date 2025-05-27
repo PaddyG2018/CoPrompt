@@ -40,6 +40,8 @@ module.exports = {
         { from: "content.css", to: "." },
         // Copy Icons
         { from: "icons", to: "icons" },
+        // Copy the lib directory
+        { from: "lib", to: "lib" },
         // Copy scripts that *don't* need bundling 
         { from: "options.js", to: "." },
         { from: "popup.js", to: "." },

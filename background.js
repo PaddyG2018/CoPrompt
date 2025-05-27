@@ -1,3 +1,5 @@
+const DEBUG = true; // Define DEBUG at the top of the file
+
 import {
   DEFAULT_SYSTEM_INSTRUCTION,
   MAIN_SYSTEM_INSTRUCTION,
@@ -76,109 +78,76 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     });
     return true; // Indicate async response
   } else if (request.type === "ENHANCE_PROMPT_REQUEST") {
-    // New handler for direct messages
-    (async () => {
-      const {
-        prompt: originalPrompt,
-        // systemInstruction, // System instruction can be default for now or added later
-        context,
-        requestId, // from content script
-      } = request;
+    if (DEBUG) console.log("[Background] Received ENHANCE_PROMPT_REQUEST:", request);
+    
+    // Correctly extract data based on what content.js sends (and sender object)
+    const userPromptFromRequest = request.prompt; // content.js sends 'prompt'
+    const contextFromRequest = request.context;
+    const targetInputIdFromRequest = request.targetInputId; // Hope content.js sends this
+    const tabIdFromSender = sender.tab?.id; // Get tabId from sender
 
-      // Default system instruction if not provided in request (though it usually is)
-      const systemContent =
-        context?.systemInstruction ||
-        "You are a helpful AI assistant. Your primary goal is to rephrase and enhance the user's prompt to be more effective when interacting with a Large Language Model. You should make the prompt clearer, more concise, and more specific. Your response should ONLY be the enhanced prompt itself, without any preamble or explanation.";
+    // Derive system instruction
+    const systemInstructionForApi = contextFromRequest?.systemInstruction || DEFAULT_SYSTEM_INSTRUCTION;
 
-      try {
-        console.log(
-          `[Background] Calling Supabase function for ENHANCE_PROMPT_REQUEST (ID: ${requestId}). Prompt:`,
-          originalPrompt,
-        );
+    if (!tabIdFromSender) {
+      console.error("[Background] Missing tabId for ENHANCE_PROMPT_REQUEST. Cannot send response.", request);
+      // Potentially send an error back to a generic error handler or log to Sentry if implemented
+      return true; // Still async, but won't proceed to callOpenAI if no tabId
+    }
+    if (!userPromptFromRequest) {
+      console.error("[Background] Missing prompt for ENHANCE_PROMPT_REQUEST.", request);
+      chrome.tabs.sendMessage(tabIdFromSender, {
+        type: "ENHANCE_PROMPT_ERROR",
+        error: "Prompt was missing in the request.",
+        targetInputId: targetInputIdFromRequest,
+        requestId: request.requestId,
+      });
+      return true;
+    }
 
-        // --- PX-06: Get Device ID ---
-        const deviceId = await getOrCreateDeviceId();
-        console.log(
-          `[Background] Using Device ID for request (ID: ${requestId}):`,
-          deviceId,
-        );
+    // PX-07.A-05: Get Device ID and User JWT
+    Promise.all([
+      getOrCreateDeviceId(),
+      chrome.storage.local.get("supabase_session").then(data => data.supabase_session)
+    ]).then(([deviceId, session]) => {
+      const userAccessToken = session?.access_token || null;
+      if (DEBUG) console.log("[Background] Retrieved Device ID:", deviceId, "User Access Token present:", !!userAccessToken);
 
-        // callOpenAI now returns an object: { enhancedPrompt: string, usage: object }
-        const apiResponse = await callOpenAI(
-          null, // API key - not used by apiClient when talking to Supabase proxy (anon key is hardcoded there)
-          systemContent, // Pass the system instruction
-          originalPrompt, // Pass the original prompt as the userPrompt
-          deviceId, // --- PX-06: Pass Device ID ---
-        );
+      // Call the API client (now potentially with JWT)
+      callOpenAI(null, systemInstructionForApi, userPromptFromRequest, deviceId, userAccessToken)
+        .then(response => {
+          if (DEBUG) console.log("[Background] Response from callOpenAI:", response);
+          chrome.tabs.sendMessage(tabIdFromSender, { // Use tabIdFromSender
+            type: "ENHANCE_PROMPT_RESPONSE",
+            enhancedPrompt: response.enhancedPrompt,
+            targetInputId: targetInputIdFromRequest, // Use targetInputIdFromRequest
+            usage: response.usage,
+            requestId: request.requestId,
+          });
 
-        console.log(
-          `[Background] Supabase function call successful (ID: ${requestId}), received:`,
-          apiResponse,
-        );
-
-        // --- PX-05: Store Token Usage ---
-        if (apiResponse.usage) {
-          try {
-            const currentUsage = await chrome.storage.local.get([
-              "total_prompt_tokens",
-              "total_completion_tokens",
-              "total_tokens_all_time",
-            ]);
-
-            const newPromptTokens =
-              (currentUsage.total_prompt_tokens || 0) +
-              (apiResponse.usage.prompt_tokens || 0);
-            const newCompletionTokens =
-              (currentUsage.total_completion_tokens || 0) +
-              (apiResponse.usage.completion_tokens || 0);
-            const newTotalTokensAllTime =
-              (currentUsage.total_tokens_all_time || 0) +
-              (apiResponse.usage.total_tokens || 0);
-
-            await chrome.storage.local.set({
-              total_prompt_tokens: newPromptTokens,
-              total_completion_tokens: newCompletionTokens,
-              total_tokens_all_time: newTotalTokensAllTime,
-              last_usage_update: new Date().toISOString(),
-            });
-            console.log("[Background] Token usage updated in storage.", {
-              newPromptTokens,
-              newCompletionTokens,
-              newTotalTokensAllTime,
-            });
-          } catch (storageError) {
-            backgroundLogger.error("Error updating token usage in storage", {
-              code: "E_TOKEN_STORAGE_ERROR",
-              error: storageError,
-              requestId: requestId,
-            });
+          if (response.usage) {
+            storeTokenUsage(response.usage);
           }
-        }
-        // --- End PX-05 ---
-
-        sendResponse({
-          type: "ENHANCE_PROMPT_RESPONSE", // Consistent response type
-          enhancedPrompt: apiResponse.enhancedPrompt, // Pass the enhanced prompt string
-          usage: apiResponse.usage, // Pass the usage object
-          requestId: requestId,
+        })
+        .catch(error => {
+          console.error("[Background] Error calling OpenAI or processing response:", error);
+          chrome.tabs.sendMessage(tabIdFromSender, { // Use tabIdFromSender
+            type: "ENHANCE_PROMPT_ERROR",
+            error: error.message,
+            targetInputId: targetInputIdFromRequest, // Use targetInputIdFromRequest
+            requestId: request.requestId,
+          });
         });
-      } catch (error) {
-        backgroundLogger.error("Error during ENHANCE_PROMPT_REQUEST process", {
-          code: "E_BACKGROUND_ENHANCE_ERROR",
-          error: error,
-          prompt: originalPrompt,
-          context: context,
-          requestId: requestId,
-        });
-        sendResponse({
-          type: "ERROR_RESPONSE", // Consistent error response type
-          error:
-            error.message || "Unknown background error during enhancement.",
-          requestId: requestId,
-        });
-      }
-    })();
-    return true; // Crucial: Indicate async response for sendResponse
+    }).catch(error => {
+      console.error("[Background] Error retrieving deviceId or session:", error);
+      chrome.tabs.sendMessage(tabIdFromSender, { // Use tabIdFromSender
+        type: "ENHANCE_PROMPT_ERROR",
+        error: "Failed to retrieve necessary authentication details. Please try again.",
+        targetInputId: targetInputIdFromRequest, // Use targetInputIdFromRequest
+        requestId: request.requestId,
+      });
+    });
+    return true; // Indicates that the response will be sent asynchronously
   } else if (request.type === "REPORT_ERROR_FROM_CONTENT") {
     // Synchronous handler now, just calls the simplified reportError
     console.log(
@@ -201,6 +170,48 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   // Default return for synchronous handlers (or handlers not using sendResponse)
   return false;
 });
+
+// --- PX-05: Token Usage Storage ---
+async function storeTokenUsage(usage) {
+  if (!usage) {
+    console.warn("[Background] storeTokenUsage called with no usage data.");
+    return;
+  }
+  try {
+    const currentUsage = await chrome.storage.local.get([
+      "total_prompt_tokens",
+      "total_completion_tokens",
+      "total_tokens_all_time",
+    ]);
+
+    const newPromptTokens =
+      (currentUsage.total_prompt_tokens || 0) +
+      (usage.prompt_tokens || 0);
+    const newCompletionTokens =
+      (currentUsage.total_completion_tokens || 0) +
+      (usage.completion_tokens || 0);
+    const newTotalTokensAllTime =
+      (currentUsage.total_tokens_all_time || 0) +
+      (usage.total_tokens || 0);
+
+    await chrome.storage.local.set({
+      total_prompt_tokens: newPromptTokens,
+      total_completion_tokens: newCompletionTokens,
+      total_tokens_all_time: newTotalTokensAllTime,
+      last_usage_update: new Date().toISOString(),
+    });
+    if (DEBUG) console.log("[Background] Token usage updated in storage:", {
+      newPromptTokens,
+      newCompletionTokens,
+      newTotalTokensAllTime,
+    });
+  } catch (error) {
+    console.error("[Background] Error updating token usage in storage:", error);
+    // Optionally use backgroundLogger for more structured logging if available
+    // backgroundLogger.error("Error updating token usage in storage", { code: "E_TOKEN_STORAGE_ERROR", error });
+  }
+}
+// --- End PX-05 ---
 
 // --- PX-06/A-01: Device ID Management ---
 async function getOrCreateDeviceId() {
