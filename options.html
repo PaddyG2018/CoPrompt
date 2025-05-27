@@ -1,7 +1,11 @@
 <!doctype html>
 <html>
   <head>
+    <meta charset="UTF-8">
     <title>CoPrompt Options</title>
+    <link rel="stylesheet" href="content.css">
+    <script src="lib/supabase.js"></script>
+    <script src="options.js" defer></script>
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -135,7 +139,25 @@
       </button>
     </div>
 
-    <script src="options.js"></script>
+    <hr style="margin-top: 30px; margin-bottom: 30px">
+
+    <h2>User Account</h2>
+    <div class="form-group">
+      <p><strong>Status:</strong> <span id="userStatus">Not logged in</span></p>
+      <p><strong>Email:</strong> <span id="userEmail">N/A</span></p>
+      <button id="logoutButton" style="display: none; margin-top: 10px; margin-right: 5px;">Logout</button>
+    </div>
+
+    <div class="form-group" id="authForm">
+      <label for="emailInput">Email:</label>
+      <input type="email" id="emailInput" name="emailInput" style="width: 90%; margin-bottom: 10px;">
+      <label for="passwordInput">Password:</label>
+      <input type="password" id="passwordInput" name="passwordInput" style="width: 90%; margin-bottom: 10px;">
+      
+      <button id="signUpButton" style="margin-right: 5px;">Sign Up</button>
+      <button id="loginButton" style="margin-right: 5px;">Login</button>
+    </div>
+    <div id="authStatus" class="status" style="display: none; margin-top:10px;"></div>
 
     <!-- Confirmation Modal Structure -->
     <div id="clearConfirmationModal" class="modal-overlay">
