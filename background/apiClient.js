@@ -44,9 +44,9 @@ export async function callOpenAI(
         headers: {
           "Content-Type": "application/json",
           // MODIFIED: Authorization uses Supabase anon key OR user JWT if available
-          Authorization: `Bearer ${userAccessToken || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2ZnV5cml4cGpnZnl0d2ZpanB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwODA0MDIsImV4cCI6MjA1OTY1NjQwMn0.GD6oTrvjKMdqSK4LgyRmD0E1k0zbKFg79sAlXy-fLyc"}`,
+          Authorization: `Bearer ${userAccessToken || process.env.SUPABASE_ANON_KEY}`,
           // apikey header for Supabase (anon key)
-          apikey: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2ZnV5cml4cGpnZnl0d2ZpanB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwODA0MDIsImV4cCI6MjA1OTY1NjQwMn0.GD6oTrvjKMdqSK4LgyRmD0E1k0zbKFg79sAlXy-fLyc`,
+          apikey: process.env.SUPABASE_ANON_KEY,
         },
         // The body remains the same for now, the proxy will eventually use this.
         body: JSON.stringify({
