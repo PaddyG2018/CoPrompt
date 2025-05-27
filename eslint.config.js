@@ -93,6 +93,7 @@ export default tseslint.config(
       "*.swp",
       "utils/dompurify.min.js",
       "eslint.config.js", // Ignore the config file itself
+      "lib/" // Added to ignore the vendored Supabase library
     ],
   },
 );
