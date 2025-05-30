@@ -26,7 +26,7 @@ Deno.serve(async (req: Request) => {
   const corsHeaders = {
     "Access-Control-Allow-Origin": "*", // For development; restrict in production
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
   }
 
   if (req.method === "OPTIONS") {
@@ -79,99 +79,124 @@ Deno.serve(async (req: Request) => {
     }
     const userId = user.id
 
-    // 2. Parse the request body to get the API key
-    if (req.headers.get("content-type") !== "application/json") {
-      return new Response(JSON.stringify({ error: "Request body must be JSON." }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      })
-    }
-    const body = await req.json()
-    const plaintextApiKey = body.apiKey // Expects { "apiKey": "sk-..." } or { "apiKey": null } to clear
-
     // Create an admin client for database operations
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey)
 
-    // 3. Handle clearing the API key if plaintextApiKey is null or empty string
-    if (plaintextApiKey === null || plaintextApiKey === "") {
-      const { error: deleteError } = await supabaseAdmin
+    // Handle GET request: Check if API key exists
+    if (req.method === "GET") {
+      const { data, error: dbError } = await supabaseAdmin
         .from("user_api_keys")
-        .delete()
+        .select("user_id") // Select any column to check for existence
         .eq("user_id", userId)
+        .maybeSingle() // Returns one row or null, doesn't error if not found
 
-      if (deleteError) {
-        console.error(`Error deleting API key for user ${userId}:`, deleteError)
-        return new Response(JSON.stringify({ error: "Failed to clear API key." }), {
-          status: 500,
+      if (dbError) {
+        console.error(`Error checking API key status for user ${userId}:`, dbError)
+        // Return false by default on error, or you could return a 500
+        return new Response(JSON.stringify({ hasKey: false, error: "Database query failed." }), {
+          status: 500, // Or 200 with hasKey: false depending on desired client handling
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         })
       }
-      return new Response(JSON.stringify({ message: "API key cleared successfully." }), {
+      return new Response(JSON.stringify({ hasKey: !!data }), { // !!data will be true if data is not null/undefined
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       })
     }
 
-    // 4. Proceed to encrypt and store if a key is provided
-    if (typeof plaintextApiKey !== 'string' || !plaintextApiKey.startsWith("sk-")) {
-      return new Response(JSON.stringify({ error: "Invalid API key format provided." }), {
-        status: 400,
+    // Handle POST request: Store or clear API key
+    if (req.method === "POST") {
+      // 2. Parse the request body to get the API key
+      if (req.headers.get("content-type") !== "application/json") {
+        return new Response(JSON.stringify({ error: "Request body must be JSON." }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        })
+      }
+      const body = await req.json()
+      const plaintextApiKey = body.apiKey // Expects { "apiKey": "sk-..." } or { "apiKey": null } to clear
+
+      // 3. Handle clearing the API key if plaintextApiKey is null or explicitly empty
+      if (plaintextApiKey === null || plaintextApiKey === "") { // Check for null or empty string for clearing
+        const { error: deleteError } = await supabaseAdmin
+          .from("user_api_keys")
+          .delete()
+          .eq("user_id", userId)
+
+        if (deleteError) {
+          console.error(`Error deleting API key for user ${userId}:`, deleteError)
+          return new Response(JSON.stringify({ error: "Failed to clear API key." }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          })
+        }
+        return new Response(JSON.stringify({ message: "API key cleared successfully." }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        })
+      }
+
+      // 4. Proceed to encrypt and store if a key is provided
+      if (typeof plaintextApiKey !== 'string' || !plaintextApiKey.startsWith("sk-")) {
+        return new Response(JSON.stringify({ error: "Invalid API key format provided." }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        })
+      }
+
+      const encryptionKeyBase64 = Deno.env.get(VAULT_ENCRYPTION_KEY_NAME)
+      if (!encryptionKeyBase64) {
+        console.error(`Vault secret ${VAULT_ENCRYPTION_KEY_NAME} not found.`)
+        return new Response(JSON.stringify({ error: "Server encryption configuration error." }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        })
+      }
+
+      const masterKeyBytes = base64ToUint8Array(encryptionKeyBase64)
+      const cryptoKey = await crypto.subtle.importKey(
+        "raw",
+        masterKeyBytes,
+        { name: "AES-GCM", length: 256 },
+        true, // allow Deno to use the key for encryption/decryption if needed later
+        ["encrypt"]
+      )
+
+      const iv = crypto.getRandomValues(new Uint8Array(12)) // 12 bytes for AES-GCM is recommended
+      const apiKeyBytes = new TextEncoder().encode(plaintextApiKey)
+
+      const encryptedApiKeyBuffer = await crypto.subtle.encrypt(
+        { name: "AES-GCM", iv: iv },
+        cryptoKey,
+        apiKeyBytes
+      )
+
+      const encryptedApiKeyBase64 = arrayBufferToBase64(encryptedApiKeyBuffer)
+      const ivBase64 = arrayBufferToBase64(iv.buffer) // iv is Uint8Array, its buffer is ArrayBuffer
+
+      // 5. Upsert the encrypted key and IV into the database
+      const { error: upsertError } = await supabaseAdmin
+        .from("user_api_keys")
+        .upsert({
+          user_id: userId,
+          encrypted_openai_api_key: encryptedApiKeyBase64,
+          iv: ivBase64,
+          updated_at: new Date().toISOString(), // RLS trigger handles this, but good practice
+        }, { onConflict: "user_id" })
+
+      if (upsertError) {
+        console.error(`Error upserting API key for user ${userId}:`, upsertError)
+        return new Response(JSON.stringify({ error: "Failed to store API key." }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        })
+      }
+
+      return new Response(JSON.stringify({ message: "API key stored successfully." }), {
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       })
     }
-
-    const encryptionKeyBase64 = Deno.env.get(VAULT_ENCRYPTION_KEY_NAME)
-    if (!encryptionKeyBase64) {
-      console.error(`Vault secret ${VAULT_ENCRYPTION_KEY_NAME} not found.`)
-      return new Response(JSON.stringify({ error: "Server encryption configuration error." }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      })
-    }
-
-    const masterKeyBytes = base64ToUint8Array(encryptionKeyBase64)
-    const cryptoKey = await crypto.subtle.importKey(
-      "raw",
-      masterKeyBytes,
-      { name: "AES-GCM", length: 256 },
-      true, // allow Deno to use the key for encryption/decryption if needed later
-      ["encrypt"]
-    )
-
-    const iv = crypto.getRandomValues(new Uint8Array(12)) // 12 bytes for AES-GCM is recommended
-    const apiKeyBytes = new TextEncoder().encode(plaintextApiKey)
-
-    const encryptedApiKeyBuffer = await crypto.subtle.encrypt(
-      { name: "AES-GCM", iv: iv },
-      cryptoKey,
-      apiKeyBytes
-    )
-
-    const encryptedApiKeyBase64 = arrayBufferToBase64(encryptedApiKeyBuffer)
-    const ivBase64 = arrayBufferToBase64(iv.buffer) // iv is Uint8Array, its buffer is ArrayBuffer
-
-    // 5. Upsert the encrypted key and IV into the database
-    const { error: upsertError } = await supabaseAdmin
-      .from("user_api_keys")
-      .upsert({
-        user_id: userId,
-        encrypted_openai_api_key: encryptedApiKeyBase64,
-        iv: ivBase64,
-        updated_at: new Date().toISOString(), // RLS trigger handles this, but good practice
-      }, { onConflict: "user_id" })
-
-    if (upsertError) {
-      console.error(`Error upserting API key for user ${userId}:`, upsertError)
-      return new Response(JSON.stringify({ error: "Failed to store API key." }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      })
-    }
-
-    return new Response(JSON.stringify({ message: "API key stored successfully." }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    })
 
   } catch (error: any) {
     console.error("Unexpected error in store-user-api-key function:", error, error.stack)
