@@ -31,9 +31,14 @@ document.addEventListener("DOMContentLoaded", () => {
   const authStatusDiv = document.getElementById("authStatus"); // For auth-related messages
 
   // --- Supabase Client Initialization (PX-07) ---
-  const SUPABASE_URL = "https://evfuyrixpjgfytwfijpx.supabase.co";
-  const SUPABASE_ANON_KEY =
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2ZnV5cml4cGpnZnl0d2ZpanB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwODA0MDIsImV4cCI6MjA1OTY1NjQwMn0.GD6oTrvjKMdqSK4LgyRmD0E1k0zbKFg79sAlXy-fLyc";
+  // const SUPABASE_URL = "https://evfuyrixpjgfytwfijpx.supabase.co"; // LIVE - COMMENTED OUT FOR LOCAL DEV
+  // const SUPABASE_ANON_KEY = // LIVE - COMMENTED OUT FOR LOCAL DEV
+  //   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2ZnV5cml4cGpnZnl0d2ZpanB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwODA0MDIsImV4cCI6MjA1OTY1NjQwMn0.GD6oTrvjKMdqSK4LgyRmD0E1k0zbKFg79sAlXy-fLyc";
+
+  // TEMPORARY: Point to local Supabase for testing - REVERTED // Now ACTIVE for local dev
+  const SUPABASE_URL = "http://127.0.0.1:54321";
+  const SUPABASE_ANON_KEY = 
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
 
   let supabaseClient = null; // Renamed for clarity
   if (window.supabase) {
@@ -72,7 +77,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Save API Key
   if (saveButton) {
     console.log("CoPrompt Options: Adding listener to Save button.");
-    saveButton.addEventListener("click", function () {
+    saveButton.addEventListener("click", async function () {
       const apiKey = apiKeyInput.value.trim();
 
       if (!apiKey) {
@@ -89,11 +94,44 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
+      // PX-08: If user is logged in, save to server. Otherwise, save locally.
+      if (supabaseClient) {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session && session.user) {
+          // User is logged in, call Edge Function
+          try {
+            const response = await fetch(`${SUPABASE_URL}/functions/v1/store-user-api-key`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`,
+                'apikey': SUPABASE_ANON_KEY // Supabase Edge Functions might need this
+              },
+              body: JSON.stringify({ apiKey: apiKey })
+            });
+
+            if (response.ok) {
+              showStatus("API key securely stored in your account!", "success");
+              apiKeyInput.value = "";
+              apiKeyInput.placeholder = "API key is set in your account (hidden)";
+            } else {
+              const errorData = await response.json().catch(() => ({ message: 'Failed to store API key.' }));
+              showStatus(`Error storing API key: ${errorData.message || response.statusText}`, "error");
+            }
+          } catch (error) {
+            console.error("Error calling store-user-api-key function:", error);
+            showStatus("Error storing API key: " + (error.message || "Network error"), "error");
+          }
+          return; // Exit after handling logged-in case
+        }
+      }
+
+      // Fallback for non-logged-in users (original behavior)
       chrome.runtime.sendMessage(
         { type: "SAVE_API_KEY", apiKey: apiKey },
         function (response) {
           if (response.success) {
-            showStatus("API key saved successfully!", "success");
+            showStatus("API key saved successfully (locally)!", "success");
             apiKeyInput.value = "";
             apiKeyInput.placeholder = "API key is set (hidden for security)";
           } else {
@@ -125,8 +163,43 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Modal Actions
   if (confirmClearBtn) {
-    confirmClearBtn.addEventListener("click", function () {
+    confirmClearBtn.addEventListener("click", async function () {
       console.log("CoPrompt Options: Modal Confirm clicked, clearing key...");
+
+      // PX-08: If user is logged in, clear from server. Otherwise, clear locally.
+      if (supabaseClient) {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session && session.user) {
+          // User is logged in, call Edge Function to clear/delete key
+          try {
+            const response = await fetch(`${SUPABASE_URL}/functions/v1/store-user-api-key`, {
+              method: 'POST', // Or DELETE, if function supports it. Assuming POST with apiKey: null
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`,
+                'apikey': SUPABASE_ANON_KEY
+              },
+              body: JSON.stringify({ apiKey: null }) // Convention for deletion
+            });
+
+            if (response.ok) {
+              showStatus("API key cleared from your account.", "success");
+              apiKeyInput.value = "";
+              apiKeyInput.placeholder = "sk-... (will be stored in your account)";
+            } else {
+              const errorData = await response.json().catch(() => ({ message: 'Failed to clear API key.' }));
+              showStatus(`Error clearing API key: ${errorData.message || response.statusText}`, "error");
+            }
+          } catch (error) {
+            console.error("Error calling store-user-api-key function for clearing:", error);
+            showStatus("Error clearing API key: " + (error.message || "Network error"), "error");
+          }
+          if (modal) modal.style.display = "none"; // Hide modal
+          return; // Exit after handling logged-in case
+        }
+      }
+
+      // Fallback for non-logged-in users (original behavior)
       chrome.storage.local.remove("openai_api_key", function () {
         if (chrome.runtime.lastError) {
           showStatus(
@@ -134,7 +207,7 @@ document.addEventListener("DOMContentLoaded", () => {
             "error",
           );
         } else {
-          showStatus("API key cleared successfully.", "success");
+          showStatus("API key cleared successfully (from local storage).", "success");
           apiKeyInput.value = ""; // Clear the input field visually
           apiKeyInput.placeholder = "sk-..."; // Restore original placeholder
         }
@@ -246,9 +319,13 @@ document.addEventListener("DOMContentLoaded", () => {
         );
       }
 
-      if (apiKeyInput) apiKeyInput.disabled = true;
-      if (saveButton) saveButton.disabled = true;
-      if (clearButton) clearButton.disabled = true;
+      // PX-08: Enable API key controls for logged-in users
+      if (apiKeyInput) {
+        apiKeyInput.disabled = false;
+        // Placeholder will be updated by checkUserAPIKeyStatus
+      }
+      if (saveButton) saveButton.disabled = false;
+      if (clearButton) clearButton.disabled = false;
     } else {
       if (userStatusEl) userStatusEl.textContent = "Not logged in";
       if (userEmailEl) userEmailEl.textContent = "N/A";
@@ -273,6 +350,14 @@ document.addEventListener("DOMContentLoaded", () => {
       if (apiKeyInput) apiKeyInput.disabled = false;
       if (saveButton) saveButton.disabled = false;
       if (clearButton) clearButton.disabled = false;
+      // PX-08: For logged-out users, check local storage for key placeholder
+      chrome.storage.local.get("openai_api_key", (data) => {
+        if (data.openai_api_key) {
+          apiKeyInput.placeholder = "API key is set (hidden for security)";
+        } else {
+          apiKeyInput.placeholder = "sk-...";
+        }
+      });
     }
   }
 
@@ -416,6 +501,12 @@ document.addEventListener("DOMContentLoaded", () => {
       const user = session?.user || null;
       updateAuthUI(user); // Update general UI elements
 
+      if (user) { // If there's a user (logged in or session refreshed)
+        await checkUserAPIKeyStatus(session);
+      } else { // User logged out
+         if (apiKeyInput) apiKeyInput.placeholder = "sk-...";
+      }
+
       // A-04: Store/remove user session
       if (
         event === "SIGNED_IN" ||
@@ -462,6 +553,7 @@ document.addEventListener("DOMContentLoaded", () => {
   async function checkInitialAuthState() {
     if (!supabaseClient) {
       updateAuthUI(null); // Ensure UI is in logged-out state if Supabase isn't ready
+      if (apiKeyInput) apiKeyInput.placeholder = "sk-..."; // Default placeholder if no Supabase
       return;
     }
     try {
@@ -485,8 +577,10 @@ document.addEventListener("DOMContentLoaded", () => {
               "Using potentially stale session from local storage after getSession() error.",
             );
             updateAuthUI(localData.supabase_session.user);
+            await checkUserAPIKeyStatus(localData.supabase_session); // Check key status with this session
           } else {
             updateAuthUI(null);
+            if (apiKeyInput) apiKeyInput.placeholder = "sk-...";
           }
         } catch (e) {
           console.error(
@@ -494,12 +588,28 @@ document.addEventListener("DOMContentLoaded", () => {
             e,
           );
           updateAuthUI(null);
+          if (apiKeyInput) apiKeyInput.placeholder = "sk-...";
         }
         return;
       }
 
       console.log("Initial session from Supabase client:", session);
       updateAuthUI(session?.user || null);
+
+      if (session && session.user) {
+        await checkUserAPIKeyStatus(session);
+      } else {
+        // If not logged in, ensure local placeholder is set based on local storage
+        chrome.storage.local.get("openai_api_key", (data) => {
+            if (apiKeyInput) { // Ensure apiKeyInput is available
+                if (data.openai_api_key) {
+                    apiKeyInput.placeholder = "API key is set (hidden for security)";
+                } else {
+                    apiKeyInput.placeholder = "sk-...";
+                }
+            }
+        });
+      }
 
       // Sync chrome.storage.local with the session state from Supabase client
       if (session) {
@@ -541,5 +651,58 @@ document.addEventListener("DOMContentLoaded", () => {
     console.warn(
       "Supabase client not available at initial check time. UI set to logged out.",
     );
+    // PX-08 Ensure placeholder is sensible if Supabase client isn't loaded
+    if (apiKeyInput) {
+        chrome.storage.local.get("openai_api_key", (data) => {
+            if (data.openai_api_key) {
+                apiKeyInput.placeholder = "API key is set (hidden for security)";
+            } else {
+                apiKeyInput.placeholder = "sk-...";
+            }
+        });
+    }
+  }
+
+  // PX-08: Function to check user's API key status from the server
+  async function checkUserAPIKeyStatus(session) {
+    if (!session || !session.user || !supabaseClient || !apiKeyInput) {
+      if (apiKeyInput && !(session && session.user)) {
+        // If no session/user, default to standard placeholder or check local storage
+         chrome.storage.local.get("openai_api_key", (data) => {
+            if (data.openai_api_key) {
+                apiKeyInput.placeholder = "API key is set (hidden for security)";
+            } else {
+                apiKeyInput.placeholder = "sk-...";
+            }
+        });
+      }
+      return;
+    }
+
+    try {
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/store-user-api-key`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'apikey': SUPABASE_ANON_KEY
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.hasKey) {
+          apiKeyInput.placeholder = "API key is set in your account (hidden)";
+        } else {
+          apiKeyInput.placeholder = "sk-... (will be stored in your account)";
+        }
+      } else {
+        // Error fetching status, maybe assume no key or keep a generic placeholder
+        console.warn("Could not fetch API key status from server. Response status:", response.status);
+        apiKeyInput.placeholder = "sk-... (will be stored in your account)";
+      }
+    } catch (error) {
+      console.error("Error calling store-user-api-key (GET for status):", error);
+      apiKeyInput.placeholder = "sk-... (will be stored in your account)"; // Fallback placeholder
+    }
   }
 });
