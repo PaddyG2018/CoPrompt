@@ -5,39 +5,41 @@
 
 // Setup type definitions for built-in Supabase Runtime APIs
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-// import { serve } from "https://deno.land/std@0.168.0/http/server.ts"; // REMOVE THIS
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2"; // Import Supabase client
+import { createClient } from "jsr:@supabase/supabase-js@^2.0.0"; // Standardized JSR import
+import { decodeBase64 } from "jsr:@std/encoding/base64";
+import { encodeBase64 } from "jsr:@std/encoding/base64"; // Though only decode might be used here for key
 
-console.log("Hello from Enhance Function (v2 structure)!");
+console.log("Hello from Enhance Function (v2.1 - User Keys)!");
 
 const RATE_LIMIT_WINDOW_SECONDS = 1; // Allow 1 request per second per IP
+const VAULT_ENCRYPTION_KEY_NAME = "USER_API_KEY_ENCRYPTION_KEY";
+
+// Helper function to convert Base64 to Uint8Array (for IV and encrypted key)
+function base64ToUint8Array(base64: string): Uint8Array {
+  return decodeBase64(base64);
+}
+
+// Helper function to convert ArrayBuffer to string (for decrypted key)
+function arrayBufferToString(buffer: ArrayBuffer): string {
+  return new TextDecoder().decode(buffer);
+}
 
 Deno.serve(async (req: Request) => {
-  // USE Deno.serve
-  // Test environment variable
   const testVar = Deno.env.get("MY_TEST_VARIABLE_123");
   console.log(`MY_TEST_VARIABLE_123 value: ${testVar}`);
 
-  const openAIApiKeyFromEnv = Deno.env.get("OPENAI_API_KEY");
-  console.log(
-    `OPENAI_API_KEY from env: ${openAIApiKeyFromEnv ? "found" : "NOT FOUND"}`,
-  );
-
-  // Common CORS headers
   const corsHeaders = {
-    "Access-Control-Allow-Origin": "*", // Or restrict to your extension ID
+    "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers":
       "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
   };
 
-  // Handle CORS preflight OPTIONS request
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    // 1. Validate that the request is a POST request
     if (req.method !== "POST") {
       return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
         status: 405,
@@ -45,105 +47,158 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // 2. Extract data from the request body
-    const { model, messages, temperature, deviceId } = await req.json(); // --- PX-06: Destructure deviceId ---
+    const { model, messages, temperature, deviceId } = await req.json();
+    console.log("[Enhance Function] Received request with Device ID:", deviceId);
 
-    // 2a. Log the received deviceId (for PX-06 verification)
-    console.log(
-      "[Supabase Function] Received request with Device ID:",
-      deviceId,
-    );
-
-    // 3. Retrieve the OpenAI API Key from environment variables
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-
-    // --- Rate Limiting Logic (PX-04) ---
-    // Try to get client IP from headers first
-    const xForwardedForHeader = req.headers.get("x-forwarded-for");
-    let xForwardedFor: string | null = null;
-    if (xForwardedForHeader) {
-      const parts = xForwardedForHeader.split(",");
-      if (parts.length > 0 && parts[0]) {
-        xForwardedFor = parts[0].trim();
-      }
-    }
-    const xRealIp = req.headers.get("x-real-ip");
-    let clientIp = xForwardedFor || xRealIp;
-
-    if (!clientIp) {
-      console.warn(
-        "Could not determine client IP from headers. Using fallback for local testing.",
-      );
-      clientIp = "local-dev-ip"; // Fallback IP for local testing
-    }
-
+    let determinedOpenAIApiKey: string | null = null;
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+    const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    if (!supabaseUrl || !supabaseServiceKey) {
-      console.error(
-        "Supabase URL or Service Role Key not set for rate limiting DB access.",
+    if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
+      console.error("Missing Supabase URL, Anon Key, or Service Role Key env variables.");
+      // Critical for auth and admin operations, might decide to fail early
+    }
+
+    // Attempt to get user-specific key if Authorization header is present
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader && authHeader.startsWith("Bearer ") && supabaseUrl && supabaseAnonKey && supabaseServiceRoleKey) {
+      console.log("[Enhance Function] Auth header found, attempting to use user-specific key.");
+      const userSupabaseClient = createClient(
+        supabaseUrl,
+        supabaseAnonKey,
+        { global: { headers: { Authorization: authHeader } } }
       );
-      // If these are missing, we can't perform rate limiting via DB.
-      // Depending on policy, you might fail open (allow) or fail closed (deny with 500).
-      // For now, proceeding without DB-based rate limiting if keys are missing.
-    } else {
-      const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-      const { data: logData, error: selectError } = await supabase
-        .from("request_logs")
-        .select("last_request_at")
-        .eq("identifier", clientIp)
-        .single();
+      const { data: { user }, error: authError } = await userSupabaseClient.auth.getUser();
 
-      if (selectError && selectError.code !== "PGRST116") {
-        // PGRST116: "Row to append not found" (means no record yet)
-        console.error("Error fetching request log:", selectError);
-        // Potentially fail open or closed here too.
-      } else if (logData) {
-        const lastRequestTime = new Date(logData.last_request_at).getTime();
-        const currentTime = Date.now();
-        if (currentTime - lastRequestTime < RATE_LIMIT_WINDOW_SECONDS * 1000) {
-          return new Response(JSON.stringify({ error: "Too Many Requests" }), {
-            status: 429,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
+      if (authError) {
+        console.warn("[Enhance Function] Auth error when trying to get user for API key:", authError.message);
+      } else if (user) {
+        console.log(`[Enhance Function] Authenticated user: ${user.id}. Checking for stored API key.`);
+        const adminSupabaseClient = createClient(supabaseUrl, supabaseServiceRoleKey);
+
+        const { data: apiKeyData, error: dbError } = await adminSupabaseClient
+          .from("user_api_keys")
+          .select("encrypted_openai_api_key, iv")
+          .eq("user_id", user.id)
+          .single();
+
+        if (dbError) {
+          if (dbError.code === "PGRST116") { // Row not found, expected if user has no key
+             console.log(`[Enhance Function] No stored API key found for user ${user.id}.`);
+          } else {
+            console.error(`[Enhance Function] DB error fetching API key for user ${user.id}:`, dbError.message);
+          }
+        } else if (apiKeyData && apiKeyData.encrypted_openai_api_key && apiKeyData.iv) {
+          console.log(`[Enhance Function] Encrypted key found for user ${user.id}. Attempting decryption.`);
+          const masterKeyBase64 = Deno.env.get(VAULT_ENCRYPTION_KEY_NAME);
+          if (!masterKeyBase64) {
+            console.error(`[Enhance Function] Vault secret ${VAULT_ENCRYPTION_KEY_NAME} not found for decryption.`);
+          } else {
+            try {
+              const masterKeyBytes = base64ToUint8Array(masterKeyBase64);
+              const cryptoKey = await crypto.subtle.importKey(
+                "raw",
+                masterKeyBytes,
+                { name: "AES-GCM", length: 256 },
+                false, // 'extractable' is false for importKey for decryption
+                ["decrypt"]
+              );
+
+              const ivBytes = base64ToUint8Array(apiKeyData.iv);
+              const encryptedApiKeyBytes = base64ToUint8Array(apiKeyData.encrypted_openai_api_key);
+
+              const decryptedApiKeyBuffer = await crypto.subtle.decrypt(
+                { name: "AES-GCM", iv: ivBytes },
+                cryptoKey,
+                encryptedApiKeyBytes
+              );
+              determinedOpenAIApiKey = arrayBufferToString(decryptedApiKeyBuffer);
+              console.log(`[Enhance Function] Successfully decrypted and using API key for user ${user.id}.`);
+            } catch (decryptionError: any) {
+              console.error(`[Enhance Function] Decryption failed for user ${user.id}:`, decryptionError.message, decryptionError.stack);
+            }
+          }
+        } else {
+            console.log(`[Enhance Function] No API key data or IV found for user ${user.id} though record might exist.`);
         }
+      } else {
+        console.log("[Enhance Function] No user resolved from token, though auth header was present.");
       }
-      // If no error or rate limit not exceeded, upsert the new request time
-      const { error: upsertError } = await supabase
-        .from("request_logs")
-        .upsert({
-          identifier: clientIp,
-          last_request_at: new Date().toISOString(),
-        });
+    } else {
+      console.log("[Enhance Function] No auth header or missing Supabase creds, proceeding without user-specific key attempt.");
+    }
 
-      if (upsertError) {
-        console.error("Error upserting request log:", upsertError);
-        // Potentially fail open or closed.
+    // Fallback to environment variable if user-specific key wasn't determined
+    if (!determinedOpenAIApiKey) {
+      console.log("[Enhance Function] User-specific key not used. Attempting to use global environment API key.");
+      determinedOpenAIApiKey = Deno.env.get("OPENAI_API_KEY");
+      if (determinedOpenAIApiKey) {
+        console.log("[Enhance Function] Using global environment API key.");
       }
     }
-    // --- End Rate Limiting Logic ---
 
-    // 1. Retrieve OpenAI API key from secrets
-    // const openAIApiKey = Deno.env.get("OPENAI_API_KEY"); // Already got it as openAIApiKeyFromEnv
-    if (!openAIApiKeyFromEnv) {
-      // Check the one we got from env
-      console.error("OPENAI_API_KEY not set in Deno.env."); // Updated error message
+    if (!determinedOpenAIApiKey) {
+      console.error("[Enhance Function] OpenAI API Key is not configured (neither user-specific nor global env).");
       return new Response(
-        JSON.stringify({
-          error: "Server configuration error: Missing API key.",
-        }),
+        JSON.stringify({ error: "Server configuration error: API key not available." }),
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
+        }
       );
     }
 
-    // 2. Parse incoming request body from the extension - THIS IS NOW REDUNDANT
-    // const { model, messages, temperature } = await req.json(); // REMOVE THIS LINE
-    // model, messages, temperature, and deviceId are already available from the earlier destructuring
+    // --- Rate Limiting Logic (PX-04) ---
+    // (Assuming supabaseUrl and supabaseServiceRoleKey are available from above or re-checked if necessary)
+    if (supabaseUrl && supabaseServiceRoleKey) { // Ensure keys are present for rate limiting
+        const xForwardedForHeader = req.headers.get("x-forwarded-for");
+        let xForwardedFor: string | null = null;
+        if (xForwardedForHeader) {
+            const parts = xForwardedForHeader.split(",");
+            if (parts.length > 0 && parts[0]) {
+                xForwardedFor = parts[0].trim();
+            }
+        }
+        const xRealIp = req.headers.get("x-real-ip");
+        let clientIp = xForwardedFor || xRealIp;
+
+        if (!clientIp) {
+            console.warn("[Enhance Function] Could not determine client IP for rate limiting. Using fallback.");
+            clientIp = "local-dev-ip";
+        }
+
+        const rateLimitSupabaseClient = createClient(supabaseUrl, supabaseServiceRoleKey);
+        const { data: logData, error: selectError } = await rateLimitSupabaseClient
+            .from("request_logs")
+            .select("last_request_at")
+            .eq("identifier", clientIp)
+            .single();
+
+        if (selectError && selectError.code !== "PGRST116") {
+            console.error("[Enhance Function] Error fetching request log for rate limiting:", selectError);
+        } else if (logData) {
+            const lastRequestTime = new Date(logData.last_request_at).getTime();
+            const currentTime = Date.now();
+            if (currentTime - lastRequestTime < RATE_LIMIT_WINDOW_SECONDS * 1000) {
+                return new Response(JSON.stringify({ error: "Too Many Requests" }), {
+                    status: 429,
+                    headers: { ...corsHeaders, "Content-Type": "application/json" },
+                });
+            }
+        }
+        const { error: upsertError } = await rateLimitSupabaseClient
+            .from("request_logs")
+            .upsert({ identifier: clientIp, last_request_at: new Date().toISOString() });
+
+        if (upsertError) {
+            console.error("[Enhance Function] Error upserting request log for rate limiting:", upsertError);
+        }
+    } else {
+        console.warn("[Enhance Function] Supabase URL/Service Key missing, skipping DB-based rate limiting.");
+    }
+    // --- End Rate Limiting Logic ---
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return new Response(
@@ -151,74 +206,68 @@ Deno.serve(async (req: Request) => {
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
+        }
       );
     }
 
-    // 3. Call OpenAI API
     const openaiResponse = await fetch(
       "https://api.openai.com/v1/chat/completions",
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${openAIApiKeyFromEnv}`, // Use the env var
+          Authorization: `Bearer ${determinedOpenAIApiKey}`, // Use the determined key
         },
         body: JSON.stringify({
-          model: model || "gpt-4.1-mini", // Default to gpt-4.1-mini if not provided
+          model: model || "gpt-4.1-mini",
           messages: messages,
-          temperature: temperature || 0.7, // Default temperature if not provided
-          // stream: false, // Ensure we are not streaming for now (PX-05 specific)
+          temperature: temperature || 0.7,
         }),
-      },
+      }
     );
 
-    // 4. Handle OpenAI API response
     if (!openaiResponse.ok) {
       const errorBody = await openaiResponse
         .json()
         .catch(() => ({ error: "Failed to parse OpenAI error response." }));
-      console.error("OpenAI API Error:", openaiResponse.status, errorBody);
+      console.error("[Enhance Function] OpenAI API Error:", openaiResponse.status, errorBody);
       return new Response(
         JSON.stringify({
           error: `OpenAI API error (${openaiResponse.status}): ${errorBody.error?.message || "Unknown error"}`,
         }),
         {
-          status: openaiResponse.status, // Forward OpenAI's status
+          status: openaiResponse.status,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
+        }
       );
     }
 
     const openaiData = await openaiResponse.json();
-
-    // 5. Return the relevant part of OpenAI's response to the extension
     const enhancedPromptContent = openaiData.choices?.[0]?.message?.content;
-    const usageData = openaiData.usage; // Extract usage data
+    const usageData = openaiData.usage;
 
     if (!enhancedPromptContent) {
-      console.error("Invalid response structure from OpenAI:", openaiData);
+      console.error("[Enhance Function] Invalid response structure from OpenAI:", openaiData);
       return new Response(
         JSON.stringify({ error: "Invalid response structure from OpenAI." }),
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
+        }
       );
     }
 
-    // For PX-05, we want to return a richer object including usage.
     return new Response(
       JSON.stringify({
         message: enhancedPromptContent,
-        usage: usageData, // Include the usage data
+        usage: usageData,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
+      }
     );
   } catch (error: any) {
-    console.error("Error in enhance function:", error.message, error.stack); // Log stack for more detail
+    console.error("[Enhance Function] Error in enhance function:", error.message, error.stack);
     return new Response(
       JSON.stringify({
         error: error.message || "An unexpected error occurred.",
@@ -226,7 +275,7 @@ Deno.serve(async (req: Request) => {
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
+      }
     );
   }
 });
@@ -235,8 +284,8 @@ Deno.serve(async (req: Request) => {
 To invoke:
 
 curl -i --location --request POST '<LOCAL_OR_REMOTE_SUPABASE_URL>/enhance' \
-  --header 'Authorization: Bearer <YOUR_SUPABASE_ANON_KEY>' \
+  --header 'Authorization: Bearer <YOUR_SUPABASE_ANON_KEY_OR_USER_JWT>' \
   --header 'Content-Type: application/json' \
-  --data '{"name":"Functions"}'
+  --data '{"model": "gpt-4.1-mini", "messages": [{"role": "user", "content": "What is Supabase?"}]}'
 
 */
