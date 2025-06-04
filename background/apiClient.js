@@ -38,7 +38,8 @@ export async function callOpenAI(
   try {
     // MODIFIED: URL points to Supabase Edge Function
     const response = await fetch(
-      "https://evfuyrixpjgfytwfijpx.supabase.co/functions/v1/enhance",
+      // "https://evfuyrixpjgfytwfijpx.supabase.co/functions/v1/enhance", // LIVE URL - Commented out for local testing
+      "http://127.0.0.1:54321/functions/v1/enhance", // LOCAL URL for testing
       {
         method: "POST",
         headers: {
