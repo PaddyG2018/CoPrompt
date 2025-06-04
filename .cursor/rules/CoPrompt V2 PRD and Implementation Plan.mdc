@@ -5,6 +5,54 @@ alwaysApply: false
 ---
 CoPrompt v2 — GPT‑4.1‑mini + Pre‑Paid Credits
 
+---
+
+## 🔄 STRATEGIC REVISION (January 2025)
+
+**IMPORTANT: Major Direction Change**
+
+This PRD has been significantly revised based on strategic insights discovered during Phase -1 (Proxy Skeleton) implementation. Key changes:
+
+### **From Anonymous-First to Email-First Strategy**
+
+**Previous Approach:**
+- Anonymous users with `deviceId` could use shared OpenAI key
+- Optional email linking for cross-device sync
+- Complex anonymous-to-authenticated migration flows
+
+**New Approach (V2 Launch Strategy):**
+- **Email authentication required** before first enhance request
+- **No anonymous usage** of CoPrompt V2
+- **25 total credits** (not monthly) granted on signup
+- Simplified architecture with single user journey
+
+### **Rationale for Change:**
+1. **No Production Risk**: Current V2 implementation is pre-production with no users relying on anonymous fallback
+2. **Eliminates Technical Debt**: Removes complex dual authentication states and migration logic
+3. **Stronger Conversion Funnel**: Email collection at point of intent (enhance request) maximizes conversion
+4. **Simplified Operations**: Single code path, cleaner error handling, better analytics
+5. **BYOK Migration Clarity**: Clean transition from V1 (BYOK) to V2 (email + credits) without hybrid complexity
+
+### **Implementation Impact:**
+
+**Simplified Components:**
+- ✅ Remove anonymous JWT generation logic
+- ✅ Remove fallback OpenAI key from `/enhance` function
+- ✅ Simplify `deviceId` to analytics-only identifier
+- ✅ Remove BYOK compatibility code paths
+
+**New Components:**
+- ✅ Pre-enhance authentication modal in content script
+- ✅ 25 total credit grant on user creation (DB trigger)
+- ✅ Direct V1→V2 migration messaging (no dual-system support)
+
+### **Timeline Impact:**
+- **Reduces complexity** for Phase A (Authentication)
+- **Eliminates** Phase M (BYOK Migration) complexity
+- **Accelerates** V2 launch timeline by removing dual-system maintenance
+
+---
+
 ## 1. Purpose
 
 Ship a token‑metered, credit‑based billing system powered exclusively by GPT‑4.1‑mini that removes BYOK friction and lets early adopters buy cheap, transparent "credits" instead of a recurring subscription.
@@ -35,7 +83,7 @@ We want to monetise through credit packs (250 cr = US $5) while keeping COGS < 1
 
 ### 5.1 Usage Metering
 
-* Track `prompt_tokens`, `completion_tokens`, `model`, `cost_usd`, `ts`, `anon_user_id`.
+* Track `prompt_tokens`, `completion_tokens`, `model`, `cost_usd`, `ts`, `user_id`.
 * Events POSTed to OpenMeter in < 200 ms.
 
 ### 5.2 Credit Wallet
@@ -66,9 +114,10 @@ We want to monetise through credit packs (250 cr = US $5) while keeping COGS < 1
 * Subscription bills via Stripe recurring; credits debit exactly like pack credits.
 * When balance < 50 credits **and** auto-reload enabled, the system debits wallet **or** purchases a Micro pack if no subscription.
 
-### 5.4 Free Tier Free Tier
+### 5.4 Free Tier
 
-* 25 credits auto-refilled monthly via Stripe metered plan (cap enforced).
+* **25 credits total** granted on email signup (one-time trial, not monthly refresh).
+* Users must purchase credit packs to continue after trial exhausted.
 
 ### 5.5 Auto Top-Up (Opt-In)
 
@@ -105,9 +154,8 @@ We want to monetise through credit packs (250 cr = US $5) while keeping COGS < 1
 
 | Phase                      | Auth Method                                                               | Key Details                                                                                                                            |
 | -------------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| **A – Anonymous (launch)** | UUID `deviceId` stored in `chrome.storage.sync`; Server-issued JWT      | zero friction; wallet tied to device; Client obtains/sends `deviceId`; server issues JWT signed with a server-side secret, containing `deviceId`; Stripe customer created on first purchase; banner prompts email link |
-| **B – Magic‑Link (opt‑in)**| Supabase Auth email magic‑link                                            | links existing credits; enables cross‑device sync; banner every 5 prompts until linked                                                 |
-| **C – Team / SSO**         | Supabase + Google Workspace / GitHub                                      | role table (owner, member); shared credit pool; SAML roadmap                                                                       |
+| **V2 Launch Strategy** | **Email-required before first enhance**; Supabase Auth email magic‑link | **Zero anonymous usage**; 25 total credits on signup; email collection at point of intent (enhance request); clean V1→V2 migration |
+| **Future – Team / SSO**         | Supabase + Google Workspace / GitHub                                      | role table (owner, member); shared credit pool; SAML roadmap                                                                       |
 
 Security: HttpOnly SameSite=Lax cookies; AES‑256 at rest. GDPR: only email + stripe id stored; delete request anonymises.
 
@@ -125,6 +173,8 @@ Security: HttpOnly SameSite=Lax cookies; AES‑256 at rest. GDPR: only email + s
     *   PX-01: A minimal `/enhance` Supabase Edge Function is deployed and callable.
 *   Troubleshooting included resolving Supabase CLI version compatibility with `config.toml`, Docker connectivity, port conflicts, and CI linting/formatting issues.
 *   The `supabase/config.toml` requires the `[local_database]` section to be commented out for CI/CD deployments via GitHub Actions, but can remain uncommented for local development. The live deployed function reflects a state where this section was commented.
+*   **STRATEGIC PIVOT**: During Phase -1 implementation, we identified that V2 is pre-production with no anonymous users in the wild. This enables a much cleaner email-first architecture.
+*   The following sections reflect the **revised V2 strategy** that eliminates anonymous usage and requires email authentication.
 
 Below each story we list **Files / Areas**, **Complexity** (T-shirt), and **Test Notes** so the dev squad can turn them straight into tickets.
 
@@ -132,142 +182,59 @@ Below each story we list **Files / Areas**, **Complexity** (T-shirt), and **Test
 
 * **SW** = background service-worker (`background.js`)
 * **CS** = content script (`content.js` + `injected.js`)
-* **PX** = proxy API (Node/Fastify serverless fn)
+* **PX** = proxy API (Supabase Edge Functions)
 * **DB** = Supabase Postgres
 * **EXT UI** = popup / settings HTML & JS
 
 ---
 
-### Phase -1: Proxy Skeleton (PX)
+### **Phase V2A – Email-First Authentication (1 wk)**
 
-**Objective:** Deploy a minimal Supabase Edge Function as a proxy, with CI/CD, and integrate it into the extension. This phase focuses on the "skeleton" – getting the pieces connected, not full functionality.
+**Objective:** Implement email-required authentication that triggers before first enhance request.
 
-**Summary of Progress (PX-00 to PX-06):**
-*   **PX-00 (CI/CD for Supabase Functions): COMPLETED.** GitHub Actions workflow successfully deploys Supabase functions.
-*   **PX-01 (Minimal Supabase Edge Function `/enhance`): COMPLETED.** Placeholder function deployed and tested.
-*   **PX-02 (Inject Server URL & Update `connect_src`): COMPLETED.** Extension successfully calls the Supabase `/enhance` function using direct messaging (`chrome.runtime.sendMessage`) between `content.js` and `background.js`. `manifest.json` updated.
-*   **PX-03 (Proxy OpenAI Call): COMPLETED.** Supabase function now proxies requests to the actual OpenAI API using a stored `OPENAI_API_KEY`.
-*   **PX-04 (Basic Rate Limiting): COMPLETED.** Supabase function includes IP-based rate limiting using a Supabase table (`request_logs`).
-*   **PX-05 (Token Usage Tracking & Display): COMPLETED.** Supabase function returns OpenAI `usage` data; extension stores and `options.html` displays it.
-*   **PX-06 (Pass `deviceId` to Proxy): COMPLETED.** A unique `deviceId` is generated, stored, and passed with each request to the Supabase `/enhance` function, which logs it.
+| ID      | Title                                                  | Files / Areas    | Complexity | Test Notes                                            |
+| ------- | ------------------------------------------------------ | ---------------- | ---------- | ----------------------------------------------------- |
+| **V2A-01** | Remove anonymous fallback from `/enhance` function       | PX               | S          | **Critical**: `if (!jwt) return 401`; no fallback to global OpenAI key |
+| **V2A-02** | Pre-enhance auth modal in content script                 | CS, EXT UI       | M          | Modal appears on first enhance attempt if no stored session; magic-link flow |
+| **V2A-03** | 25 total credits on user creation (DB trigger)           | DB               | S          | Database trigger: `INSERT INTO users → +25 balance`; no monthly refresh logic |
+| **V2A-04** | Update rate limiting to per-user (remove IP-based)       | PX, DB           | M          | Replace IP rate limiting with user-specific limits; `user_id` in rate table |
+| **V2A-05** | Simplify `deviceId` to analytics-only                    | SW, CS, PX       | S          | Keep generation/passing but remove from auth logic; used only for usage analytics |
+| **V2A-06** | Remove BYOK detection/migration code                     | CS, SW           | S          | Clean removal of all BYOK compatibility; V1→V2 is clean migration |
 
-**Current Phase Tasks:**
+### **Current Implementation Status & Required Revisions**
 
-*   **PX-07: Basic User Authentication (Supabase Auth)**
-    *   **Objective:** Implement user login/logout using Supabase Auth within the extension, initially just to associate the `deviceId` with a `user_id`.
-    *   **Note on Supabase Client Library:** Due to persistent and unusual CSP errors in the development environment preventing loading the Supabase client library from CDNs (`cdn.jsdelivr.net`, `unpkg.com`) in `options.html` (manifest loader reporting valid HTTPS URLs as "Insecure CSP value"), we will proceed by vendoring the `supabase-js` library (downloading it and including it directly in the extension package). This will ensure `options.html` can reliably load the library using `script-src 'self'`. This primarily affects PX-07.A-03.
-    *   **Tasks:**
-        *   A-01: Set up Supabase Auth in the Supabase project (e.g., email/password provider, email confirmations initially disabled for easier testing). - **COMPLETED**
-        *   A-01b: Vendor `supabase-js` library: Download the library, add it to the project (e.g., `lib/supabase.js`), update `options.html` to load it locally, and revert `manifest.json` CSP for `script-src` to `\'self\'` for `extension_pages`. (New task due to CSP issues) - **COMPLETED**
-        *   A-02: Add basic UI elements in `options.html` for login/logout status, email/password inputs, and action buttons. - **COMPLETED**
-        *   A-03: Implement login/logout logic in `options.js` using the (now locally vendored) Supabase client library. - **COMPLETED**
-        *   A-04: Store user session/JWT (e.g., in `chrome.storage.local`) upon successful login and clear it on logout. `onAuthStateChange` should manage this. - **COMPLETED**
-        *   A-05: When a user is authenticated, associate the `deviceId` (from `chrome.storage.sync`) with their Supabase `user_id`. This might involve a new Supabase Edge Function or a direct authenticated call to a table if RLS allows. (Details TBD based on security best practices for this association). - **COMPLETED** (JWT containing user_id now passed to backend, enabling association)
+**✅ Completed Work (Phase -1: Proxy Skeleton):**
+*   PX-00 to PX-06: Basic proxy infrastructure operational
+*   PX-07: Supabase Auth integration in `options.html`  
+*   PX-08: User-specific encrypted API key storage
 
-*   **PX-08: Store API Keys Securely (User-Specific)**
-    *   **Objective:** Allow authenticated users to store their OpenAI API key, associated with their user account, encrypted in the Supabase database.
-    *   **Detailed Technical Approach & Considerations:**
-        *   **1. Table Schema (`user_api_keys`):**
-            *   `user_id` (UUID, foreign key to `auth.users.id`, primary key)
-            *   `encrypted_openai_api_key` (text - Supabase encrypts bytea as text, so text is fine)
-            *   `iv` (text - Initialization Vector for AES-GCM, stored as base64)
-            *   `created_at` (timestamp with time zone, default `now()`)
-            *   `updated_at` (timestamp with time zone, default `now()`)
-            *   **Row Level Security (RLS):**
-                *   Enable RLS for the table.
-                *   Users can only `SELECT` their own row (`auth.uid() = user_id`).
-                *   Users can `INSERT` a new row for themselves (`auth.uid() = user_id`).
-                *   Users can `UPDATE` their own row (`auth.uid() = user_id`).
-                *   Users can `DELETE` their own row (`auth.uid() = user_id`).
-                *   (Alternatively, `INSERT` and `UPDATE` could be restricted to only be possible via the `/store-user-api-key` Edge Function using its service_role key, which might be more secure than direct RLS for these operations if complex validation is needed.)
-        *   **2. Encryption Strategy & Supabase Vault:**
-            *   A master encryption key (MEK) for AES-GCM (e.g., 256-bit) will be generated securely and stored in Supabase Vault (e.g., named `USER_API_KEY_ENCRYPTION_KEY`).
-            *   The Edge Functions (`/store-user-api-key` and `/enhance`) will have permission to access this MEK from the Vault.
-        *   **3. New Supabase Edge Function: `/store-user-api-key`:**
-            *   **Authentication:** Must verify the incoming JWT from the user.
-            *   **Input:** User's OpenAI API key (plaintext).
-            *   **Process (Save/Update):**
-                *   Fetch MEK from Supabase Vault.
-                *   Generate a unique, random Initialization Vector (IV) (12 bytes for AES-GCM is common).
-                *   Encrypt the user's OpenAI API key using AES-GCM with the MEK and the generated IV. (Deno's `crypto.subtle.encrypt` can be used).
-                *   Convert the encrypted key (ArrayBuffer) and IV (ArrayBuffer) to base64 strings for storage.
-                *   Upsert the `user_id`, base64 `encrypted_openai_api_key`, and base64 `iv` into the `user_api_keys` table.
-            *   **Process (Clear):**
-                *   If the request is to clear the key (e.g., an empty API key is provided or a specific clear flag), delete the corresponding row from `user_api_keys` for the authenticated user.
-            *   **Output:** Success/failure status.
-            *   **Security:** Ensure the plaintext API key is handled only in memory and not logged.
-        *   **4. Modify `/enhance` Supabase Edge Function:**
-            *   **Authentication & JWT:** If a valid user JWT is provided in the request headers:
-                *   Extract `user_id` from the JWT.
-                *   Query `user_api_keys` table for `encrypted_openai_api_key` and `iv` for this `user_id`.
-                *   **If found:**
-                    *   Fetch MEK from Supabase Vault.
-                    *   Convert base64 `encrypted_openai_api_key` and `iv` back to ArrayBuffers.
-                    *   Decrypt the key using AES-GCM with MEK and IV. (Deno's `crypto.subtle.decrypt`).
-                    *   If decryption is successful, use this decrypted user-specific key for the OpenAI API call.
-                *   **If not found or decryption fails:** Fall back to using the global, server-side `OPENAI_API_KEY` configured for the `/enhance` function (this is a CoPrompt-owned key, *not* the client-side anon key). Log this fallback for the user if appropriate (e.g., if a key was found but decryption failed).
-            *   **If no JWT / anonymous user:** Use the global server-side `OPENAI_API_KEY` as is currently done.
-        *   **5. Frontend Updates (`options.html`/`options.js`):**
-            *   Adapt the existing API key input field and status messages for managing the user-specific OpenAI key.
-            *   "Save/Update Key" button:
-                *   If a key is entered, call the `/store-user-api-key` Edge Function with the user's JWT (from `chrome.storage.local.get('supabase_session')`) and the plaintext API key.
-            *   "Clear Key" button:
-                *   Call `/store-user-api-key` (or a dedicated clear endpoint) with the JWT and an indicator to clear the key.
-            *   **UX:**
-                *   Clearly indicate to the user whether they are using their own key or the CoPrompt-provided key.
-                *   Show a masked version of the stored key if one exists (e.g., `sk-**************1234`).
-                *   Provide clear error messages (e.g., "Invalid API key format," "Failed to save key," "Key cleared successfully").
-        *   **6. Server-Side Global OpenAI API Key:**
-            *   Ensure a separate, CoPrompt-owned OpenAI API key is securely configured as an environment variable for the `/enhance` Supabase function. This key serves as the default/fallback. This is distinct from the client-side Supabase anon key.
-    *   **Tasks:**
-        *   A-01: Create a new Supabase table (e.g., `user_api_keys`) to store `user_id` and encrypted `openai_api_key`. Apply appropriate row-level security.
-        *   A-02: Create a Supabase Edge Function (e.g., `/store-user-api-key`) that takes a user's JWT and their API key, encrypts the API key (server-side, e.g., using Supabase Vault or another KMS), and stores it in `user_api_keys`.
-        *   A-03: Modify the `/enhance` function: if a user is authenticated (JWT provided), try to retrieve and decrypt their specific API key to use for the OpenAI call. Fall back to the globally stored `OPENAI_API_KEY` if no user-specific key is found.
-        *   A-04: Update `options.html`/`options.js` to allow authenticated users to save/update/clear their API key via this new mechanism.
-
-*   **PX-09: Basic Telemetry/Analytics (Supabase Table)**
-    *   **Objective:** Log basic, anonymized request data to a Supabase table for analytics.
-    *   **Tasks:**
-        *   A-01: Create a Supabase table (e.g., `event_logs`) with columns like `timestamp`, `deviceId` (anonymous ID), `user_id` (if authenticated, optional), `event_type` (e.g., "enhance_request", "error"), `token_prompt`, `token_completion`, `duration_ms`.
-        *   A-02: Modify the `/enhance` function to insert a record into this table after each successful or failed OpenAI call.
-        *   A-03: Consider privacy: ensure no prompt content or PII is logged here beyond what's necessary and consented to.
-
-**Future Phases (Beyond Proxy Skeleton):**
-*   Phase 0: Feature Parity (Port existing features to new architecture)
-*   Phase 1: UX/UI Overhaul
-*   Phase 2: New Features (Advanced context, prompt chaining, etc.)
+**⚠️ Required Revisions for Email-First Strategy:**
+*   **V2A-01**: Remove anonymous fallback from `/enhance` function
+*   **V2A-05**: Simplify `deviceId` to analytics-only  
+*   **V2A-06**: Remove BYOK compatibility code paths
 
 ---
-**Notes & Decisions Log:**
-*   Decision (PX-02): Switched from long-lived port connection to `chrome.runtime.sendMessage` for `/enhance` calls for simplicity in the proxy skeleton phase. Port connection was causing context invalidation issues with dev reloads.
-*   Decision (PX-04): Implemented IP-based rate limiting. acknowledge potential issues with shared IPs / VPNs. User-specific rate limits would be better post-authentication.
-*   Decision (PX-05): Token counts stored in `chrome.storage.local`. Not synced across devices. This is acceptable for now. Future credit system might use server-side accounting.
-*   Decision (PX-06): `deviceId` stored in `chrome.storage.sync` to persist it for the user across browser sessions on the same profile, but not necessarily across different devices they log into with their browser profile.
-*   Decision (PX-07): Due to persistent CSP errors loading Supabase client from CDNs in `options.html`, the library will be vendored locally. This ensures `options.js` can initialize the client and proceed with authentication logic.
----
 
-### Phase M – BYOK Migration (1 wk)
+### **~~Obsolete Phases (Pre-Strategic Pivot)~~**
 
-| ID   | Title                               | Files / Areas      | Complexity | Test Notes                                                             |
-| ---- | ----------------------------------- | ------------------ | ---------- | ---------------------------------------------------------------------- |
-| M‑01 | Detect existing BYOK users          | CS, SW             | S          | unit: flag set when `chrome.storage.local.get('apiKey')` returns value |
-| M‑02 | Migration banner + 500‑credit grant | CS, EXT UI, PX, DB | M          | integration: grant row in `credit_ledger`; UI shows banner once        |
-| M‑03 | Modal blocker at D+30               | CS, EXT UI         | S          | e2e: mock clock + see modal fires daily until flag cleared             |
-| M‑04 | Remove BYOK path & key purge        | CS, SW             | S          | regression: BYOK key ignored; enhance still works via proxy            |
+#### **~~Phase M – BYOK Migration~~ - REMOVED**
+No longer needed with email-first V2 strategy. V1 users receive upgrade modal with clear migration path.
 
-### Phase A – Authentication (½ wk)
+#### **~~Phase A – Anonymous Authentication~~ - REMOVED** 
+Anonymous usage eliminated in favor of email-first approach.
 
-| ID   | Title                                                                      | Files / Areas  | Complexity | Test Notes                                                                 |
-| ---- | -------------------------------------------------------------------------- | -------------- | ---------- | -------------------------------------------------------------------------- |
-| A‑01 | Client obtains `deviceId`; server generates JWT (1h TTL with silent refresh) | CS, SW, PX     | M          | Server-signed JWT accepted by PX; client auto‑refreshes on expiry/401  |
-| A‑02 | Link email via Supabase magic‑link                                         | EXT UI, PX, DB | M          | e2e: credits merge across two browsers                                     |
-| A‑03 | Stripe customer creation on first purchase                                 | PX             | S          | check webhook sets `stripe_customer_id`                                    |
+**Obsolete Stories:**
+- ~~A-01: Client obtains deviceId; server generates JWT~~ 
+- ~~A-02: Link email via Supabase magic-link~~
+- ~~A-03: Stripe customer creation on first purchase~~
+
+**Story Migration:** A-03 (Stripe customer creation) moves to V2A-03 as part of user signup flow.
 
 ### Phase 0 – Metrics Baseline (½ wk)
 
 | ID        | Title                          | Files / Areas | Complexity | Test Notes                                       |
 | --------- | ------------------------------ | ------------- | ---------- | ------------------------------------------------ |
-| **P0‑01** | Write `usage_events` row to DB | PX, DB        | S          | logs `usage.total_tokens` to console in dev mode; row exists in `usage_events` with correct `anon_user_id`, `prompt_tokens`, `completion_tokens`, `cost_usd`, `model`, `ts` |
+| **P0‑01** | Write `usage_events` row to DB | PX, DB        | S          | logs `usage.total_tokens` to console in dev mode; row exists in `usage_events` with correct `user_id`, `prompt_tokens`, `completion_tokens`, `cost_usd`, `model`, `ts` |
 
 ### Phase 1 – OpenMeter Integration (1 wk)
 
@@ -559,3 +526,837 @@ This consolidated PRD version is well-structured and incorporates many crucial d
 **Conclusion of Final Review:**
 
 The PRD is comprehensive and provides a solid plan. The phased rollout, clear story definitions, and inclusion of CI/CD from the start are strong positives. The main challenges remain the technical execution of the new backend components and the transition from a purely client-side architecture. Addressing the points above, especially clarifying the JWT signing process and ensuring robust error handling, will further strengthen the plan.
+
+---
+
+## 12. Detailed User Stories for V2A Email-First Implementation
+
+Given the strategic pivot to email-first authentication, here are the detailed user stories for Phase V2A implementation:
+
+### **V2A-01: Remove Anonymous Fallback from `/enhance` Function**
+
+**User Story:** As a system architect, I want to ensure the `/enhance` function only serves authenticated users so that we have full visibility and control over usage.
+
+**Acceptance Criteria:**
+- `/enhance` function returns 401 if no valid JWT is provided
+- Remove all fallback logic to global `OPENAI_API_KEY` 
+- Update error messages to clearly indicate authentication is required
+- All existing tests updated to expect 401 for unauthenticated requests
+
+**Technical Implementation:**
+```typescript
+// Remove this fallback logic
+if (!determinedOpenAIApiKey) {
+  determinedOpenAIApiKey = Deno.env.get("OPENAI_API_KEY");
+}
+
+// Replace with:
+if (!authHeader || !user) {
+  return new Response(JSON.stringify({ error: "Authentication required" }), {
+    status: 401,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+```
+
+### **V2A-02: Pre-Enhance Auth Modal in Content Script**
+
+**User Story:** As a new user, I want to be prompted to create an account when I first try to enhance a prompt, so I can start using CoPrompt immediately with my trial credits.
+
+**Acceptance Criteria:**
+- Modal appears when user clicks enhance without stored session
+- Email input with magic-link authentication flow
+- Clear messaging: "Sign up to get 25 free credits and start enhancing"
+- Modal is non-dismissible (users must auth or cancel enhance)
+- Seamless flow: auth → credits granted → original enhance request proceeds
+
+### **V2A-03: 25 Total Credits on User Creation**
+
+**User Story:** As a new user, I want to receive 25 credits immediately upon signup so I can try CoPrompt without any payment.
+
+**Database Trigger:**
+```sql
+CREATE OR REPLACE FUNCTION grant_signup_credits()
+RETURNS TRIGGER AS $$
+BEGIN
+  UPDATE auth.users 
+  SET balance = 25 
+  WHERE id = NEW.id;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION grant_signup_credits();
+```
+
+### **V2A-04: Per-User Rate Limiting**
+
+**User Story:** As a system administrator, I want rate limiting to be based on authenticated users rather than IP addresses so that shared networks don't affect individual users.
+
+**Implementation:**
+- Replace IP-based `request_logs` table with user-based tracking
+- 5 requests per second per `user_id`
+- Graceful degradation for high-usage scenarios
+
+### **V2A-05: Simplify DeviceId to Analytics-Only**
+
+**User Story:** As a product analyst, I want to track device-level usage patterns while keeping authentication simple and email-based.
+
+**Changes:**
+- Keep `deviceId` generation and passing to backend
+- Remove from authentication/authorization logic
+- Use purely for analytics and multi-device usage tracking
+- Include in usage events for cross-device user journey analysis
+
+This revision provides a much cleaner, more focused implementation path for V2 while maintaining the core value proposition of frictionless onboarding and transparent credit-based billing.
+
+---
+
+## 13. Development Tickets - Phase V2A Implementation
+
+### **Ticket V2A-01: Remove Anonymous Fallback from `/enhance` Function**
+
+**Priority:** 🔴 Critical  
+**Complexity:** S (Small)  
+**Dependencies:** None  
+**Estimated Time:** 2-3 hours
+
+#### **Description**
+Remove all anonymous user support from the `/enhance` Supabase Edge Function to enforce email-based authentication.
+
+#### **Technical Requirements**
+
+**Files to Modify:**
+- `supabase/functions/enhance/index.ts`
+
+**Implementation Steps:**
+
+1. **Remove Fallback Logic** (Lines ~108-113):
+```typescript
+// REMOVE this entire block:
+if (!determinedOpenAIApiKey) {
+  console.log("[Enhance Function] User-specific key not used. Attempting to use global environment API key.");
+  determinedOpenAIApiKey = Deno.env.get("OPENAI_API_KEY");
+  if (determinedOpenAIApiKey) {
+    console.log("[Enhance Function] Using global environment API key.");
+  }
+}
+```
+
+2. **Add Early Auth Check** (After line ~52):
+```typescript
+// Add after CORS handling, before any other logic
+const authHeader = req.headers.get("Authorization");
+if (!authHeader || !authHeader.startsWith("Bearer ")) {
+  console.log("[Enhance Function] No authorization header provided");
+  return new Response(
+    JSON.stringify({ 
+      error: "Authentication required. Please sign up to get 25 free credits.",
+      code: "AUTH_REQUIRED"
+    }),
+    {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    }
+  );
+}
+```
+
+3. **Update Error Handling** (Lines ~126-135):
+```typescript
+// Replace the current error block with:
+if (!determinedOpenAIApiKey) {
+  console.error("[Enhance Function] No API key available for authenticated user:", user.id);
+  return new Response(
+    JSON.stringify({ 
+      error: "User API key configuration error. Please contact support.",
+      code: "USER_KEY_ERROR"
+    }),
+    {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    }
+  );
+}
+```
+
+#### **Testing Requirements**
+
+**Unit Tests:**
+- [ ] 401 response when no Authorization header
+- [ ] 401 response when malformed Authorization header
+- [ ] 401 response when invalid JWT
+- [ ] 500 response when user has no API key configured
+- [ ] 200 response when valid user with API key
+
+**Integration Tests:**
+- [ ] Content script handles 401 gracefully
+- [ ] Background script passes JWT correctly
+- [ ] Error messages display properly in UI
+
+#### **Acceptance Criteria**
+- [ ] All unauthenticated requests return 401
+- [ ] No fallback to global OpenAI key exists
+- [ ] Error messages are user-friendly
+- [ ] Existing authenticated flows remain functional
+- [ ] All tests pass
+
+---
+
+### **Ticket V2A-02: Pre-Enhance Auth Modal in Content Script**
+
+**Priority:** 🟡 High  
+**Complexity:** M (Medium)  
+**Dependencies:** V2A-01 completed  
+**Estimated Time:** 1-2 days
+
+#### **Description**
+Implement a modal that appears when unauthenticated users attempt to enhance a prompt, guiding them through email authentication.
+
+#### **Technical Requirements**
+
+**Files to Modify:**
+- `content.js`
+- `content.css`
+- `injected.js`
+- `background.js` (message handling)
+
+#### **Implementation Steps**
+
+1. **Create Auth Modal Component** (`content.js`):
+```javascript
+function createAuthModal() {
+  const modal = document.createElement('div');
+  modal.className = 'coprompt-auth-modal';
+  modal.innerHTML = `
+    <div class="coprompt-modal-backdrop">
+      <div class="coprompt-modal-content">
+        <div class="coprompt-modal-header">
+          <h2>Get 25 Free Credits</h2>
+          <button class="coprompt-close-btn">&times;</button>
+        </div>
+        <div class="coprompt-modal-body">
+          <p>Sign up with your email to start enhancing prompts with CoPrompt V2.</p>
+          <div class="coprompt-auth-form">
+            <input type="email" placeholder="Enter your email" class="coprompt-email-input">
+            <button class="coprompt-auth-submit">Send Magic Link</button>
+          </div>
+          <div class="coprompt-auth-status hidden"></div>
+        </div>
+      </div>
+    </div>
+  `;
+  return modal;
+}
+```
+
+2. **Auth Flow Handler**:
+```javascript
+async function handleAuthFlow(email) {
+  try {
+    // Send message to background script to initiate Supabase auth
+    const response = await chrome.runtime.sendMessage({
+      type: 'INITIATE_AUTH',
+      email: email
+    });
+    
+    if (response.success) {
+      showAuthStatus('Check your email for the magic link!', 'success');
+      // Poll for auth completion
+      pollForAuthCompletion();
+    } else {
+      showAuthStatus('Authentication failed. Please try again.', 'error');
+    }
+  } catch (error) {
+    showAuthStatus('Network error. Please try again.', 'error');
+  }
+}
+```
+
+3. **Modal CSS** (`content.css`):
+```css
+.coprompt-auth-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10000;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.coprompt-modal-backdrop {
+  background: rgba(0, 0, 0, 0.5);
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.coprompt-modal-content {
+  background: white;
+  border-radius: 8px;
+  padding: 24px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.coprompt-email-input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.coprompt-auth-submit {
+  width: 100%;
+  padding: 12px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.coprompt-auth-submit:hover {
+  background: #0056b3;
+}
+```
+
+4. **Background Script Integration** (`background.js`):
+```javascript
+// Add to message listener
+if (request.type === 'INITIATE_AUTH') {
+  try {
+    // Create new tab for Supabase auth
+    const authUrl = `${SUPABASE_URL}/auth/v1/magiclink?email=${encodeURIComponent(request.email)}&redirect_to=${encodeURIComponent(chrome.runtime.getURL('options.html'))}`;
+    
+    chrome.tabs.create({ url: authUrl }, (tab) => {
+      sendResponse({ success: true, authTabId: tab.id });
+    });
+  } catch (error) {
+    sendResponse({ success: false, error: error.message });
+  }
+  return true;
+}
+```
+
+#### **Testing Requirements**
+
+**Unit Tests:**
+- [ ] Modal renders correctly
+- [ ] Email validation works
+- [ ] Form submission triggers auth flow
+- [ ] Modal closes on successful auth
+- [ ] Error states display properly
+
+**Integration Tests:**
+- [ ] Modal appears on enhance attempt without auth
+- [ ] Magic link flow completes successfully
+- [ ] Original enhance request proceeds after auth
+- [ ] Modal doesn't appear for authenticated users
+
+#### **Acceptance Criteria**
+- [ ] Modal appears on first enhance attempt for unauthenticated users
+- [ ] Email validation prevents invalid submissions
+- [ ] Magic link authentication flow works end-to-end
+- [ ] Modal is non-dismissible until auth completes or user cancels
+- [ ] Clear messaging about 25 free credits
+- [ ] Responsive design works on different screen sizes
+
+---
+
+### **Ticket V2A-03: 25 Total Credits on User Creation**
+
+**Priority:** 🟡 High  
+**Complexity:** S (Small)  
+**Dependencies:** None  
+**Estimated Time:** 2-3 hours
+
+#### **Description**
+Create a database trigger that automatically grants 25 credits to new users upon account creation.
+
+#### **Technical Requirements**
+
+**Files to Create/Modify:**
+- `supabase/migrations/[timestamp]_add_user_credits_trigger.sql`
+
+#### **Implementation Steps**
+
+1. **Create Migration File**:
+```sql
+-- Add balance column to users table if not exists
+ALTER TABLE auth.users 
+ADD COLUMN IF NOT EXISTS balance INTEGER DEFAULT 0;
+
+-- Create function to grant signup credits
+CREATE OR REPLACE FUNCTION grant_signup_credits()
+RETURNS TRIGGER 
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  -- Grant 25 credits to new user
+  UPDATE auth.users 
+  SET balance = 25 
+  WHERE id = NEW.id;
+  
+  -- Log the credit grant
+  INSERT INTO public.usage_events (
+    user_id,
+    event_type,
+    credits_granted,
+    created_at
+  ) VALUES (
+    NEW.id,
+    'signup_credits',
+    25,
+    NOW()
+  );
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create trigger
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW 
+  EXECUTE FUNCTION grant_signup_credits();
+
+-- Grant necessary permissions
+GRANT USAGE ON SCHEMA auth TO authenticated;
+GRANT SELECT, UPDATE ON auth.users TO authenticated;
+```
+
+2. **Create Usage Events Table** (if not exists):
+```sql
+-- Ensure usage_events table supports credit tracking
+ALTER TABLE public.usage_events 
+ADD COLUMN IF NOT EXISTS event_type TEXT,
+ADD COLUMN IF NOT EXISTS credits_granted INTEGER DEFAULT 0,
+ADD COLUMN IF NOT EXISTS credits_used INTEGER DEFAULT 0;
+
+-- Add index for performance
+CREATE INDEX IF NOT EXISTS idx_usage_events_user_event_type 
+ON public.usage_events(user_id, event_type);
+```
+
+3. **Test the Trigger**:
+```sql
+-- Test script (run in Supabase SQL Editor)
+DO $$
+DECLARE
+  test_user_id UUID;
+  user_balance INTEGER;
+BEGIN
+  -- Simulate user creation (this would normally happen via Supabase Auth)
+  INSERT INTO auth.users (id, email) 
+  VALUES (gen_random_uuid(), 'test@example.com') 
+  RETURNING id INTO test_user_id;
+  
+  -- Check balance was set
+  SELECT balance INTO user_balance 
+  FROM auth.users 
+  WHERE id = test_user_id;
+  
+  -- Verify result
+  IF user_balance = 25 THEN
+    RAISE NOTICE 'SUCCESS: User granted 25 credits';
+  ELSE
+    RAISE EXCEPTION 'FAILED: Expected 25 credits, got %', user_balance;
+  END IF;
+  
+  -- Cleanup
+  DELETE FROM auth.users WHERE id = test_user_id;
+END $$;
+```
+
+#### **Testing Requirements**
+
+**Database Tests:**
+- [ ] Trigger fires on user creation
+- [ ] 25 credits are granted correctly
+- [ ] Usage event is logged
+- [ ] No duplicate credits on trigger re-fire
+- [ ] Trigger works with Supabase Auth signup
+
+**Integration Tests:**
+- [ ] Real user signup grants credits
+- [ ] Credits are immediately available for use
+- [ ] Balance displays correctly in UI
+
+#### **Acceptance Criteria**
+- [ ] All new users receive exactly 25 credits
+- [ ] Credit grant is logged in usage_events
+- [ ] Trigger is idempotent (safe to re-run)
+- [ ] Credits are immediately available after signup
+- [ ] No performance impact on user creation
+
+---
+
+### **Ticket V2A-04: Update Rate Limiting to Per-User**
+
+**Priority:** 🟢 Medium  
+**Complexity:** M (Medium)  
+**Dependencies:** V2A-01 completed  
+**Estimated Time:** 4-6 hours
+
+#### **Description**
+Replace IP-based rate limiting with per-user rate limiting since all users are now authenticated.
+
+#### **Technical Requirements**
+
+**Files to Modify:**
+- `supabase/functions/enhance/index.ts`
+- `supabase/migrations/[timestamp]_update_rate_limiting.sql`
+
+#### **Implementation Steps**
+
+1. **Update Database Schema**:
+```sql
+-- Rename existing table to preserve data
+ALTER TABLE public.request_logs 
+RENAME TO request_logs_old;
+
+-- Create new user-based rate limiting table
+CREATE TABLE public.user_rate_limits (
+  id BIGSERIAL PRIMARY KEY,
+  user_id UUID NOT NULL,
+  last_request_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  request_count INTEGER DEFAULT 1,
+  window_start TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Add indexes for performance
+CREATE INDEX idx_user_rate_limits_user_id ON public.user_rate_limits(user_id);
+CREATE INDEX idx_user_rate_limits_window ON public.user_rate_limits(user_id, window_start);
+
+-- Enable RLS
+ALTER TABLE public.user_rate_limits ENABLE ROW LEVEL SECURITY;
+
+-- RLS policies
+CREATE POLICY "Users can view their own rate limits" ON public.user_rate_limits
+  FOR SELECT USING (auth.uid() = user_id);
+
+-- Service role can manage all rate limits
+CREATE POLICY "Service role can manage rate limits" ON public.user_rate_limits
+  FOR ALL USING (auth.role() = 'service_role');
+```
+
+2. **Update Rate Limiting Logic** (`supabase/functions/enhance/index.ts`):
+```typescript
+// Replace existing rate limiting logic (lines ~139-166) with:
+async function checkUserRateLimit(userId: string, supabaseServiceClient: any): Promise<boolean> {
+  const RATE_LIMIT_REQUESTS = 5; // 5 requests
+  const RATE_LIMIT_WINDOW_SECONDS = 1; // per second
+  
+  try {
+    const windowStart = new Date(Date.now() - (RATE_LIMIT_WINDOW_SECONDS * 1000));
+    
+    // Get or create rate limit record
+    const { data: rateData, error: selectError } = await supabaseServiceClient
+      .from("user_rate_limits")
+      .select("*")
+      .eq("user_id", userId)
+      .single();
+    
+    if (selectError && selectError.code !== "PGRST116") {
+      console.error("[Enhance Function] Rate limit query error:", selectError);
+      return true; // Allow request on error
+    }
+    
+    const now = new Date();
+    
+    if (!rateData) {
+      // First request from this user
+      await supabaseServiceClient
+        .from("user_rate_limits")
+        .insert({
+          user_id: userId,
+          last_request_at: now,
+          request_count: 1,
+          window_start: now
+        });
+      return true;
+    }
+    
+    // Check if we're in a new window
+    if (new Date(rateData.window_start) < windowStart) {
+      // Reset for new window
+      await supabaseServiceClient
+        .from("user_rate_limits")
+        .update({
+          last_request_at: now,
+          request_count: 1,
+          window_start: now,
+          updated_at: now
+        })
+        .eq("user_id", userId);
+      return true;
+    }
+    
+    // Check if rate limit exceeded
+    if (rateData.request_count >= RATE_LIMIT_REQUESTS) {
+      return false; // Rate limited
+    }
+    
+    // Increment counter
+    await supabaseServiceClient
+      .from("user_rate_limits")
+      .update({
+        last_request_at: now,
+        request_count: rateData.request_count + 1,
+        updated_at: now
+      })
+      .eq("user_id", userId);
+    
+    return true;
+  } catch (error) {
+    console.error("[Enhance Function] Rate limiting error:", error);
+    return true; // Allow request on error
+  }
+}
+
+// Update main function to use new rate limiting
+if (user) {
+  const rateLimitOk = await checkUserRateLimit(user.id, adminSupabaseClient);
+  if (!rateLimitOk) {
+    return new Response(
+      JSON.stringify({ 
+        error: "Rate limit exceeded. Please wait a moment before trying again.",
+        code: "RATE_LIMIT_EXCEEDED"
+      }),
+      {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
+  }
+}
+```
+
+#### **Testing Requirements**
+
+**Unit Tests:**
+- [ ] Rate limiting triggers after 5 requests in 1 second
+- [ ] Rate limit resets after 1 second window
+- [ ] Different users have independent rate limits
+- [ ] Database errors don't block requests
+- [ ] Rate limit updates correctly
+
+**Load Tests:**
+- [ ] Performance impact is minimal
+- [ ] Concurrent requests handled correctly
+- [ ] Database doesn't become bottleneck
+
+#### **Acceptance Criteria**
+- [ ] Users can make up to 5 requests per second
+- [ ] Rate limits are user-specific, not IP-based
+- [ ] Rate limit windows reset correctly
+- [ ] Performance impact is negligible
+- [ ] Error handling prevents service disruption
+
+---
+
+### **Ticket V2A-05: Simplify DeviceId to Analytics-Only**
+
+**Priority:** 🟢 Low  
+**Complexity:** S (Small)  
+**Dependencies:** V2A-01, V2A-04 completed  
+**Estimated Time:** 2-3 hours
+
+#### **Description**
+Remove deviceId from authentication logic while keeping it for analytics and usage tracking.
+
+#### **Technical Requirements**
+
+**Files to Modify:**
+- `background.js`
+- `supabase/functions/enhance/index.ts`
+
+#### **Implementation Steps**
+
+1. **Update Background Script** (`background.js`):
+```javascript
+// Keep deviceId generation (lines 247-275) but remove from auth logic
+// Update the callOpenAI call (around line 125) to pass deviceId for analytics only
+
+// Change this line:
+callOpenAI(
+  null,
+  systemInstructionForApi,
+  userPromptFromRequest,
+  deviceId,
+  userAccessToken,
+)
+
+// To clearly separate concerns:
+callOpenAI(
+  null,
+  systemInstructionForApi,
+  userPromptFromRequest,
+  {
+    userAccessToken,    // For authentication
+    deviceId,           // For analytics only
+  }
+)
+```
+
+2. **Update API Client** (`background/apiClient.js`):
+```javascript
+// Update function signature and usage
+export async function callOpenAI(
+  apiKey,
+  systemInstruction,
+  userPrompt,
+  { userAccessToken, deviceId }
+) {
+  // ... existing code ...
+  
+  // Update request body to clearly separate auth and analytics
+  body: JSON.stringify({
+    model: "gpt-4.1-mini",
+    messages: [
+      { role: "system", content: systemInstruction },
+      { role: "user", content: userPrompt },
+    ],
+    temperature: 0.7,
+    // Analytics metadata
+    metadata: {
+      deviceId: deviceId,
+      clientVersion: chrome.runtime.getManifest().version,
+    }
+  }),
+}
+```
+
+3. **Update Enhance Function** (`supabase/functions/enhance/index.ts`):
+```typescript
+// Update request parsing (around line 54)
+const { model, messages, temperature, metadata } = await req.json();
+const deviceId = metadata?.deviceId;
+
+console.log("[Enhance Function] Request metadata:", {
+  deviceId,
+  clientVersion: metadata?.clientVersion,
+  userAuthenticated: !!user
+});
+
+// Remove deviceId from auth logic, use only for logging
+// Keep existing user JWT authentication
+// Log deviceId with usage events for analytics
+```
+
+4. **Update Usage Event Logging**:
+```typescript
+// When logging usage events, include deviceId for analytics
+const usageEvent = {
+  user_id: user.id,
+  device_id: deviceId, // Analytics only
+  event_type: 'enhance_request',
+  prompt_tokens: openaiData.usage.prompt_tokens,
+  completion_tokens: openaiData.usage.completion_tokens,
+  total_tokens: openaiData.usage.total_tokens,
+  model: model || "gpt-4.1-mini",
+  created_at: new Date().toISOString()
+};
+```
+
+#### **Testing Requirements**
+
+**Unit Tests:**
+- [ ] DeviceId is passed correctly for analytics
+- [ ] DeviceId is not used for authentication
+- [ ] Usage events include deviceId
+- [ ] Multiple devices per user tracked correctly
+
+#### **Acceptance Criteria**
+- [ ] DeviceId removed from all authentication logic
+- [ ] DeviceId still generated and passed for analytics
+- [ ] Usage events include deviceId for multi-device tracking
+- [ ] No functional impact on authentication flow
+
+---
+
+### **Ticket V2A-06: Remove BYOK Detection/Migration Code**
+
+**Priority:** 🟢 Low  
+**Complexity:** S (Small)  
+**Dependencies:** None  
+**Estimated Time:** 1-2 hours
+
+#### **Description**
+Clean up all BYOK (Bring Your Own Key) compatibility code to simplify the V2 codebase.
+
+#### **Technical Requirements**
+
+**Files to Modify:**
+- `background.js`
+- `content.js`
+- `options.js`
+- `options.html`
+
+#### **Implementation Steps**
+
+1. **Remove BYOK Storage** (`background.js`):
+```javascript
+// Remove any chrome.storage.local.get('apiKey') calls
+// Remove BYOK fallback logic
+// Keep only V2 authentication flows
+```
+
+2. **Clean Options Page** (`options.js` and `options.html`):
+```javascript
+// Remove or simplify API key management UI
+// Keep only user-specific API key storage for authenticated users
+// Remove any BYOK migration messaging
+```
+
+3. **Update Content Script** (`content.js`):
+```javascript
+// Remove any BYOK detection logic
+// Ensure only V2 authentication flows are supported
+```
+
+#### **Testing Requirements**
+
+**Unit Tests:**
+- [ ] No BYOK references remain in code
+- [ ] V2 flows work without BYOK fallbacks
+- [ ] Clean codebase with no legacy paths
+
+#### **Acceptance Criteria**
+- [ ] All BYOK code paths removed
+- [ ] No localStorage references to old API keys
+- [ ] Simplified codebase
+- [ ] V2 authentication works independently
+
+---
+
+## **Implementation Order & Dependencies**
+
+**Week 1:**
+1. **V2A-01** (Remove anonymous fallback) - *Foundation for all other work*
+2. **V2A-03** (Credit granting) - *Database foundation*
+3. **V2A-06** (Remove BYOK code) - *Code cleanup*
+
+**Week 2:**
+4. **V2A-02** (Auth modal) - *Critical user experience*
+5. **V2A-04** (Per-user rate limiting) - *Post-auth infrastructure*
+6. **V2A-05** (DeviceId analytics-only) - *Final cleanup*
+
+**Testing & QA:**
+- Integration testing after each ticket
+- End-to-end testing after all tickets complete
+- Performance testing for rate limiting changes
