@@ -123,8 +123,9 @@ document.addEventListener("DOMContentLoaded", function () {
     creditsStatus.className = `credits-status ${getCreditStatusClass(credits)}`;
     creditsStatus.textContent = getCreditStatusText(credits);
     
-    // Enable refresh button
+    // Enable refresh button and remove loading state
     refreshCredits.disabled = false;
+    refreshCredits.classList.remove('loading');
   }
 
   /**
@@ -164,6 +165,7 @@ document.addEventListener("DOMContentLoaded", function () {
     creditsStatus.style.display = "none";
     creditsBalance.innerHTML = '<span class="credits-loading">Loading...</span>';
     refreshCredits.disabled = true;
+    refreshCredits.classList.add('loading');
   }
 
   /**
@@ -175,6 +177,7 @@ document.addEventListener("DOMContentLoaded", function () {
     creditsStatus.style.display = "none";
     creditsBalance.innerHTML = '<span class="credits-loading">Sign in to view</span>';
     refreshCredits.disabled = true;
+    refreshCredits.classList.remove('loading');
   }
 
   /**
@@ -187,6 +190,7 @@ document.addEventListener("DOMContentLoaded", function () {
     creditsError.style.display = "block";
     creditsError.textContent = message;
     refreshCredits.disabled = false;
+    refreshCredits.classList.remove('loading');
   }
 
   console.log("[Popup] Event listeners set up successfully");

@@ -145,29 +145,16 @@ Deno.serve(async (req: Request) => {
 
     console.log(`[Enhance Function] User ${user.id} has ${currentBalance} credits available`);
 
-    // --- Rate Limiting Logic (PX-04) ---
-    if (supabaseUrl && supabaseServiceRoleKey) { // Ensure keys are present for rate limiting
-        const xForwardedForHeader = req.headers.get("x-forwarded-for");
-        let xForwardedFor: string | null = null;
-        if (xForwardedForHeader) {
-            const parts = xForwardedForHeader.split(",");
-            if (parts.length > 0 && parts[0]) {
-                xForwardedFor = parts[0].trim();
-            }
-        }
-        const xRealIp = req.headers.get("x-real-ip");
-        let clientIp = xForwardedFor || xRealIp;
-
-        if (!clientIp) {
-            console.warn("[Enhance Function] Could not determine client IP for rate limiting. Using fallback.");
-            clientIp = "local-dev-ip";
-        }
+    // --- V2A-04: Per-User Rate Limiting (replaced IP-based) ---
+    if (supabaseUrl && supabaseServiceRoleKey) {
+        const userId = user.id; // Use authenticated user ID instead of IP
+        console.log(`[Enhance Function] Checking rate limit for user: ${userId}`);
 
         const rateLimitSupabaseClient = createClient(supabaseUrl, supabaseServiceRoleKey);
         const { data: logData, error: selectError } = await rateLimitSupabaseClient
             .from("request_logs")
             .select("last_request_at")
-            .eq("identifier", clientIp)
+            .eq("identifier", userId)
             .single();
 
         if (selectError && selectError.code !== "PGRST116") {
@@ -175,24 +162,41 @@ Deno.serve(async (req: Request) => {
         } else if (logData) {
             const lastRequestTime = new Date(logData.last_request_at).getTime();
             const currentTime = Date.now();
-            if (currentTime - lastRequestTime < RATE_LIMIT_WINDOW_SECONDS * 1000) {
-                return new Response(JSON.stringify({ error: "Too Many Requests" }), {
+            const timeSinceLastRequest = currentTime - lastRequestTime;
+            
+            if (timeSinceLastRequest < RATE_LIMIT_WINDOW_SECONDS * 1000) {
+                const remainingCooldown = Math.ceil((RATE_LIMIT_WINDOW_SECONDS * 1000 - timeSinceLastRequest) / 1000);
+                console.log(`[Enhance Function] Rate limit exceeded for user ${userId}. Cooldown: ${remainingCooldown}s`);
+                
+                return new Response(JSON.stringify({ 
+                    error: `Please wait ${remainingCooldown} seconds before making another request.`,
+                    code: "RATE_LIMIT_EXCEEDED",
+                    retryAfter: remainingCooldown
+                }), {
                     status: 429,
-                    headers: { ...corsHeaders, "Content-Type": "application/json" },
+                    headers: { 
+                        ...corsHeaders, 
+                        "Content-Type": "application/json",
+                        "Retry-After": remainingCooldown.toString()
+                    },
                 });
             }
         }
+
+        // Update the last request timestamp for this user
         const { error: upsertError } = await rateLimitSupabaseClient
             .from("request_logs")
-            .upsert({ identifier: clientIp, last_request_at: new Date().toISOString() });
+            .upsert({ identifier: userId, last_request_at: new Date().toISOString() });
 
         if (upsertError) {
             console.error("[Enhance Function] Error upserting request log for rate limiting:", upsertError);
+        } else {
+            console.log(`[Enhance Function] Rate limit timestamp updated for user: ${userId}`);
         }
     } else {
-        console.warn("[Enhance Function] Supabase URL/Service Key missing, skipping DB-based rate limiting.");
+        console.warn("[Enhance Function] Supabase URL/Service Key missing, skipping user-based rate limiting.");
     }
-    // --- End Rate Limiting Logic ---
+    // --- End V2A-04: Per-User Rate Limiting ---
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return new Response(
