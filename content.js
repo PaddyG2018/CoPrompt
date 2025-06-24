@@ -759,12 +759,6 @@ if (typeof handleWindowMessage === "function") {
       alert(`Enhancement failed: ${error || "Unknown error"}`);
       if (buttonElement) resetButtonState(buttonElement);
       return false;
-    } else if (type === "CoPromptGetAPIKey") {
-      // Background requested API Key (Maybe needed for future proxy use)
-      console.warn(
-        "[Content Script] Ignoring unexpected CoPromptGetAPIKey request from background.",
-      );
-      return false;
     }
 
     // Handle other message types if necessary

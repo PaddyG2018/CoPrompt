@@ -1,0 +1,7 @@
+Need to create a solid set of rules for protecting core functionality
+and creating strict implementation guidelines. Some ideas:
+- You should strive to maintain an elegant Architecture
+- You are to recognise and identify when changes have the Risk
+of breaking core functionality, and you are to warn about this before making
+changes & perform deep analysis of whether the change is in the best 
+interests of the architecture, core functionality robustness, and user experience.

@@ -1,7 +1,7 @@
 <!doctype html>
 <html>
   <head>
-    <title>CoPrompt</title>
+    <title>CoPrompt V2</title>
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -31,28 +31,29 @@
       .button:hover {
         background-color: #0056b3;
       }
-      .status {
-        margin-top: 15px;
+      .credits-info {
+        background-color: #e7f3ff;
         padding: 10px;
         border-radius: 4px;
-        font-size: 14px;
+        margin-top: 15px;
+        border-left: 3px solid #007bff;
       }
-      .success {
-        background-color: #d4edda;
-        color: #155724;
-      }
-      .error {
-        background-color: #f8d7da;
-        color: #721c24;
+      .credits-balance {
+        font-weight: bold;
+        color: #007bff;
+        margin-bottom: 5px;
       }
     </style>
   </head>
   <body>
-    <h1>CoPrompt</h1>
+    <h1>CoPrompt V2</h1>
 
-    <p>Enhance your AI prompts with a single click!</p>
+    <p>Enhance your AI prompts with a single click! Sign up for 25 free credits.</p>
 
-    <div id="apiKeyStatus" class="status"></div>
+    <div class="credits-info">
+      <div class="credits-balance">Credits: <span id="creditsBalance">Sign in to view</span></div>
+      <div style="font-size: 12px; color: #666;">Sign up for free credits in Settings</div>
+    </div>
 
     <a id="optionsButton" class="button">Settings</a>
 

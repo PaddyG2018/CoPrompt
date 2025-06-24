@@ -3,3 +3,23 @@ description:
 globs:
 alwaysApply: false
 ---
+*   **Claude:**
+    *   **Hostname(s):** `claude.ai`
+        *   *Code Check:* `hostname.includes(\"claude.ai\")`
+    *   **Context Extraction Selectors:**
+        *   *Messages:* `[data-testid=\"user-message\"], .font-claude-message`
+        *   *Role Determination:* Check if element `matches('[data-testid=\"user-message\"]')` (user) or `.font-claude-message` (assistant).
+    *   **Button Injection Target:** [TODO: Identify and add the specific selector for the input area/toolbar]
+    *   **Input Field Selector:** `div.ProseMirror[contenteditable="true"]` // Confirmed from logs 2024-07-26
+
+*   **ChatGPT:**
+    *   **Hostname(s):** `chatgpt.com` (primary), `openai.com` (secondary/fallback)
+
+*   **Gemini:** 
+    *   **Hostname(s):** `gemini.google.com` (likely)
+        *   *Code Check:* Placeholder exists `hostname.includes(\"gemini.google.com\")`
+    *   **Context Extraction Selectors:** [TODO: Identify needed selectors]
+    *   **Button Injection Target:** [TODO: Identify needed selectors]
+    *   **Input Field Selector:** `div.ql-editor[contenteditable=\"true\"]` // Confirmed from logs 2024-07-26
+
+**Important Considerations:**

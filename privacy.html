@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CoPrompt Privacy Policy</title>
+    <title>CoPrompt V2 Privacy Policy</title>
     <style>
       body {
         font-family:
@@ -57,28 +57,33 @@
     </style>
   </head>
   <body>
-    <h1>CoPrompt Privacy Policy</h1>
+    <h1>CoPrompt V2 Privacy Policy</h1>
     <p>Last updated: <span id="last-updated"></span></p>
 
     <h2>Introduction</h2>
     <p>
-      CoPrompt is committed to protecting your privacy. This policy explains how
-      we collect, use, and protect your data when you use our Chrome extension.
+      CoPrompt V2 is committed to protecting your privacy. This policy explains how
+      we collect, use, and protect your data when you use our Chrome extension with
+      our credit-based service.
     </p>
 
     <h2>Data Collection</h2>
     <p>We collect the following types of data:</p>
     <ul>
-      <li>Your OpenAI API key (encrypted and stored locally)</li>
-      <li>Conversation context from supported AI platforms</li>
+      <li>Your email address for user authentication</li>
+      <li>Your OpenAI API key (encrypted and stored securely on our servers)</li>
+      <li>Credit balance and usage tracking</li>
+      <li>Conversation context from supported AI platforms (sent temporarily for enhancement)</li>
       <li>Usage statistics and error logs</li>
-      <li>Button position preferences</li>
+      <li>Button position preferences (stored locally)</li>
     </ul>
 
     <h2>Data Usage</h2>
     <p>Your data is used to:</p>
     <ul>
+      <li>Authenticate your account and manage your credit balance</li>
       <li>Enhance your prompts using the OpenAI API</li>
+      <li>Track credit usage and prevent abuse</li>
       <li>Improve the extension's functionality</li>
       <li>Debug and fix issues</li>
       <li>Remember your preferences</li>
@@ -87,9 +92,10 @@
     <h2>Data Protection</h2>
     <p>We implement several security measures to protect your data:</p>
     <ul>
-      <li>API keys are encrypted using the Web Crypto API</li>
-      <li>Data is stored locally in your browser</li>
-      <li>No data is sent to external servers except for API calls</li>
+      <li>API keys are encrypted using industry-standard encryption before server storage</li>
+      <li>User authentication is handled through secure Supabase Auth</li>
+      <li>All server communications use HTTPS encryption</li>
+      <li>Row-level security policies protect your data from unauthorized access</li>
       <li>Regular security audits and updates</li>
     </ul>
 
@@ -97,9 +103,10 @@
       <h3>Data Retention</h3>
       <p>Your data is retained as follows:</p>
       <ul>
-        <li>API keys: Until you remove them</li>
-        <li>Usage logs: 30 days</li>
-        <li>Preferences: Until you reset them</li>
+        <li>Account information: Until you delete your account</li>
+        <li>API keys: Until you remove them or delete your account</li>
+        <li>Credit usage logs: 1 year for billing and analytics</li>
+        <li>Local preferences: Until you reset or uninstall the extension</li>
       </ul>
     </div>
 
@@ -107,12 +114,6 @@
       <h2>Your Consent</h2>
       <p>Please review and select your privacy preferences:</p>
       <div class="consent-options">
-        <div class="consent-option">
-          <input type="checkbox" id="api-key-storage" checked />
-          <label for="api-key-storage"
-            >Allow secure storage of my API key</label
-          >
-        </div>
         <div class="consent-option">
           <input type="checkbox" id="usage-stats" checked />
           <label for="usage-stats">Allow collection of usage statistics</label>
@@ -133,9 +134,10 @@
     <p>You have the right to:</p>
     <ul>
       <li>Access your stored data</li>
-      <li>Delete your data</li>
-      <li>Export your data</li>
+      <li>Delete your account and all associated data</li>
+      <li>Export your usage data</li>
       <li>Modify your privacy preferences</li>
+      <li>Remove your API key from our servers</li>
     </ul>
 
     <h2>Contact Us</h2>
@@ -152,14 +154,11 @@
       // Load saved preferences
       chrome.storage.sync.get(["privacy_preferences"], function (result) {
         const preferences = result.privacy_preferences || {
-          apiKeyStorage: true,
           usageStats: true,
           errorLogs: true,
           preferences: true,
         };
 
-        document.getElementById("api-key-storage").checked =
-          preferences.apiKeyStorage;
         document.getElementById("usage-stats").checked = preferences.usageStats;
         document.getElementById("error-logs").checked = preferences.errorLogs;
         document.getElementById("preferences").checked =
@@ -171,7 +170,6 @@
         .getElementById("save-preferences")
         .addEventListener("click", function () {
           const preferences = {
-            apiKeyStorage: document.getElementById("api-key-storage").checked,
             usageStats: document.getElementById("usage-stats").checked,
             errorLogs: document.getElementById("error-logs").checked,
             preferences: document.getElementById("preferences").checked,

@@ -1,14 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
   console.log("CoPrompt Options: DOM Content Loaded.");
 
-  const apiKeyInput = document.getElementById("apiKey");
-  const saveButton = document.getElementById("saveButton");
-  const clearButton = document.getElementById("clearButton");
   const statusDiv = document.getElementById("status");
-  // Modal elements
-  const modal = document.getElementById("clearConfirmationModal");
-  const confirmClearBtn = document.getElementById("confirmClearBtn");
-  const cancelClearBtn = document.getElementById("cancelClearBtn");
 
   // --- Token Usage Elements ---
   const totalPromptTokensEl = document.getElementById("totalPromptTokens");
@@ -29,6 +22,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const loginButton = document.getElementById("loginButton");
   const logoutButton = document.getElementById("logoutButton");
   const authStatusDiv = document.getElementById("authStatus"); // For auth-related messages
+
+  // --- V2 Credit Display Elements ---
+  const creditsBalanceEl = document.getElementById("creditsBalance");
+  const refreshCreditsButton = document.getElementById("refreshCreditsButton");
 
   // --- Supabase Client Initialization (PX-07) ---
   // const SUPABASE_URL = "https://evfuyrixpjgfytwfijpx.supabase.co"; // LIVE - COMMENTED OUT FOR LOCAL DEV
@@ -66,168 +63,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Load saved API Key
-  chrome.storage.local.get("openai_api_key", (data) => {
-    if (data.openai_api_key) {
-      // We don't actually show the decrypted key for security
-      apiKeyInput.placeholder = "API key is set (hidden for security)";
-    }
-  });
-
-  // Save API Key
-  if (saveButton) {
-    console.log("CoPrompt Options: Adding listener to Save button.");
-    saveButton.addEventListener("click", async function () {
-      const apiKey = apiKeyInput.value.trim();
-
-      if (!apiKey) {
-        showStatus("Please enter your OpenAI API key.", "error");
-        return;
-      }
-
-      // Basic validation
-      if (!apiKey.startsWith("sk-") || apiKey.length < 20) {
-        showStatus(
-          'Invalid API key format. It should start with "sk-" and be longer.',
-          "error",
-        );
-        return;
-      }
-
-      // PX-08: If user is logged in, save to server. Otherwise, save locally.
-      if (supabaseClient) {
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        if (session && session.user) {
-          // User is logged in, call Edge Function
-          try {
-            const response = await fetch(`${SUPABASE_URL}/functions/v1/store-user-api-key`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${session.access_token}`,
-                'apikey': SUPABASE_ANON_KEY // Supabase Edge Functions might need this
-              },
-              body: JSON.stringify({ apiKey: apiKey })
-            });
-
-            if (response.ok) {
-              showStatus("API key securely stored in your account!", "success");
-              apiKeyInput.value = "";
-              apiKeyInput.placeholder = "API key is set in your account (hidden)";
-            } else {
-              const errorData = await response.json().catch(() => ({ message: 'Failed to store API key.' }));
-              showStatus(`Error storing API key: ${errorData.message || response.statusText}`, "error");
-            }
-          } catch (error) {
-            console.error("Error calling store-user-api-key function:", error);
-            showStatus("Error storing API key: " + (error.message || "Network error"), "error");
-          }
-          return; // Exit after handling logged-in case
-        }
-      }
-
-      // Fallback for non-logged-in users (original behavior)
-      chrome.runtime.sendMessage(
-        { type: "SAVE_API_KEY", apiKey: apiKey },
-        function (response) {
-          if (response.success) {
-            showStatus("API key saved successfully (locally)!", "success");
-            apiKeyInput.value = "";
-            apiKeyInput.placeholder = "API key is set (hidden for security)";
-          } else {
-            showStatus(
-              "Error saving API key: " + (response.error || "Unknown error"),
-              "error",
-            );
-          }
-        },
-      );
-    });
-  } else {
-    console.error("CoPrompt Options: Save button not found!");
-  }
-
-  // Clear API Key (with confirmation)
-  if (clearButton) {
-    console.log("CoPrompt Options: Adding listener to Clear button.");
-    clearButton.addEventListener("click", function () {
-      console.log("CoPrompt Options: Clear button clicked - showing modal.");
-      // Show the custom modal instead of alert/confirm
-      if (modal) {
-        modal.style.display = "flex"; // Use flex to enable centering
-      }
-    });
-  } else {
-    console.error("CoPrompt Options: Clear button not found!");
-  }
-
-  // Modal Actions
-  if (confirmClearBtn) {
-    confirmClearBtn.addEventListener("click", async function () {
-      console.log("CoPrompt Options: Modal Confirm clicked, clearing key...");
-
-      // PX-08: If user is logged in, clear from server. Otherwise, clear locally.
-      if (supabaseClient) {
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        if (session && session.user) {
-          // User is logged in, call Edge Function to clear/delete key
-          try {
-            const response = await fetch(`${SUPABASE_URL}/functions/v1/store-user-api-key`, {
-              method: 'POST', // Or DELETE, if function supports it. Assuming POST with apiKey: null
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${session.access_token}`,
-                'apikey': SUPABASE_ANON_KEY
-              },
-              body: JSON.stringify({ apiKey: null }) // Convention for deletion
-            });
-
-            if (response.ok) {
-              showStatus("API key cleared from your account.", "success");
-              apiKeyInput.value = "";
-              apiKeyInput.placeholder = "sk-... (will be stored in your account)";
-            } else {
-              const errorData = await response.json().catch(() => ({ message: 'Failed to clear API key.' }));
-              showStatus(`Error clearing API key: ${errorData.message || response.statusText}`, "error");
-            }
-          } catch (error) {
-            console.error("Error calling store-user-api-key function for clearing:", error);
-            showStatus("Error clearing API key: " + (error.message || "Network error"), "error");
-          }
-          if (modal) modal.style.display = "none"; // Hide modal
-          return; // Exit after handling logged-in case
-        }
-      }
-
-      // Fallback for non-logged-in users (original behavior)
-      chrome.storage.local.remove("openai_api_key", function () {
-        if (chrome.runtime.lastError) {
-          showStatus(
-            "Error clearing API key: " + chrome.runtime.lastError.message,
-            "error",
-          );
-        } else {
-          showStatus("API key cleared successfully (from local storage).", "success");
-          apiKeyInput.value = ""; // Clear the input field visually
-          apiKeyInput.placeholder = "sk-..."; // Restore original placeholder
-        }
-        // Always hide modal after action
-        if (modal) {
-          modal.style.display = "none";
-        }
-      });
-    });
-  }
-
-  if (cancelClearBtn) {
-    cancelClearBtn.addEventListener("click", function () {
-      console.log("CoPrompt Options: Modal Cancel clicked.");
-      if (modal) {
-        modal.style.display = "none"; // Hide modal
-      }
-    });
-  }
-
   // Function to display status messages
   function showStatus(message, type) {
     statusDiv.textContent = message;
@@ -244,43 +79,53 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!chrome.storage || !chrome.storage.local) {
       console.error("Chrome storage API is not available.");
       if (totalPromptTokensEl) totalPromptTokensEl.textContent = "Error";
-      // ... set other elements to Error too
+      if (totalCompletionTokensEl) totalCompletionTokensEl.textContent = "Error";
+      if (totalTokensAllTimeEl) totalTokensAllTimeEl.textContent = "Error";
       return;
     }
 
     try {
-      const usageData = await chrome.storage.local.get([
-        "total_prompt_tokens",
-        "total_completion_tokens",
-        "total_tokens_all_time",
-        "last_usage_update",
-      ]);
+      // V2: Load from new token_usage_log format
+      const result = await chrome.storage.local.get("token_usage_log");
+      const usageLog = result.token_usage_log || [];
+      
+      if (usageLog.length > 0) {
+        // Calculate totals from log entries
+        const totals = usageLog.reduce((acc, entry) => {
+          acc.prompt_tokens += entry.prompt_tokens || 0;
+          acc.completion_tokens += entry.completion_tokens || 0;
+          acc.total_tokens += entry.total_tokens || 0;
+          return acc;
+        }, { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 });
 
-      if (totalPromptTokensEl) {
-        totalPromptTokensEl.textContent = (
-          usageData.total_prompt_tokens || 0
-        ).toLocaleString();
-      }
-      if (totalCompletionTokensEl) {
-        totalCompletionTokensEl.textContent = (
-          usageData.total_completion_tokens || 0
-        ).toLocaleString();
-      }
-      if (totalTokensAllTimeEl) {
-        totalTokensAllTimeEl.textContent = (
-          usageData.total_tokens_all_time || 0
-        ).toLocaleString();
-      }
-      if (lastUsageUpdateEl) {
-        lastUsageUpdateEl.textContent = usageData.last_usage_update
-          ? new Date(usageData.last_usage_update).toLocaleString()
-          : "N/A";
+        if (totalPromptTokensEl) {
+          totalPromptTokensEl.textContent = totals.prompt_tokens.toLocaleString();
+        }
+        if (totalCompletionTokensEl) {
+          totalCompletionTokensEl.textContent = totals.completion_tokens.toLocaleString();
+        }
+        if (totalTokensAllTimeEl) {
+          totalTokensAllTimeEl.textContent = totals.total_tokens.toLocaleString();
+        }
+        if (lastUsageUpdateEl) {
+          const lastEntry = usageLog[usageLog.length - 1];
+          lastUsageUpdateEl.textContent = new Date(lastEntry.timestamp).toLocaleString();
+        }
+      } else {
+        // No usage data
+        if (totalPromptTokensEl) totalPromptTokensEl.textContent = "0";
+        if (totalCompletionTokensEl) totalCompletionTokensEl.textContent = "0";
+        if (totalTokensAllTimeEl) totalTokensAllTimeEl.textContent = "0";
+        if (lastUsageUpdateEl) lastUsageUpdateEl.textContent = "N/A";
       }
     } catch (error) {
       console.error("Error loading token usage stats:", error);
       if (totalPromptTokensEl)
         totalPromptTokensEl.textContent = "Error loading stats";
-      // Potentially update other fields to show error state
+      if (totalCompletionTokensEl)
+        totalCompletionTokensEl.textContent = "Error loading stats";
+      if (totalTokensAllTimeEl)
+        totalTokensAllTimeEl.textContent = "Error loading stats";
     }
   }
 
@@ -290,6 +135,46 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Initial load of usage stats
   loadAndDisplayUsageStats();
+
+  // --- V2 Credits Logic ---
+  async function loadAndDisplayCredits() {
+    if (!supabaseClient) {
+      if (creditsBalanceEl) creditsBalanceEl.textContent = "Auth service unavailable";
+      return;
+    }
+
+    try {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session || !session.user) {
+        if (creditsBalanceEl) creditsBalanceEl.textContent = "Please log in to view credits";
+        return;
+      }
+
+      // Query user_profiles for credit balance
+      const { data: profile, error } = await supabaseClient
+        .from('user_profiles')
+        .select('balance')
+        .eq('id', session.user.id)
+        .single();
+
+      if (error) {
+        console.error("Error fetching user credits:", error);
+        if (creditsBalanceEl) creditsBalanceEl.textContent = "Error loading credits";
+        return;
+      }
+
+      if (creditsBalanceEl) {
+        creditsBalanceEl.textContent = profile?.balance || 0;
+      }
+    } catch (error) {
+      console.error("Error loading credits:", error);
+      if (creditsBalanceEl) creditsBalanceEl.textContent = "Error loading credits";
+    }
+  }
+
+  if (refreshCreditsButton) {
+    refreshCreditsButton.addEventListener("click", loadAndDisplayCredits);
+  }
 
   // --- Auth Logic (PX-07) ---
 
@@ -319,13 +204,8 @@ document.addEventListener("DOMContentLoaded", () => {
         );
       }
 
-      // PX-08: Enable API key controls for logged-in users
-      if (apiKeyInput) {
-        apiKeyInput.disabled = false;
-        // Placeholder will be updated by checkUserAPIKeyStatus
-      }
-      if (saveButton) saveButton.disabled = false;
-      if (clearButton) clearButton.disabled = false;
+      // Load credits for logged-in users
+      loadAndDisplayCredits();
     } else {
       if (userStatusEl) userStatusEl.textContent = "Not logged in";
       if (userEmailEl) userEmailEl.textContent = "N/A";
@@ -347,17 +227,8 @@ document.addEventListener("DOMContentLoaded", () => {
         );
       }
 
-      if (apiKeyInput) apiKeyInput.disabled = false;
-      if (saveButton) saveButton.disabled = false;
-      if (clearButton) clearButton.disabled = false;
-      // PX-08: For logged-out users, check local storage for key placeholder
-      chrome.storage.local.get("openai_api_key", (data) => {
-        if (data.openai_api_key) {
-          apiKeyInput.placeholder = "API key is set (hidden for security)";
-        } else {
-          apiKeyInput.placeholder = "sk-...";
-        }
-      });
+      // Clear credits display for logged-out users
+      if (creditsBalanceEl) creditsBalanceEl.textContent = "Please log in";
     }
   }
 
@@ -392,48 +263,28 @@ document.addEventListener("DOMContentLoaded", () => {
           showAuthStatus(`Sign up failed: ${error.message}`, "error");
           return;
         }
-        // data.user will be null if email confirmation is required and not turned off in Supabase settings.
-        // data.session will also be null in that case.
-        // If email confirmation is OFF, data.user and data.session should be populated.
-        console.log(
-          "Sign up successful (check Supabase dashboard & console):",
-          data,
-        );
-        if (data.user && data.user.aud === "authenticated") {
-          // User is created and authenticated (email confirmation likely off or auto-confirmed)
-          showAuthStatus(
-            "Sign up successful! You are now logged in.",
-            "success",
-          );
+        
+        console.log("Sign up successful:", data);
+        if (data.user && !data.session) {
+          showAuthStatus("Sign up successful! Please check your email to confirm your account.", "success");
+        } else if (data.session) {
+          showAuthStatus("Sign up successful! You are now logged in.", "success");
           updateAuthUI(data.user);
-          // The onAuthStateChange listener should also pick this up and manage session.
-        } else if (data.user && !data.session) {
-          // User is created but requires confirmation (e.g., email verification)
-          // Since we turned "Confirm email" OFF, this state might mean something else or just be the default response.
-          showAuthStatus(
-            "Sign up successful! Please check your email to confirm. (If applicable)",
-            "success",
-          );
-          // updateAuthUI(null); // Or handle as a pending confirmation state if needed
-        } else {
-          // This case might occur if the user object exists but there's no session and no clear indication of next steps
-          // For now, we'll assume if there's a user, it's a success, but confirmation might be pending.
-          showAuthStatus(
-            "Sign up successful! Confirmation might be required.",
-            "success",
-          );
+          // Store session for background script access
+          await chrome.storage.local.set({ supabase_session: data.session });
         }
-      } catch (e) {
-        console.error("Sign up exception:", e);
-        showAuthStatus(
-          "Sign up failed: An unexpected error occurred.",
-          "error",
-        );
+        
+        // Clear form
+        emailInput.value = "";
+        passwordInput.value = "";
+      } catch (error) {
+        console.error("Sign up error:", error);
+        showAuthStatus(`Sign up failed: ${error.message}`, "error");
       }
     });
   }
 
-  // Login
+  // Log In
   if (loginButton && supabaseClient) {
     loginButton.addEventListener("click", async () => {
       const email = emailInput.value;
@@ -452,28 +303,24 @@ document.addEventListener("DOMContentLoaded", () => {
           showAuthStatus(`Login failed: ${error.message}`, "error");
           return;
         }
-        // data.user and data.session should be populated on successful login.
         console.log("Login successful:", data);
-        if (data.user) {
-          showAuthStatus("Login successful!", "success");
-          // UI update (hiding form, showing email) will be handled by onAuthStateChange.
-          emailInput.value = ""; // Clear form
-          passwordInput.value = "";
-        } else {
-          // This case should ideally not happen if there's no error.
-          showAuthStatus(
-            "Login completed, but no user data returned. Please check console.",
-            "error",
-          );
-        }
-      } catch (e) {
-        console.error("Login exception:", e);
-        showAuthStatus("Login failed: An unexpected error occurred.", "error");
+        showAuthStatus("Login successful!", "success");
+        updateAuthUI(data.user);
+        
+        // Store session for background script access
+        await chrome.storage.local.set({ supabase_session: data.session });
+        
+        // Clear form
+        emailInput.value = "";
+        passwordInput.value = "";
+      } catch (error) {
+        console.error("Login error:", error);
+        showAuthStatus(`Login failed: ${error.message}`, "error");
       }
     });
   }
 
-  // Logout
+  // Log Out
   if (logoutButton && supabaseClient) {
     logoutButton.addEventListener("click", async () => {
       try {
@@ -483,226 +330,67 @@ document.addEventListener("DOMContentLoaded", () => {
           showAuthStatus(`Logout failed: ${error.message}`, "error");
           return;
         }
-        // UI update (showing form, clearing email) will be handled by onAuthStateChange.
-        showAuthStatus("Logged out successfully.", "success");
-        // emailInput.value = ""; // Ensure form is clear if needed, though onAuthStateChange should handle UI.
-        // passwordInput.value = "";
-      } catch (e) {
-        console.error("Logout exception:", e);
-        showAuthStatus("Logout failed: An unexpected error occurred.", "error");
+        console.log("Logout successful");
+        showAuthStatus("Logged out successfully!", "success");
+        updateAuthUI(null);
+        
+        // Clear stored session
+        await chrome.storage.local.remove("supabase_session");
+      } catch (error) {
+        console.error("Logout error:", error);
+        showAuthStatus(`Logout failed: ${error.message}`, "error");
       }
     });
   }
 
-  // Listen for auth state changes (login, logout, token refreshed)
+  // Set up auth listener
   if (supabaseClient) {
-    supabaseClient.auth.onAuthStateChange(async (event, session) => {
-      console.log("Auth event:", event, "Session:", session);
-      const user = session?.user || null;
-      updateAuthUI(user); // Update general UI elements
-
-      if (user) { // If there's a user (logged in or session refreshed)
-        await checkUserAPIKeyStatus(session);
-      } else { // User logged out
-         if (apiKeyInput) apiKeyInput.placeholder = "sk-...";
-      }
-
-      // A-04: Store/remove user session
-      if (
-        event === "SIGNED_IN" ||
-        event === "TOKEN_REFRESHED" ||
-        event === "USER_UPDATED"
-      ) {
-        if (session) {
-          try {
-            await chrome.storage.local.set({ supabase_session: session });
-            console.log(
-              "Supabase session stored/updated in chrome.storage.local",
-              session,
-            );
-          } catch (e) {
-            console.error("Error storing supabase session:", e);
-          }
-        } else {
-          // This case (SIGNED_IN with null session) should ideally not happen with email/password
-          // but good to be aware of for other auth methods.
-          console.warn("Auth event SIGNED_IN received, but session is null.");
-          try {
-            await chrome.storage.local.remove("supabase_session");
-            console.log(
-              "Supabase session removed from chrome.storage.local due to null session on SIGNED_IN.",
-            );
-          } catch (e) {
-            console.error("Error removing supabase session:", e);
-          }
-        }
-      } else if (event === "SIGNED_OUT") {
-        try {
-          await chrome.storage.local.remove("supabase_session");
-          console.log(
-            "Supabase session removed from chrome.storage.local on SIGNED_OUT.",
-          );
-        } catch (e) {
-          console.error("Error removing supabase session:", e);
-        }
+    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(async (event, session) => {
+      console.log("Auth state changed:", event, session?.user);
+      
+      if (session) {
+        updateAuthUI(session.user);
+        // Store session for background script access
+        await chrome.storage.local.set({ supabase_session: session });
+      } else {
+        updateAuthUI(null);
+        // Clear stored session
+        await chrome.storage.local.remove("supabase_session");
       }
     });
   }
 
-  // Check initial auth state when the page loads
+  // Check initial auth state
   async function checkInitialAuthState() {
     if (!supabaseClient) {
-      updateAuthUI(null); // Ensure UI is in logged-out state if Supabase isn't ready
-      if (apiKeyInput) apiKeyInput.placeholder = "sk-..."; // Default placeholder if no Supabase
+      console.log("Supabase client not available, skipping auth check.");
       return;
     }
+    
     try {
-      // Attempt to get current session from Supabase client (might involve a fetch if tokens need refresh)
-      const {
-        data: { session },
-        error,
-      } = await supabaseClient.auth.getSession();
-
+      const { data: { session }, error } = await supabaseClient.auth.getSession();
       if (error) {
-        console.error(
-          "Error getting initial session from Supabase client:",
-          error.message,
-        );
-        // If getSession fails, try to see if we have a stale session in chrome.storage.local
-        // This is a fallback and might indicate token expiry issues if Supabase can't refresh.
-        try {
-          const localData = await chrome.storage.local.get("supabase_session");
-          if (localData.supabase_session) {
-            console.warn(
-              "Using potentially stale session from local storage after getSession() error.",
-            );
-            updateAuthUI(localData.supabase_session.user);
-            await checkUserAPIKeyStatus(localData.supabase_session); // Check key status with this session
-          } else {
-            updateAuthUI(null);
-            if (apiKeyInput) apiKeyInput.placeholder = "sk-...";
-          }
-        } catch (e) {
-          console.error(
-            "Error reading session from chrome.storage.local during fallback:",
-            e,
-          );
-          updateAuthUI(null);
-          if (apiKeyInput) apiKeyInput.placeholder = "sk-...";
-        }
+        console.error("Error getting session:", error);
+        showAuthStatus("Error checking login status.", "error");
         return;
       }
-
-      console.log("Initial session from Supabase client:", session);
-      updateAuthUI(session?.user || null);
-
+      
+      console.log("Initial session check:", session?.user);
       if (session && session.user) {
-        await checkUserAPIKeyStatus(session);
+        updateAuthUI(session.user);
+        // Ensure session is stored for background script
+        await chrome.storage.local.set({ supabase_session: session });
       } else {
-        // If not logged in, ensure local placeholder is set based on local storage
-        chrome.storage.local.get("openai_api_key", (data) => {
-            if (apiKeyInput) { // Ensure apiKeyInput is available
-                if (data.openai_api_key) {
-                    apiKeyInput.placeholder = "API key is set (hidden for security)";
-                } else {
-                    apiKeyInput.placeholder = "sk-...";
-                }
-            }
-        });
-      }
-
-      // Sync chrome.storage.local with the session state from Supabase client
-      if (session) {
-        try {
-          await chrome.storage.local.set({ supabase_session: session });
-          console.log("Initial session synced to chrome.storage.local.");
-        } catch (e) {
-          console.error(
-            "Error storing initial session to chrome.storage.local:",
-            e,
-          );
-        }
-      } else {
-        try {
-          await chrome.storage.local.remove("supabase_session");
-          console.log(
-            "Initial check found no active session, ensured chrome.storage.local is clear.",
-          );
-        } catch (e) {
-          console.error(
-            "Error removing session from chrome.storage.local during initial check:",
-            e,
-          );
-        }
-      }
-    } catch (e) {
-      console.error("Exception in checkInitialAuthState:", e);
-      updateAuthUI(null); // Default to logged-out state on any unexpected error
-    }
-  }
-
-  // Call checkInitialAuthState when the script loads and Supabase client is available
-  if (supabaseClient) {
-    checkInitialAuthState();
-  } else {
-    // If supabaseClient is not yet initialized (e.g. lib not loaded), ensure UI is logged out.
-    // This is a fallback, the main check runs if/when supabaseClient initializes.
-    updateAuthUI(null);
-    console.warn(
-      "Supabase client not available at initial check time. UI set to logged out.",
-    );
-    // PX-08 Ensure placeholder is sensible if Supabase client isn't loaded
-    if (apiKeyInput) {
-        chrome.storage.local.get("openai_api_key", (data) => {
-            if (data.openai_api_key) {
-                apiKeyInput.placeholder = "API key is set (hidden for security)";
-            } else {
-                apiKeyInput.placeholder = "sk-...";
-            }
-        });
-    }
-  }
-
-  // PX-08: Function to check user's API key status from the server
-  async function checkUserAPIKeyStatus(session) {
-    if (!session || !session.user || !supabaseClient || !apiKeyInput) {
-      if (apiKeyInput && !(session && session.user)) {
-        // If no session/user, default to standard placeholder or check local storage
-         chrome.storage.local.get("openai_api_key", (data) => {
-            if (data.openai_api_key) {
-                apiKeyInput.placeholder = "API key is set (hidden for security)";
-            } else {
-                apiKeyInput.placeholder = "sk-...";
-            }
-        });
-      }
-      return;
-    }
-
-    try {
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/store-user-api-key`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'apikey': SUPABASE_ANON_KEY
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.hasKey) {
-          apiKeyInput.placeholder = "API key is set in your account (hidden)";
-        } else {
-          apiKeyInput.placeholder = "sk-... (will be stored in your account)";
-        }
-      } else {
-        // Error fetching status, maybe assume no key or keep a generic placeholder
-        console.warn("Could not fetch API key status from server. Response status:", response.status);
-        apiKeyInput.placeholder = "sk-... (will be stored in your account)";
+        updateAuthUI(null);
       }
     } catch (error) {
-      console.error("Error calling store-user-api-key (GET for status):", error);
-      apiKeyInput.placeholder = "sk-... (will be stored in your account)"; // Fallback placeholder
+      console.error("Error during initial auth check:", error);
+      showAuthStatus("Error checking login status.", "error");
     }
   }
+
+  // Perform initial auth check
+  checkInitialAuthState();
+
+  console.log("CoPrompt Options: All event listeners set up successfully.");
 });
