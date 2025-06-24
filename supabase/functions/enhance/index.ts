@@ -62,87 +62,112 @@ Deno.serve(async (req: Request) => {
 
     // Attempt to get user-specific key if Authorization header is present
     const authHeader = req.headers.get("Authorization");
-    if (authHeader && authHeader.startsWith("Bearer ") && supabaseUrl && supabaseAnonKey && supabaseServiceRoleKey) {
-      console.log("[Enhance Function] Auth header found, attempting to use user-specific key.");
-      const userSupabaseClient = createClient(
-        supabaseUrl,
-        supabaseAnonKey,
-        { global: { headers: { Authorization: authHeader } } }
+    if (!authHeader || !authHeader.startsWith("Bearer ") || !supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
+      console.log("[Enhance Function] No valid authorization header provided");
+      return new Response(
+        JSON.stringify({ 
+          error: "Authentication required. Please sign up to get 25 free credits.",
+          code: "AUTH_REQUIRED"
+        }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
       );
+    }
 
-      const { data: { user }, error: authError } = await userSupabaseClient.auth.getUser();
+    console.log("[Enhance Function] Auth header found, attempting to use user-specific key.");
+    const userSupabaseClient = createClient(
+      supabaseUrl,
+      supabaseAnonKey,
+      { global: { headers: { Authorization: authHeader } } }
+    );
 
-      if (authError) {
-        console.warn("[Enhance Function] Auth error when trying to get user for API key:", authError.message);
-      } else if (user) {
-        console.log(`[Enhance Function] Authenticated user: ${user.id}. Checking for stored API key.`);
-        const adminSupabaseClient = createClient(supabaseUrl, supabaseServiceRoleKey);
+    const { data: { user }, error: authError } = await userSupabaseClient.auth.getUser();
 
-        const { data: apiKeyData, error: dbError } = await adminSupabaseClient
-          .from("user_api_keys")
-          .select("encrypted_openai_api_key, iv")
-          .eq("user_id", user.id)
-          .single();
+    if (authError) {
+      console.warn("[Enhance Function] Auth error when trying to get user for API key:", authError.message);
+      return new Response(
+        JSON.stringify({ 
+          error: "Authentication required. Please sign up to get 25 free credits.",
+          code: "AUTH_REQUIRED"
+        }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    } else if (user) {
+      console.log(`[Enhance Function] Authenticated user: ${user.id}. Checking for stored API key.`);
+      const adminSupabaseClient = createClient(supabaseUrl, supabaseServiceRoleKey);
 
-        if (dbError) {
-          if (dbError.code === "PGRST116") { // Row not found, expected if user has no key
-             console.log(`[Enhance Function] No stored API key found for user ${user.id}.`);
-          } else {
-            console.error(`[Enhance Function] DB error fetching API key for user ${user.id}:`, dbError.message);
-          }
-        } else if (apiKeyData && apiKeyData.encrypted_openai_api_key && apiKeyData.iv) {
-          console.log(`[Enhance Function] Encrypted key found for user ${user.id}. Attempting decryption.`);
-          const masterKeyBase64 = Deno.env.get(VAULT_ENCRYPTION_KEY_NAME);
-          if (!masterKeyBase64) {
-            console.error(`[Enhance Function] Vault secret ${VAULT_ENCRYPTION_KEY_NAME} not found for decryption.`);
-          } else {
-            try {
-              const masterKeyBytes = base64ToUint8Array(masterKeyBase64);
-              const cryptoKey = await crypto.subtle.importKey(
-                "raw",
-                masterKeyBytes,
-                { name: "AES-GCM", length: 256 },
-                false, // 'extractable' is false for importKey for decryption
-                ["decrypt"]
-              );
+      const { data: apiKeyData, error: dbError } = await adminSupabaseClient
+        .from("user_api_keys")
+        .select("encrypted_openai_api_key, iv")
+        .eq("user_id", user.id)
+        .single();
 
-              const ivBytes = base64ToUint8Array(apiKeyData.iv);
-              const encryptedApiKeyBytes = base64ToUint8Array(apiKeyData.encrypted_openai_api_key);
-
-              const decryptedApiKeyBuffer = await crypto.subtle.decrypt(
-                { name: "AES-GCM", iv: ivBytes },
-                cryptoKey,
-                encryptedApiKeyBytes
-              );
-              determinedOpenAIApiKey = arrayBufferToString(decryptedApiKeyBuffer);
-              console.log(`[Enhance Function] Successfully decrypted and using API key for user ${user.id}.`);
-            } catch (decryptionError: any) {
-              console.error(`[Enhance Function] Decryption failed for user ${user.id}:`, decryptionError.message, decryptionError.stack);
-            }
-          }
+      if (dbError) {
+        if (dbError.code === "PGRST116") { // Row not found, expected if user has no key
+           console.log(`[Enhance Function] No stored API key found for user ${user.id}.`);
         } else {
-            console.log(`[Enhance Function] No API key data or IV found for user ${user.id} though record might exist.`);
+          console.error(`[Enhance Function] DB error fetching API key for user ${user.id}:`, dbError.message);
+        }
+      } else if (apiKeyData && apiKeyData.encrypted_openai_api_key && apiKeyData.iv) {
+        console.log(`[Enhance Function] Encrypted key found for user ${user.id}. Attempting decryption.`);
+        const masterKeyBase64 = Deno.env.get(VAULT_ENCRYPTION_KEY_NAME);
+        if (!masterKeyBase64) {
+          console.error(`[Enhance Function] Vault secret ${VAULT_ENCRYPTION_KEY_NAME} not found for decryption.`);
+        } else {
+          try {
+            const masterKeyBytes = base64ToUint8Array(masterKeyBase64);
+            const cryptoKey = await crypto.subtle.importKey(
+              "raw",
+              masterKeyBytes,
+              { name: "AES-GCM", length: 256 },
+              false, // 'extractable' is false for importKey for decryption
+              ["decrypt"]
+            );
+
+            const ivBytes = base64ToUint8Array(apiKeyData.iv);
+            const encryptedApiKeyBytes = base64ToUint8Array(apiKeyData.encrypted_openai_api_key);
+
+            const decryptedApiKeyBuffer = await crypto.subtle.decrypt(
+              { name: "AES-GCM", iv: ivBytes },
+              cryptoKey,
+              encryptedApiKeyBytes
+            );
+            determinedOpenAIApiKey = arrayBufferToString(decryptedApiKeyBuffer);
+            console.log(`[Enhance Function] Successfully decrypted and using API key for user ${user.id}.`);
+          } catch (decryptionError: any) {
+            console.error(`[Enhance Function] Decryption failed for user ${user.id}:`, decryptionError.message, decryptionError.stack);
+          }
         }
       } else {
-        console.log("[Enhance Function] No user resolved from token, though auth header was present.");
+          console.log(`[Enhance Function] No API key data or IV found for user ${user.id} though record might exist.`);
       }
     } else {
-      console.log("[Enhance Function] No auth header or missing Supabase creds, proceeding without user-specific key attempt.");
-    }
-
-    // Fallback to environment variable if user-specific key wasn't determined
-    if (!determinedOpenAIApiKey) {
-      console.log("[Enhance Function] User-specific key not used. Attempting to use global environment API key.");
-      determinedOpenAIApiKey = Deno.env.get("OPENAI_API_KEY");
-      if (determinedOpenAIApiKey) {
-        console.log("[Enhance Function] Using global environment API key.");
-      }
-    }
-
-    if (!determinedOpenAIApiKey) {
-      console.error("[Enhance Function] OpenAI API Key is not configured (neither user-specific nor global env).");
+      console.log("[Enhance Function] No user resolved from token, though auth header was present.");
       return new Response(
-        JSON.stringify({ error: "Server configuration error: API key not available." }),
+        JSON.stringify({ 
+          error: "Authentication required. Please sign up to get 25 free credits.",
+          code: "AUTH_REQUIRED"
+        }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Remove fallback to environment variable if user-specific key wasn't determined
+    if (!determinedOpenAIApiKey) {
+      console.error("[Enhance Function] No API key available for authenticated user:", user.id);
+      return new Response(
+        JSON.stringify({ 
+          error: "User API key configuration error. Please contact support.",
+          code: "USER_KEY_ERROR"
+        }),
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },

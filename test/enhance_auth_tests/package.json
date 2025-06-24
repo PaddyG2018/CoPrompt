@@ -1,0 +1,22 @@
+{
+  "name": "enhance_auth_tests",
+  "version": "1.0.0",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "node auth_flow.test.js",
+    "test:auth": "node auth_flow.test.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "Automated tests for CoPrompt V2 enhance function authentication",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.7",
+    "assert": "^2.1.0",
+    "axios": "^1.6.7",
+    "node-fetch": "^3.3.2"
+  }
+}
