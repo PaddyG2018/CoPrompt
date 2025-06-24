@@ -12,6 +12,7 @@
     "security": "npm audit && snyk test",
     "clean": "rimraf dist/",
     "build:dev": "NODE_ENV=development webpack --mode development",
+    "build:watch": "NODE_ENV=development webpack --mode development --watch",
     "build:prod": "NODE_ENV=production webpack --mode production && echo \"Production build ready in dist/\"",
     "package": "npm run build:prod && web-ext build --source-dir dist --overwrite-dest"
   },
