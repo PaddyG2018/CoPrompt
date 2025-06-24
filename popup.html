@@ -73,11 +73,15 @@
         background: none;
         border: none;
         cursor: pointer;
-        padding: 4px;
-        border-radius: 4px;
+        padding: 6px;
+        border-radius: 6px;
         color: #64748b;
-        font-size: 18px;
         transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
       }
       
       .credits-refresh:hover {
@@ -88,6 +92,29 @@
       .credits-refresh:disabled {
         cursor: not-allowed;
         opacity: 0.5;
+      }
+      
+      .credits-refresh svg {
+        width: 16px;
+        height: 16px;
+        transition: transform 0.3s ease;
+      }
+      
+      .credits-refresh:hover svg {
+        transform: rotate(90deg);
+      }
+      
+      .credits-refresh:disabled svg {
+        animation: none;
+      }
+      
+      .credits-refresh.loading svg {
+        animation: spin 1s linear infinite;
+      }
+      
+      @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
       }
       
       .credits-balance {
@@ -170,7 +197,11 @@
       <div class="credits-header">
         <div class="credits-title">Account Credits</div>
         <button class="credits-refresh" id="refreshCredits" title="Refresh balance">
-          🔄
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <polyline points="1 20 1 14 7 14"></polyline>
+            <path d="m3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+          </svg>
         </button>
       </div>
       

@@ -73,29 +73,24 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       return true;
     }
 
-    // PX-07.A-05: Get Device ID and User JWT
-    Promise.all([
-      getOrCreateDeviceId(),
-      chrome.storage.local
-        .get("supabase_session")
-        .then((data) => data.supabase_session),
-    ])
-      .then(([deviceId, session]) => {
+    // PX-07.A-05: Get User JWT (deviceId now only for analytics)
+    chrome.storage.local
+      .get("supabase_session")
+      .then((data) => {
+        const session = data.supabase_session;
         const userAccessToken = session?.access_token || null;
+        
         if (DEBUG)
           console.log(
-            "[Background] Retrieved Device ID:",
-            deviceId,
-            "User Access Token present:",
+            "[Background] Retrieved User Access Token present:",
             !!userAccessToken,
           );
 
-        // Call the API client (now with JWT for V2)
+        // V2A-05: Call API without deviceId (JWT-based auth only)
         callOpenAI(
           null,
           systemInstructionForApi,
           userPromptFromRequest,
-          deviceId,
           userAccessToken,
         )
           .then((response) => {
@@ -110,8 +105,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
               requestId: request.requestId,
             });
 
+            // V2A-05: Store usage with deviceId for analytics only
             if (response.usage) {
-              storeTokenUsage(response.usage);
+              storeTokenUsageWithDeviceId(response.usage);
             }
           })
           .catch((error) => {
@@ -130,14 +126,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       })
       .catch((error) => {
         console.error(
-          "[Background] Error retrieving deviceId or session:",
+          "[Background] Error retrieving session:",
           error,
         );
         chrome.tabs.sendMessage(tabIdFromSender, {
           // Use tabIdFromSender
           type: "ENHANCE_PROMPT_ERROR",
           error:
-            "Failed to retrieve necessary authentication details. Please try again.",
+            "Failed to retrieve authentication details. Please try again.",
           targetInputId: targetInputIdFromRequest, // Use targetInputIdFromRequest
           requestId: request.requestId,
         });
@@ -190,20 +186,24 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 // --- Token usage tracking (V2 analytics) ---
-async function storeTokenUsage(usage) {
+async function storeTokenUsageWithDeviceId(usage) {
   try {
     const timestamp = new Date().toISOString();
+    
+    // Get deviceId for analytics tracking
+    const deviceId = await getOrCreateDeviceId();
 
     // Store token usage locally for aggregation (can be sent to analytics later)
     const result = await chrome.storage.local.get("token_usage_log");
     const existingLog = result.token_usage_log || [];
 
-    // Add new usage entry
+    // Add new usage entry with deviceId for analytics
     existingLog.push({
       timestamp,
       prompt_tokens: usage.prompt_tokens,
       completion_tokens: usage.completion_tokens,
       total_tokens: usage.total_tokens,
+      device_id: deviceId, // V2A-05: Include deviceId for analytics only
     });
 
     // Keep only the last 100 entries to prevent storage bloat
@@ -212,7 +212,7 @@ async function storeTokenUsage(usage) {
     await chrome.storage.local.set({ token_usage_log: trimmedLog });
 
     if (DEBUG) {
-      console.log("[Background] Token usage stored:", usage);
+      console.log("[Background] Token usage stored with device analytics:", { usage, deviceId });
     }
   } catch (error) {
     console.error("[Background] Error storing token usage:", error);
@@ -224,13 +224,13 @@ async function storeTokenUsage(usage) {
   }
 }
 
-// --- Device ID Management (V2 analytics) ---
+// --- Device ID Management (V2A-05: Analytics-only, not for authentication) ---
 async function getOrCreateDeviceId() {
   const result = await chrome.storage.sync.get("coprompt_device_id");
   let deviceId = result.coprompt_device_id;
 
   if (!deviceId) {
-    // Generate a new UUID-like device ID
+    // Generate a new UUID-like device ID for analytics tracking
     deviceId = crypto.randomUUID ? crypto.randomUUID() : 
       'device-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now().toString(36);
     
@@ -240,16 +240,16 @@ async function getOrCreateDeviceId() {
     });
     
     console.log(
-      "[Background] Generated new Device ID:",
+      "[Background] Generated new Device ID for analytics:",
       deviceId,
     );
   }
   return deviceId;
 }
 
-// Initialize device ID when service worker starts
+// Initialize device ID when service worker starts (for analytics)
 getOrCreateDeviceId().then((id) => {
-  console.log("[Background] Current Device ID for session:", id);
+  console.log("[Background] Current Device ID for analytics session:", id);
 });
 
 // --- Service Worker Lifecycle Listeners ---
