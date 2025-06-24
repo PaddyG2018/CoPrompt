@@ -27,6 +27,34 @@ document.addEventListener("DOMContentLoaded", () => {
   const creditsBalanceEl = document.getElementById("creditsBalance");
   const refreshCreditsButton = document.getElementById("refreshCreditsButton");
 
+  // V2A-02: Handle pre-filled email from URL parameters
+  function handleURLParameters() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const emailParam = urlParams.get('email');
+    
+    if (emailParam && emailInput) {
+      emailInput.value = emailParam;
+      
+      // Show welcome message for new users
+      if (authStatusDiv) {
+        authStatusDiv.textContent = `Welcome! Please create your account with ${emailParam} to get 25 free credits.`;
+        authStatusDiv.className = "status info";
+        authStatusDiv.style.display = "block";
+      }
+      
+      // Focus on password input since email is pre-filled
+      if (passwordInput) {
+        passwordInput.focus();
+      }
+      
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }
+
+  // Call URL parameter handler
+  handleURLParameters();
+
   // --- Supabase Client Initialization (PX-07) ---
   // const SUPABASE_URL = "https://evfuyrixpjgfytwfijpx.supabase.co"; // LIVE - COMMENTED OUT FOR LOCAL DEV
   // const SUPABASE_ANON_KEY = // LIVE - COMMENTED OUT FOR LOCAL DEV

@@ -158,6 +158,33 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       source: "contentScriptViaInjected",
     });
     // No response needed/sent
+  } else if (request.type === "SEND_MAGIC_LINK") {
+    // V2A-02: Handle magic link sending
+    console.log("[Background] Received SEND_MAGIC_LINK request for:", request.email);
+    
+    try {
+      // For now, open the options page with a pre-filled email
+      // In a full implementation, this would integrate with Supabase Auth
+      const optionsUrl = chrome.runtime.getURL('options.html') + '?email=' + encodeURIComponent(request.email);
+      chrome.tabs.create({ url: optionsUrl }, (tab) => {
+        sendResponse({ 
+          success: true, 
+          message: 'Please complete signup in the new tab that opened.' 
+        });
+      });
+    } catch (error) {
+      console.error("[Background] Error handling magic link request:", error);
+      sendResponse({ 
+        success: false, 
+        error: 'Failed to open signup page. Please try again.' 
+      });
+    }
+    return true; // Indicates async response
+  } else if (request.type === "OPEN_OPTIONS_PAGE") {
+    // V2A-02: Open options page
+    console.log("[Background] Opening options page");
+    chrome.tabs.create({ url: chrome.runtime.getURL('options.html') });
+    // No response needed
   }
   // Note: No need to return true for synchronous handlers above
 });
