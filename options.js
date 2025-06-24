@@ -27,6 +27,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const creditsBalanceEl = document.getElementById("creditsBalance");
   const refreshCreditsButton = document.getElementById("refreshCreditsButton");
 
+  // P3-02: DOM Elements for Credit Purchase
+  const creditsPurchaseEl = document.getElementById("creditsPurchase");
+  const purchaseStatusEl = document.getElementById("purchaseStatus");
+  const packageButtons = document.querySelectorAll(".package-button");
+
   // V2A-02: Handle pre-filled email from URL parameters
   function handleURLParameters() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -204,6 +209,166 @@ document.addEventListener("DOMContentLoaded", () => {
     refreshCreditsButton.addEventListener("click", loadAndDisplayCredits);
   }
 
+  // --- P3-02: Credit Purchase System ---
+
+  // Package pricing configuration
+  const CREDIT_PACKAGES = {
+    starter: { credits: 50, price: 500, name: "Starter Pack" }, // Price in cents
+    power: { credits: 200, price: 1500, name: "Power Pack" },
+    pro: { credits: 500, price: 3000, name: "Pro Pack" }
+  };
+
+  // Initialize package button listeners
+  packageButtons.forEach(button => {
+    button.addEventListener("click", async (e) => {
+      const packageType = e.target.getAttribute("data-package");
+      const credits = parseInt(e.target.getAttribute("data-credits"));
+      const price = parseInt(e.target.getAttribute("data-price"));
+      
+      await initiateCreditPurchase(packageType, credits, price);
+    });
+  });
+
+  /**
+   * Initiate credit purchase workflow
+   */
+  async function initiateCreditPurchase(packageType, credits, priceInCents) {
+    if (!supabaseClient) {
+      showPurchaseStatus("Authentication service not available. Please refresh the page.", "error");
+      return;
+    }
+
+    try {
+      // Check authentication
+      const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+      if (sessionError || !session) {
+        showPurchaseStatus("Please log in to purchase credits.", "error");
+        return;
+      }
+
+      showPurchaseStatus("Initializing secure payment...", "loading");
+
+      // For demo purposes, we'll simulate a successful purchase
+      // In production, this would integrate with Stripe Checkout
+      const success = await simulateStripeCheckout(packageType, credits, priceInCents);
+      
+      if (success) {
+        // Grant credits to user
+        await grantCreditsToUser(session.user.id, credits, packageType);
+      } else {
+        showPurchaseStatus("Payment was cancelled or failed. Please try again.", "error");
+      }
+
+    } catch (error) {
+      console.error("[Purchase] Error initiating purchase:", error);
+      showPurchaseStatus("An error occurred during checkout. Please try again.", "error");
+    }
+  }
+
+  /**
+   * Simulate Stripe checkout (replace with real Stripe integration)
+   */
+  async function simulateStripeCheckout(packageType, credits, priceInCents) {
+    return new Promise((resolve) => {
+      // Simulate processing time
+      setTimeout(() => {
+        // For demo, randomly succeed 90% of the time
+        const success = Math.random() > 0.1;
+        resolve(success);
+      }, 2000);
+    });
+  }
+
+  /**
+   * Grant credits to user after successful payment
+   */
+  async function grantCreditsToUser(userId, credits, packageType) {
+    try {
+      showPurchaseStatus("Payment successful! Adding credits to your account...", "loading");
+
+      // TODO: In production, this should be done server-side via webhook
+      // For now, we'll do it client-side for demo purposes
+      
+      // Get current balance
+      const { data: profile, error: profileError } = await supabaseClient
+        .from('user_profiles')
+        .select('balance')
+        .eq('id', userId)
+        .single();
+
+      if (profileError) {
+        throw new Error("Failed to fetch current balance: " + profileError.message);
+      }
+
+      const currentBalance = profile?.balance || 0;
+      const newBalance = currentBalance + credits;
+
+      // Update user balance
+      const { error: updateError } = await supabaseClient
+        .from('user_profiles')
+        .update({ balance: newBalance })
+        .eq('id', userId);
+
+      if (updateError) {
+        throw new Error("Failed to update balance: " + updateError.message);
+      }
+
+      // Log the purchase event
+      const { error: logError } = await supabaseClient
+        .from('usage_events')
+        .insert({
+          user_id: userId,
+          event_type: 'credit_purchase',
+          credits_used: -credits, // Negative because this is adding credits
+          metadata: {
+            package_type: packageType,
+            credits_purchased: credits,
+            previous_balance: currentBalance,
+            new_balance: newBalance
+          }
+        });
+
+      if (logError) {
+        console.warn("[Purchase] Failed to log purchase event:", logError);
+        // Don't fail the purchase for logging errors
+      }
+
+      // Show success message
+      showPurchaseStatus(
+        `🎉 Success! ${credits} credits have been added to your account. New balance: ${newBalance} credits.`,
+        "success"
+      );
+
+      // Refresh the credits display
+      await loadAndDisplayCredits();
+
+    } catch (error) {
+      console.error("[Purchase] Error granting credits:", error);
+      showPurchaseStatus(
+        "Payment was processed but there was an error adding credits. Please contact support.",
+        "error"
+      );
+    }
+  }
+
+  /**
+   * Show purchase status messages
+   */
+  function showPurchaseStatus(message, type) {
+    if (purchaseStatusEl) {
+      purchaseStatusEl.textContent = message;
+      purchaseStatusEl.className = `purchase-status ${type}`;
+      purchaseStatusEl.style.display = "block";
+
+      // Auto-hide success and error messages after 8 seconds
+      if (type === "success" || type === "error") {
+        setTimeout(() => {
+          purchaseStatusEl.style.display = "none";
+        }, 8000);
+      }
+    }
+  }
+
   // --- Auth Logic (PX-07) ---
 
   // Function to update UI based on auth state
@@ -232,6 +397,11 @@ document.addEventListener("DOMContentLoaded", () => {
         );
       }
 
+      // P3-02: Show credit purchase section for authenticated users
+      if (creditsPurchaseEl) {
+        creditsPurchaseEl.style.display = "block";
+      }
+
       // Load credits for logged-in users
       loadAndDisplayCredits();
     } else {
@@ -253,6 +423,11 @@ document.addEventListener("DOMContentLoaded", () => {
         console.error(
           "[updateAuthUI] logoutButton element not found when trying to hide it.",
         );
+      }
+
+      // P3-02: Hide credit purchase section for unauthenticated users
+      if (creditsPurchaseEl) {
+        creditsPurchaseEl.style.display = "none";
       }
 
       // Clear credits display for logged-out users
