@@ -6,23 +6,10 @@
 // Setup type definitions for built-in Supabase Runtime APIs
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@^2.0.0"; // Standardized JSR import
-import { decodeBase64 } from "jsr:@std/encoding/base64";
-import { encodeBase64 } from "jsr:@std/encoding/base64"; // Though only decode might be used here for key
 
-console.log("Hello from Enhance Function (v2.1 - User Keys)!");
+console.log("Hello from Enhance Function (v2.1 - Server-side API Key)!");
 
 const RATE_LIMIT_WINDOW_SECONDS = 1; // Allow 1 request per second per IP
-const VAULT_ENCRYPTION_KEY_NAME = "USER_API_KEY_ENCRYPTION_KEY";
-
-// Helper function to convert Base64 to Uint8Array (for IV and encrypted key)
-function base64ToUint8Array(base64: string): Uint8Array {
-  return decodeBase64(base64);
-}
-
-// Helper function to convert ArrayBuffer to string (for decrypted key)
-function arrayBufferToString(buffer: ArrayBuffer): string {
-  return new TextDecoder().decode(buffer);
-}
 
 Deno.serve(async (req: Request) => {
   const testVar = Deno.env.get("MY_TEST_VARIABLE_123");
@@ -50,7 +37,6 @@ Deno.serve(async (req: Request) => {
     const { model, messages, temperature, deviceId } = await req.json();
     console.log("[Enhance Function] Received request with Device ID:", deviceId);
 
-    let determinedOpenAIApiKey: string | null = null;
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
     const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -60,7 +46,7 @@ Deno.serve(async (req: Request) => {
       // Critical for auth and admin operations, might decide to fail early
     }
 
-    // Attempt to get user-specific key if Authorization header is present
+    // V2A-01: Enforce Authentication - No fallback to anonymous access
     const authHeader = req.headers.get("Authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ") || !supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
       console.log("[Enhance Function] No valid authorization header provided");
@@ -76,7 +62,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    console.log("[Enhance Function] Auth header found, attempting to use user-specific key.");
+    console.log("[Enhance Function] Auth header found, verifying user authentication.");
     const userSupabaseClient = createClient(
       supabaseUrl,
       supabaseAnonKey,
@@ -85,69 +71,8 @@ Deno.serve(async (req: Request) => {
 
     const { data: { user }, error: authError } = await userSupabaseClient.auth.getUser();
 
-    if (authError) {
-      console.warn("[Enhance Function] Auth error when trying to get user for API key:", authError.message);
-      return new Response(
-        JSON.stringify({ 
-          error: "Authentication required. Please sign up to get 25 free credits.",
-          code: "AUTH_REQUIRED"
-        }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    } else if (user) {
-      console.log(`[Enhance Function] Authenticated user: ${user.id}. Checking for stored API key.`);
-      const adminSupabaseClient = createClient(supabaseUrl, supabaseServiceRoleKey);
-
-      const { data: apiKeyData, error: dbError } = await adminSupabaseClient
-        .from("user_api_keys")
-        .select("encrypted_openai_api_key, iv")
-        .eq("user_id", user.id)
-        .single();
-
-      if (dbError) {
-        if (dbError.code === "PGRST116") { // Row not found, expected if user has no key
-           console.log(`[Enhance Function] No stored API key found for user ${user.id}.`);
-        } else {
-          console.error(`[Enhance Function] DB error fetching API key for user ${user.id}:`, dbError.message);
-        }
-      } else if (apiKeyData && apiKeyData.encrypted_openai_api_key && apiKeyData.iv) {
-        console.log(`[Enhance Function] Encrypted key found for user ${user.id}. Attempting decryption.`);
-        const masterKeyBase64 = Deno.env.get(VAULT_ENCRYPTION_KEY_NAME);
-        if (!masterKeyBase64) {
-          console.error(`[Enhance Function] Vault secret ${VAULT_ENCRYPTION_KEY_NAME} not found for decryption.`);
-        } else {
-          try {
-            const masterKeyBytes = base64ToUint8Array(masterKeyBase64);
-            const cryptoKey = await crypto.subtle.importKey(
-              "raw",
-              masterKeyBytes,
-              { name: "AES-GCM", length: 256 },
-              false, // 'extractable' is false for importKey for decryption
-              ["decrypt"]
-            );
-
-            const ivBytes = base64ToUint8Array(apiKeyData.iv);
-            const encryptedApiKeyBytes = base64ToUint8Array(apiKeyData.encrypted_openai_api_key);
-
-            const decryptedApiKeyBuffer = await crypto.subtle.decrypt(
-              { name: "AES-GCM", iv: ivBytes },
-              cryptoKey,
-              encryptedApiKeyBytes
-            );
-            determinedOpenAIApiKey = arrayBufferToString(decryptedApiKeyBuffer);
-            console.log(`[Enhance Function] Successfully decrypted and using API key for user ${user.id}.`);
-          } catch (decryptionError: any) {
-            console.error(`[Enhance Function] Decryption failed for user ${user.id}:`, decryptionError.message, decryptionError.stack);
-          }
-        }
-      } else {
-          console.log(`[Enhance Function] No API key data or IV found for user ${user.id} though record might exist.`);
-      }
-    } else {
-      console.log("[Enhance Function] No user resolved from token, though auth header was present.");
+    if (authError || !user) {
+      console.warn("[Enhance Function] Auth error when trying to get user:", authError?.message);
       return new Response(
         JSON.stringify({ 
           error: "Authentication required. Please sign up to get 25 free credits.",
@@ -160,13 +85,16 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Remove fallback to environment variable if user-specific key wasn't determined
+    console.log(`[Enhance Function] Authenticated user: ${user.id}.`);
+
+    // V2: Use server-side shared OpenAI API key (no more user-specific keys)
+    const determinedOpenAIApiKey = Deno.env.get("OPENAI_API_KEY");
     if (!determinedOpenAIApiKey) {
-      console.error("[Enhance Function] No API key available for authenticated user:", user.id);
+      console.error("[Enhance Function] Server OpenAI API key not configured");
       return new Response(
         JSON.stringify({ 
-          error: "User API key configuration error. Please contact support.",
-          code: "USER_KEY_ERROR"
+          error: "Server configuration error. Please contact support.",
+          code: "SERVER_CONFIG_ERROR"
         }),
         {
           status: 500,
@@ -175,8 +103,49 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    console.log("[Enhance Function] Using server-side OpenAI API key for authenticated user:", user.id);
+
+    // V2A-03: Check user credits before proceeding
+    const adminSupabaseClient = createClient(supabaseUrl, supabaseServiceRoleKey);
+    const { data: profile, error: profileError } = await adminSupabaseClient
+      .from('user_profiles')
+      .select('balance')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError) {
+      console.error(`[Enhance Function] Error fetching user profile for ${user.id}:`, profileError.message);
+      return new Response(
+        JSON.stringify({ 
+          error: "Unable to verify account status. Please try again.",
+          code: "PROFILE_ERROR"
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const currentBalance = profile?.balance || 0;
+    if (currentBalance <= 0) {
+      console.log(`[Enhance Function] User ${user.id} has insufficient credits: ${currentBalance}`);
+      return new Response(
+        JSON.stringify({ 
+          error: "Insufficient credits. Please contact support for more credits.",
+          code: "INSUFFICIENT_CREDITS",
+          currentBalance
+        }),
+        {
+          status: 402, // Payment Required
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    console.log(`[Enhance Function] User ${user.id} has ${currentBalance} credits available`);
+
     // --- Rate Limiting Logic (PX-04) ---
-    // (Assuming supabaseUrl and supabaseServiceRoleKey are available from above or re-checked if necessary)
     if (supabaseUrl && supabaseServiceRoleKey) { // Ensure keys are present for rate limiting
         const xForwardedForHeader = req.headers.get("x-forwarded-for");
         let xForwardedFor: string | null = null;
@@ -241,7 +210,7 @@ Deno.serve(async (req: Request) => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${determinedOpenAIApiKey}`, // Use the determined key
+          Authorization: `Bearer ${determinedOpenAIApiKey}`, // Use the server-side key
         },
         body: JSON.stringify({
           model: model || "gpt-4.1-mini",
@@ -282,10 +251,43 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // V2A-03: Deduct credit after successful enhancement
+    const { error: deductError } = await adminSupabaseClient
+      .from('user_profiles')
+      .update({ balance: currentBalance - 1 })
+      .eq('id', user.id);
+
+    if (deductError) {
+      console.error(`[Enhance Function] Error deducting credit for user ${user.id}:`, deductError.message);
+      // Still return the response since API call succeeded, but log the issue
+    } else {
+      console.log(`[Enhance Function] Credit deducted for user ${user.id}. New balance: ${currentBalance - 1}`);
+    }
+
+    // V2A-03: Log usage event
+    const { error: usageLogError } = await adminSupabaseClient
+      .from('usage_events')
+      .insert({
+        user_id: user.id,
+        event_type: 'enhancement',
+        credits_used: 1,
+        metadata: {
+          model: model || "gpt-4.1-mini",
+          prompt_tokens: usageData?.prompt_tokens || 0,
+          completion_tokens: usageData?.completion_tokens || 0,
+          total_tokens: usageData?.total_tokens || 0
+        }
+      });
+
+    if (usageLogError) {
+      console.error(`[Enhance Function] Error logging usage event for user ${user.id}:`, usageLogError.message);
+    }
+
     return new Response(
       JSON.stringify({
         message: enhancedPromptContent,
         usage: usageData,
+        creditsRemaining: currentBalance - 1
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -309,7 +311,7 @@ Deno.serve(async (req: Request) => {
 To invoke:
 
 curl -i --location --request POST '<LOCAL_OR_REMOTE_SUPABASE_URL>/enhance' \
-  --header 'Authorization: Bearer <YOUR_SUPABASE_ANON_KEY_OR_USER_JWT>' \
+  --header 'Authorization: Bearer <YOUR_USER_JWT>' \
   --header 'Content-Type: application/json' \
   --data '{"model": "gpt-4.1-mini", "messages": [{"role": "user", "content": "What is Supabase?"}]}'
 
