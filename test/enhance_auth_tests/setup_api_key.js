@@ -2,18 +2,18 @@
 const { default: fetch } = require('node-fetch');
 
 const SUPABASE_URL = 'http://127.0.0.1:54321';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
+const SUPABASE_ANON_KEY = 'REPLACE_WITH_YOUR_LOCAL_SUPABASE_ANON_KEY'; // Get from supabase status
 
-// STEP 1: JWT from browser console (COMPLETE ✅)
-const USER_JWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8vMTI3LjAuMC4xOjU0MzIxL2F1dGgvdjEiLCJzdWIiOiIwY2I3OWM1ZS02ZjQ3LTRjMTktYjBkNC0yZjJmYzg0YmQyYzYiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzUwNzY2Njc1LCJpYXQiOjE3NTA3NjMwNzUsImVtYWlsIjoicGdpbGxpZ2EwNCtjcHRlc3QxMEBnbWFpbC5jb20iLCJwaG9uZSI6IiIsImFwcF9tZXRhZGF0YSI6eyJwcm92aWRlciI6ImVtYWlsIiwicHJvdmlkZXJzIjpbImVtYWlsIl19LCJ1c2VyX21ldGFkYXRhIjp7ImVtYWlsIjoicGdpbGxpZ2EwNCtjcHRlc3QxMEBnbWFpbC5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwicGhvbmVfdmVyaWZpZWQiOmZhbHNlLCJzdWIiOiIwY2I3OWM1ZS02ZjQ3LTRjMTktYjBkNC0yZjJmYzg0YmQyYzYifSwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJhYWwiOiJhYWwxIiwiYW1yIjpbeyJtZXRob2QiOiJwYXNzd29yZCIsInRpbWVzdGFtcCI6MTc1MDc2MzA3NX1dLCJzZXNzaW9uX2lkIjoiOWZlZTllN2QtYzVhYi00NTk4LTgyMjUtZjc5OGNmZjYzNWIzIiwiaXNfYW5vbnltb3VzIjpmYWxzZX0.BwIOHXk58dwI2_90f7A52DLrslmMHu5bFMpN11PVVUc';
+// STEP 1: JWT from browser console (REPLACE WITH YOUR USER JWT)
+const USER_JWT = 'REPLACE_WITH_YOUR_USER_JWT_FROM_BROWSER_CONSOLE';
 
 // STEP 2: Replace with a real OpenAI API key OR use test key for demo
 const TEST_API_KEY = 'sk-REPLACE-WITH-YOUR-REAL-OPENAI-API-KEY'; // Replace with actual key from https://platform.openai.com/api-keys
 
 async function setupAPIKey() {
   console.log('🔧 Setting up API key for logged-in user...\n');
-  console.log('User: pgilliga04+cptest10@gmail.com');
-  console.log('User ID: 0cb79c5e-6f47-4c19-b0d4-2f2fc84bd2c6');
+  console.log('User: REPLACE_WITH_YOUR_TEST_EMAIL');
+  console.log('User ID: REPLACE_WITH_YOUR_USER_ID');
   
   try {
     // Call the store-user-api-key function
