@@ -94,6 +94,7 @@ export default tseslint.config(
       "utils/dompurify.min.js",
       "eslint.config.js", // Ignore the config file itself
       "lib/", // Added to ignore the vendored Supabase library
+      "test/enhance_auth_tests/", // Ignore test files that use CommonJS require()
     ],
   },
 );
