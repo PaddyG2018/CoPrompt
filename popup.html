@@ -4,90 +4,147 @@
     <title>CoPrompt V2</title>
     <script src="lib/supabase.js"></script>
     <style>
+      :root {
+        --primary-color: #3b82f6;
+        --primary-hover: #2563eb;
+        --success-color: #10b981;
+        --warning-color: #f59e0b;
+        --danger-color: #ef4444;
+        --text-primary: #1f2937;
+        --text-secondary: #6b7280;
+        --text-muted: #9ca3af;
+        --bg-primary: #ffffff;
+        --bg-secondary: #f9fafb;
+        --bg-elevated: #ffffff;
+        --border-color: #e5e7eb;
+        --border-radius: 12px;
+        --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
       body {
-        font-family:
-          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        width: 320px;
-        padding: 20px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
+        width: 380px;
+        padding: 0;
         margin: 0;
-      }
-      h1 {
-        color: #0070f3;
-        font-size: 22px;
-        margin: 0 0 15px 0;
-        font-weight: 600;
-      }
-      p {
-        font-size: 14px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: var(--text-primary);
         line-height: 1.5;
-        color: #333;
-        margin: 0 0 15px 0;
       }
-      .button {
-        display: block;
-        background-color: #0070f3;
-        color: white;
+
+      .popup-container {
+        background: var(--bg-primary);
+        padding: 24px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .popup-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--primary-color), var(--success-color), var(--primary-color));
+      }
+
+      .header {
         text-align: center;
-        padding: 12px 16px;
+        margin-bottom: 24px;
+      }
+
+      .logo {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+
+      .logo-icon {
+        width: 32px;
+        height: 32px;
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
         border-radius: 8px;
-        text-decoration: none;
-        margin-top: 15px;
-        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 700;
+        font-size: 16px;
+      }
+
+      .logo-text {
+        color: var(--text-primary);
+        font-size: 24px;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+      }
+
+      .tagline {
+        font-size: 14px;
+        color: var(--text-secondary);
+        margin: 0;
         font-weight: 500;
-        border: none;
-        transition: background-color 0.2s ease;
-      }
-      .button:hover {
-        background-color: #0051cc;
-      }
-      .button:disabled {
-        background-color: #ccc;
-        cursor: not-allowed;
       }
 
       /* Credit Display Styles */
       .credits-container {
-        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-        padding: 16px;
-        border-radius: 12px;
-        margin: 15px 0;
-        border: 1px solid #e2e8f0;
-        position: relative;
+        background: var(--bg-elevated);
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+        padding: 20px;
+        margin: 20px 0;
+        box-shadow: var(--shadow-sm);
+        transition: all 0.2s ease;
+      }
+
+      .credits-container:hover {
+        box-shadow: var(--shadow-md);
       }
 
       .credits-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 8px;
+        margin-bottom: 16px;
       }
 
       .credits-title {
         font-size: 13px;
         font-weight: 600;
-        color: #64748b;
+        color: var(--text-muted);
         text-transform: uppercase;
         letter-spacing: 0.5px;
       }
 
       .credits-refresh {
-        background: none;
-        border: none;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
         cursor: pointer;
-        padding: 6px;
-        border-radius: 6px;
-        color: #64748b;
+        padding: 8px;
+        border-radius: 8px;
+        color: var(--text-secondary);
         transition: all 0.2s ease;
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 32px;
-        height: 32px;
+        width: 36px;
+        height: 36px;
       }
 
-      .credits-refresh:hover {
-        background-color: rgba(100, 116, 139, 0.1);
-        color: #0070f3;
+      .credits-refresh:hover:not(:disabled) {
+        background: var(--primary-color);
+        border-color: var(--primary-color);
+        color: white;
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
       }
 
       .credits-refresh:disabled {
@@ -96,17 +153,13 @@
       }
 
       .credits-refresh svg {
-        width: 16px;
-        height: 16px;
+        width: 18px;
+        height: 18px;
         transition: transform 0.3s ease;
       }
 
-      .credits-refresh:hover svg {
-        transform: rotate(90deg);
-      }
-
-      .credits-refresh:disabled svg {
-        animation: none;
+      .credits-refresh:hover:not(:disabled) svg {
+        transform: rotate(180deg);
       }
 
       .credits-refresh.loading svg {
@@ -114,138 +167,230 @@
       }
 
       @keyframes spin {
-        from {
-          transform: rotate(0deg);
-        }
-        to {
-          transform: rotate(360deg);
-        }
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
       }
 
       .credits-balance {
-        font-size: 24px;
-        font-weight: 700;
-        margin: 8px 0;
+        font-size: 36px;
+        font-weight: 800;
+        margin: 12px 0;
         transition: color 0.3s ease;
+        text-align: center;
+        letter-spacing: -1px;
       }
 
       /* Color coding for credit levels */
-      .credits-high {
-        color: #059669; /* Green for >20 credits */
-      }
-
-      .credits-medium {
-        color: #d97706; /* Orange for 10-20 credits */
-      }
-
-      .credits-low {
-        color: #dc2626; /* Red for <10 credits */
-      }
+      .credits-high { color: var(--success-color); }
+      .credits-medium { color: var(--warning-color); }
+      .credits-low { color: var(--danger-color); }
 
       .credits-status {
+        font-size: 13px;
+        padding: 8px 12px;
+        border-radius: 20px;
+        text-align: center;
+        font-weight: 600;
+        margin-top: 12px;
+      }
+
+      .credits-status.high {
+        background-color: #ecfdf5;
+        color: #065f46;
+        border: 1px solid #a7f3d0;
+      }
+
+      .credits-status.medium {
+        background-color: #fffbeb;
+        color: #92400e;
+        border: 1px solid #fde68a;
+      }
+
+      .credits-status.low {
+        background-color: #fef2f2;
+        color: #991b1b;
+        border: 1px solid #fecaca;
+      }
+
+      .credits-loading {
+        color: var(--text-muted);
+        font-style: italic;
+        font-weight: 500;
+      }
+
+      .credits-error {
+        color: var(--danger-color);
         font-size: 12px;
         margin-top: 8px;
-        padding: 6px 10px;
-        border-radius: 6px;
         text-align: center;
         font-weight: 500;
       }
 
-      .credits-status.high {
-        background-color: #dcfce7;
-        color: #166534;
-      }
-
-      .credits-status.medium {
-        background-color: #fed7aa;
-        color: #9a3412;
-      }
-
-      .credits-status.low {
-        background-color: #fee2e2;
-        color: #991b1b;
-      }
-
-      .credits-loading {
-        color: #64748b;
-        font-style: italic;
-      }
-
-      .credits-error {
-        color: #dc2626;
-        font-size: 12px;
-        margin-top: 8px;
-      }
-
       .auth-prompt {
         text-align: center;
-        padding: 20px 16px;
-        background-color: #f8fafc;
-        border-radius: 8px;
-        margin: 15px 0;
+        padding: 24px 20px;
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+        margin: 20px 0;
+      }
+
+      .auth-prompt-icon {
+        width: 48px;
+        height: 48px;
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 16px;
+        color: white;
+        font-size: 20px;
+      }
+
+      .auth-prompt-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 8px;
       }
 
       .auth-prompt-text {
         font-size: 14px;
-        color: #64748b;
-        margin-bottom: 12px;
+        color: var(--text-secondary);
+        margin-bottom: 20px;
+        line-height: 1.6;
+      }
+
+      .button {
+        display: block;
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+        color: white;
+        text-align: center;
+        padding: 12px 20px;
+        border-radius: 10px;
+        text-decoration: none;
+        margin-top: 16px;
+        cursor: pointer;
+        font-weight: 600;
+        border: none;
+        transition: all 0.2s ease;
+        font-size: 14px;
+        box-shadow: var(--shadow-sm);
+      }
+
+      .button:hover {
+        background: linear-gradient(135deg, var(--primary-hover), #1d4ed8);
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-md);
+      }
+
+      .button:active {
+        transform: translateY(0);
+      }
+
+      .button:disabled {
+        background: var(--text-muted);
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .button.secondary {
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+      }
+
+      .button.secondary:hover {
+        background: var(--bg-primary);
+        border-color: var(--primary-color);
+      }
+
+      .footer {
+        text-align: center;
+        margin-top: 20px;
+        padding-top: 16px;
+        border-top: 1px solid var(--border-color);
+      }
+
+      .footer-text {
+        font-size: 12px;
+        color: var(--text-muted);
+        margin: 0;
+      }
+
+      /* Responsive adjustments */
+      @media (max-width: 400px) {
+        body { width: 320px; }
+        .popup-container { padding: 20px; }
+        .credits-balance { font-size: 32px; }
       }
     </style>
   </head>
   <body>
-    <h1>CoPrompt V2</h1>
+    <div class="popup-container">
+      <div class="header">
+        <div class="logo">
+          <div class="logo-icon">C</div>
+          <div class="logo-text">CoPrompt</div>
+        </div>
+        <p class="tagline">AI-powered prompt enhancement</p>
+      </div>
 
-    <p>
-      Enhance your AI prompts with a single click! Get 25 free credits when you
-      sign up.
-    </p>
-
-    <!-- Credit Display Container -->
-    <div class="credits-container">
-      <div class="credits-header">
-        <div class="credits-title">Account Credits</div>
-        <button
-          class="credits-refresh"
-          id="refreshCredits"
-          title="Refresh balance"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
+      <!-- Credit Display Container -->
+      <div class="credits-container">
+        <div class="credits-header">
+          <div class="credits-title">Account Credits</div>
+          <button
+            class="credits-refresh"
+            id="refreshCredits"
+            title="Refresh balance"
           >
-            <polyline points="23 4 23 10 17 10"></polyline>
-            <polyline points="1 20 1 14 7 14"></polyline>
-            <path
-              d="m3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"
-            ></path>
-          </svg>
-        </button>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <polyline points="1 20 1 14 7 14"></polyline>
+              <path
+                d="m3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"
+              ></path>
+            </svg>
+          </button>
+        </div>
+
+        <div class="credits-balance" id="creditsBalance">
+          <span class="credits-loading">Loading...</span>
+        </div>
+
+        <div class="credits-status" id="creditsStatus" style="display: none">
+          Ready to enhance prompts
+        </div>
+
+        <div class="credits-error" id="creditsError" style="display: none">
+          Unable to load credits
+        </div>
       </div>
 
-      <div class="credits-balance" id="creditsBalance">
-        <span class="credits-loading">Loading...</span>
+      <!-- Authentication Prompt (shown when not logged in) -->
+      <div class="auth-prompt" id="authPrompt" style="display: none">
+        <div class="auth-prompt-icon">🎯</div>
+        <div class="auth-prompt-title">Get Started with CoPrompt</div>
+        <div class="auth-prompt-text">
+          Sign up now and receive 25 free credits to enhance your AI prompts. No credit card required!
+        </div>
+        <button class="button" id="signUpButton">Get 25 Free Credits</button>
       </div>
 
-      <div class="credits-status" id="creditsStatus" style="display: none">
-        Ready to enhance prompts
-      </div>
-
-      <div class="credits-error" id="creditsError" style="display: none">
-        Unable to load credits
+      <div class="footer">
+        <button id="optionsButton" class="button secondary">Settings & Billing</button>
+        <p class="footer-text">Click on any text input to enhance your prompts</p>
       </div>
     </div>
-
-    <!-- Authentication Prompt (shown when not logged in) -->
-    <div class="auth-prompt" id="authPrompt" style="display: none">
-      <div class="auth-prompt-text">Sign up to get 25 free credits</div>
-      <button class="button" id="signUpButton">Get Started</button>
-    </div>
-
-    <a id="optionsButton" class="button">Settings</a>
 
     <!-- Supabase Client -->
     <script src="lib/supabase.js"></script>
