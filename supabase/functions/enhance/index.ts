@@ -109,7 +109,7 @@ Deno.serve(async (req: Request) => {
     const adminSupabaseClient = createClient(supabaseUrl, supabaseServiceRoleKey);
     const { data: profile, error: profileError } = await adminSupabaseClient
       .from('user_profiles')
-      .select('balance')
+      .select('credits')
       .eq('id', user.id)
       .single();
 
@@ -127,7 +127,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const currentBalance = profile?.balance || 0;
+    const currentBalance = profile?.credits || 0;
     if (currentBalance <= 0) {
       console.log(`[Enhance Function] User ${user.id} has insufficient credits: ${currentBalance}`);
       return new Response(
@@ -258,7 +258,7 @@ Deno.serve(async (req: Request) => {
     // V2A-03: Deduct credit after successful enhancement
     const { error: deductError } = await adminSupabaseClient
       .from('user_profiles')
-      .update({ balance: currentBalance - 1 })
+      .update({ credits: currentBalance - 1 })
       .eq('id', user.id);
 
     if (deductError) {

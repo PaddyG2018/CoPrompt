@@ -52,7 +52,15 @@ module.exports = {
       ],
     }),
     new webpack.DefinePlugin({
-      'process.env.SUPABASE_ANON_KEY': JSON.stringify(process.env.SUPABASE_ANON_KEY)
+      'process.env.SUPABASE_ANON_KEY': JSON.stringify(process.env.SUPABASE_ANON_KEY),
+      'window.CONFIG': JSON.stringify({
+        SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+        SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY,
+        STRIPE_PUBLISHABLE_KEY: process.env.STRIPE_PUBLISHABLE_KEY,
+        STRIPE_STARTER_PACK_PRICE_ID: process.env.STRIPE_STARTER_PACK_PRICE_ID,
+        STRIPE_POWER_PACK_PRICE_ID: process.env.STRIPE_POWER_PACK_PRICE_ID,
+        STRIPE_PRO_PACK_PRICE_ID: process.env.STRIPE_PRO_PACK_PRICE_ID
+      })
     })
   ],
   // Enable source maps for debugging (consider 'source-map' for production if needed)
