@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "test": "echo \"No tests configured yet\" && exit 0",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings 100",
     "format": "prettier --write \"**/*.{js,json,html,css,md}\"",
     "start": "web-ext run --target=chromium",
     "security": "npm audit",
