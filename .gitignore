@@ -54,6 +54,19 @@ dist/
 supabase/.temp/
 supabase/functions/*/.env
 
+# Security: Prevent accidental credential commits
+# Test files with real credentials (create .local versions instead)
+test/**/*_real.js
+test/**/*_real.sh
+test/**/*_credentials.*
+**/setup_api_key_real.js
+**/test_enhance_auth_real.sh
+
+# Backup files that might contain credentials
+*.bak
+*.backup
+*_backup.*
+
 # Other
 *.log
 *.tmp

@@ -1,14 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
   console.log("CoPrompt Options: DOM Content Loaded.");
 
-  const apiKeyInput = document.getElementById("apiKey");
-  const saveButton = document.getElementById("saveButton");
-  const clearButton = document.getElementById("clearButton");
   const statusDiv = document.getElementById("status");
-  // Modal elements
-  const modal = document.getElementById("clearConfirmationModal");
-  const confirmClearBtn = document.getElementById("confirmClearBtn");
-  const cancelClearBtn = document.getElementById("cancelClearBtn");
 
   // --- Token Usage Elements ---
   const totalPromptTokensEl = document.getElementById("totalPromptTokens");
@@ -30,10 +23,52 @@ document.addEventListener("DOMContentLoaded", () => {
   const logoutButton = document.getElementById("logoutButton");
   const authStatusDiv = document.getElementById("authStatus"); // For auth-related messages
 
+  // --- V2 Credit Display Elements ---
+  const creditsBalanceEl = document.getElementById("creditsBalance");
+  const refreshCreditsButton = document.getElementById("refreshCreditsButton");
+
+  // P3-02: DOM Elements for Credit Purchase
+  const creditsPurchaseEl = document.getElementById("creditsPurchase");
+  const purchaseStatusEl = document.getElementById("purchaseStatus");
+  const packageButtons = document.querySelectorAll(".package-button");
+
+  // V2A-02: Handle pre-filled email from URL parameters
+  function handleURLParameters() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const emailParam = urlParams.get('email');
+    
+    if (emailParam && emailInput) {
+      emailInput.value = emailParam;
+      
+      // Show welcome message for new users
+      if (authStatusDiv) {
+        authStatusDiv.textContent = `Welcome! Please create your account with ${emailParam} to get 25 free credits.`;
+        authStatusDiv.className = "status info";
+        authStatusDiv.style.display = "block";
+      }
+      
+      // Focus on password input since email is pre-filled
+      if (passwordInput) {
+        passwordInput.focus();
+      }
+      
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }
+
+  // Call URL parameter handler
+  handleURLParameters();
+
   // --- Supabase Client Initialization (PX-07) ---
-  const SUPABASE_URL = "https://evfuyrixpjgfytwfijpx.supabase.co";
-  const SUPABASE_ANON_KEY =
+  const SUPABASE_URL = "https://evfuyrixpjgfytwfijpx.supabase.co"; // LIVE - NOW ACTIVE
+  const SUPABASE_ANON_KEY = // LIVE - NOW ACTIVE
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2ZnV5cml4cGpnZnl0d2ZpanB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwODA0MDIsImV4cCI6MjA1OTY1NjQwMn0.GD6oTrvjKMdqSK4LgyRmD0E1k0zbKFg79sAlXy-fLyc";
+
+  // TEMPORARY: Point to local Supabase for testing - COMMENTED OUT FOR LIVE
+  // const SUPABASE_URL = "http://127.0.0.1:54321";
+  // const SUPABASE_ANON_KEY = 
+  //   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
 
   let supabaseClient = null; // Renamed for clarity
   if (window.supabase) {
@@ -61,100 +96,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Load saved API Key
-  chrome.storage.local.get("openai_api_key", (data) => {
-    if (data.openai_api_key) {
-      // We don't actually show the decrypted key for security
-      apiKeyInput.placeholder = "API key is set (hidden for security)";
-    }
-  });
-
-  // Save API Key
-  if (saveButton) {
-    console.log("CoPrompt Options: Adding listener to Save button.");
-    saveButton.addEventListener("click", function () {
-      const apiKey = apiKeyInput.value.trim();
-
-      if (!apiKey) {
-        showStatus("Please enter your OpenAI API key.", "error");
-        return;
-      }
-
-      // Basic validation
-      if (!apiKey.startsWith("sk-") || apiKey.length < 20) {
-        showStatus(
-          'Invalid API key format. It should start with "sk-" and be longer.',
-          "error",
-        );
-        return;
-      }
-
-      chrome.runtime.sendMessage(
-        { type: "SAVE_API_KEY", apiKey: apiKey },
-        function (response) {
-          if (response.success) {
-            showStatus("API key saved successfully!", "success");
-            apiKeyInput.value = "";
-            apiKeyInput.placeholder = "API key is set (hidden for security)";
-          } else {
-            showStatus(
-              "Error saving API key: " + (response.error || "Unknown error"),
-              "error",
-            );
-          }
-        },
-      );
-    });
-  } else {
-    console.error("CoPrompt Options: Save button not found!");
-  }
-
-  // Clear API Key (with confirmation)
-  if (clearButton) {
-    console.log("CoPrompt Options: Adding listener to Clear button.");
-    clearButton.addEventListener("click", function () {
-      console.log("CoPrompt Options: Clear button clicked - showing modal.");
-      // Show the custom modal instead of alert/confirm
-      if (modal) {
-        modal.style.display = "flex"; // Use flex to enable centering
-      }
-    });
-  } else {
-    console.error("CoPrompt Options: Clear button not found!");
-  }
-
-  // Modal Actions
-  if (confirmClearBtn) {
-    confirmClearBtn.addEventListener("click", function () {
-      console.log("CoPrompt Options: Modal Confirm clicked, clearing key...");
-      chrome.storage.local.remove("openai_api_key", function () {
-        if (chrome.runtime.lastError) {
-          showStatus(
-            "Error clearing API key: " + chrome.runtime.lastError.message,
-            "error",
-          );
-        } else {
-          showStatus("API key cleared successfully.", "success");
-          apiKeyInput.value = ""; // Clear the input field visually
-          apiKeyInput.placeholder = "sk-..."; // Restore original placeholder
-        }
-        // Always hide modal after action
-        if (modal) {
-          modal.style.display = "none";
-        }
-      });
-    });
-  }
-
-  if (cancelClearBtn) {
-    cancelClearBtn.addEventListener("click", function () {
-      console.log("CoPrompt Options: Modal Cancel clicked.");
-      if (modal) {
-        modal.style.display = "none"; // Hide modal
-      }
-    });
-  }
-
   // Function to display status messages
   function showStatus(message, type) {
     statusDiv.textContent = message;
@@ -171,43 +112,53 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!chrome.storage || !chrome.storage.local) {
       console.error("Chrome storage API is not available.");
       if (totalPromptTokensEl) totalPromptTokensEl.textContent = "Error";
-      // ... set other elements to Error too
+      if (totalCompletionTokensEl) totalCompletionTokensEl.textContent = "Error";
+      if (totalTokensAllTimeEl) totalTokensAllTimeEl.textContent = "Error";
       return;
     }
 
     try {
-      const usageData = await chrome.storage.local.get([
-        "total_prompt_tokens",
-        "total_completion_tokens",
-        "total_tokens_all_time",
-        "last_usage_update",
-      ]);
+      // V2: Load from new token_usage_log format
+      const result = await chrome.storage.local.get("token_usage_log");
+      const usageLog = result.token_usage_log || [];
+      
+      if (usageLog.length > 0) {
+        // Calculate totals from log entries
+        const totals = usageLog.reduce((acc, entry) => {
+          acc.prompt_tokens += entry.prompt_tokens || 0;
+          acc.completion_tokens += entry.completion_tokens || 0;
+          acc.total_tokens += entry.total_tokens || 0;
+          return acc;
+        }, { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 });
 
-      if (totalPromptTokensEl) {
-        totalPromptTokensEl.textContent = (
-          usageData.total_prompt_tokens || 0
-        ).toLocaleString();
-      }
-      if (totalCompletionTokensEl) {
-        totalCompletionTokensEl.textContent = (
-          usageData.total_completion_tokens || 0
-        ).toLocaleString();
-      }
-      if (totalTokensAllTimeEl) {
-        totalTokensAllTimeEl.textContent = (
-          usageData.total_tokens_all_time || 0
-        ).toLocaleString();
-      }
-      if (lastUsageUpdateEl) {
-        lastUsageUpdateEl.textContent = usageData.last_usage_update
-          ? new Date(usageData.last_usage_update).toLocaleString()
-          : "N/A";
+        if (totalPromptTokensEl) {
+          totalPromptTokensEl.textContent = totals.prompt_tokens.toLocaleString();
+        }
+        if (totalCompletionTokensEl) {
+          totalCompletionTokensEl.textContent = totals.completion_tokens.toLocaleString();
+        }
+        if (totalTokensAllTimeEl) {
+          totalTokensAllTimeEl.textContent = totals.total_tokens.toLocaleString();
+        }
+        if (lastUsageUpdateEl) {
+          const lastEntry = usageLog[usageLog.length - 1];
+          lastUsageUpdateEl.textContent = new Date(lastEntry.timestamp).toLocaleString();
+        }
+      } else {
+        // No usage data
+        if (totalPromptTokensEl) totalPromptTokensEl.textContent = "0";
+        if (totalCompletionTokensEl) totalCompletionTokensEl.textContent = "0";
+        if (totalTokensAllTimeEl) totalTokensAllTimeEl.textContent = "0";
+        if (lastUsageUpdateEl) lastUsageUpdateEl.textContent = "N/A";
       }
     } catch (error) {
       console.error("Error loading token usage stats:", error);
       if (totalPromptTokensEl)
         totalPromptTokensEl.textContent = "Error loading stats";
-      // Potentially update other fields to show error state
+      if (totalCompletionTokensEl)
+        totalCompletionTokensEl.textContent = "Error loading stats";
+      if (totalTokensAllTimeEl)
+        totalTokensAllTimeEl.textContent = "Error loading stats";
     }
   }
 
@@ -217,6 +168,151 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Initial load of usage stats
   loadAndDisplayUsageStats();
+
+  // --- V2 Credits Logic ---
+  async function loadAndDisplayCredits() {
+    console.log("[loadAndDisplayCredits] Starting to load credits...");
+    
+    if (!supabaseClient) {
+      console.log("[loadAndDisplayCredits] No Supabase client available");
+      if (creditsBalanceEl) creditsBalanceEl.textContent = "Auth service unavailable";
+      return;
+    }
+
+    try {
+      console.log("[loadAndDisplayCredits] Getting session...");
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session || !session.user) {
+        console.log("[loadAndDisplayCredits] No session found");
+        if (creditsBalanceEl) creditsBalanceEl.textContent = "Please log in to view credits";
+        return;
+      }
+
+      console.log("[loadAndDisplayCredits] Session found, user:", session.user.email);
+      console.log("[loadAndDisplayCredits] Querying user_profiles for user ID:", session.user.id);
+
+      // Fetch current credits from user_profiles
+      const { data: profile, error: profileError } = await supabaseClient
+        .from('user_profiles')
+        .select('credits')
+        .eq('id', session.user.id)
+        .single();
+
+      console.log("[loadAndDisplayCredits] Profile query result:", { profile, profileError });
+
+      if (profileError) {
+        console.error('[loadAndDisplayCredits] Error fetching user profile:', profileError);
+        displayCredits('--', 'Unable to load credits');
+        return;
+      }
+
+      if (profile) {
+        console.log("[loadAndDisplayCredits] Profile found, credits:", profile.credits);
+        displayCredits(profile.credits);
+      } else {
+        console.log("[loadAndDisplayCredits] No profile found");
+        // No profile found, this shouldn't happen but handle gracefully
+        displayCredits(0, 'No profile found');
+      }
+    } catch (error) {
+      console.error("[loadAndDisplayCredits] Error loading credits:", error);
+      if (creditsBalanceEl) creditsBalanceEl.textContent = "Error loading credits";
+    }
+  }
+
+  /**
+   * Display credits in the UI
+   */
+  function displayCredits(balance, message) {
+    if (creditsBalanceEl) {
+      if (message) {
+        creditsBalanceEl.textContent = message;
+      } else {
+        creditsBalanceEl.textContent = balance;
+      }
+    }
+  }
+
+  if (refreshCreditsButton) {
+    refreshCreditsButton.addEventListener("click", loadAndDisplayCredits);
+  }
+
+  // --- P3-02: Credit Purchase System ---
+
+  // Package pricing configuration
+  const CREDIT_PACKAGES = {
+    starter: { credits: 50, price: 500, name: "Starter Pack" }, // Price in cents
+    power: { credits: 200, price: 1500, name: "Power Pack" },
+    pro: { credits: 500, price: 3000, name: "Pro Pack" }
+  };
+
+  // Initialize package button listeners
+  packageButtons.forEach(button => {
+    button.addEventListener("click", async (e) => {
+      const packageType = e.target.getAttribute("data-package");
+      const credits = parseInt(e.target.getAttribute("data-credits"));
+      const price = parseInt(e.target.getAttribute("data-price"));
+      
+      await initiateCreditPurchase(packageType, credits, price);
+    });
+  });
+
+  /**
+   * Initiate credit purchase workflow
+   */
+  async function initiateCreditPurchase(packageType, credits, priceInCents) {
+    if (!supabaseClient) {
+      showPurchaseStatus("Authentication service not available. Please refresh the page.", "error");
+      return;
+    }
+
+    try {
+      // Check authentication
+      const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+      if (sessionError || !session) {
+        showPurchaseStatus("Please log in to purchase credits.", "error");
+        return;
+      }
+
+      showPurchaseStatus("Redirecting to secure payment...", "loading");
+
+      // Get Stripe price ID for this package
+      const priceId = window.StripeClient?.getPriceId(packageType);
+      if (!priceId) {
+        throw new Error(`Price ID not found for package: ${packageType}`);
+      }
+
+      // Redirect to Stripe Checkout
+      await window.StripeClient.redirectToCheckout(
+        priceId,
+        session.user.email,
+        credits,
+        packageType
+      );
+
+    } catch (error) {
+      console.error("[Purchase] Error initiating purchase:", error);
+      showPurchaseStatus("An error occurred during checkout. Please try again.", "error");
+    }
+  }
+
+  /**
+   * Show purchase status messages
+   */
+  function showPurchaseStatus(message, type) {
+    if (purchaseStatusEl) {
+      purchaseStatusEl.textContent = message;
+      purchaseStatusEl.className = `purchase-status ${type}`;
+      purchaseStatusEl.style.display = "block";
+
+      // Auto-hide success and error messages after 8 seconds
+      if (type === "success" || type === "error") {
+        setTimeout(() => {
+          purchaseStatusEl.style.display = "none";
+        }, 8000);
+      }
+    }
+  }
 
   // --- Auth Logic (PX-07) ---
 
@@ -246,9 +342,13 @@ document.addEventListener("DOMContentLoaded", () => {
         );
       }
 
-      if (apiKeyInput) apiKeyInput.disabled = true;
-      if (saveButton) saveButton.disabled = true;
-      if (clearButton) clearButton.disabled = true;
+      // P3-02: Show credit purchase section for authenticated users
+      if (creditsPurchaseEl) {
+        creditsPurchaseEl.style.display = "block";
+      }
+
+      // Load credits for logged-in users
+      loadAndDisplayCredits();
     } else {
       if (userStatusEl) userStatusEl.textContent = "Not logged in";
       if (userEmailEl) userEmailEl.textContent = "N/A";
@@ -270,9 +370,13 @@ document.addEventListener("DOMContentLoaded", () => {
         );
       }
 
-      if (apiKeyInput) apiKeyInput.disabled = false;
-      if (saveButton) saveButton.disabled = false;
-      if (clearButton) clearButton.disabled = false;
+      // P3-02: Hide credit purchase section for unauthenticated users
+      if (creditsPurchaseEl) {
+        creditsPurchaseEl.style.display = "none";
+      }
+
+      // Clear credits display for logged-out users
+      if (creditsBalanceEl) creditsBalanceEl.textContent = "Please log in";
     }
   }
 
@@ -307,48 +411,28 @@ document.addEventListener("DOMContentLoaded", () => {
           showAuthStatus(`Sign up failed: ${error.message}`, "error");
           return;
         }
-        // data.user will be null if email confirmation is required and not turned off in Supabase settings.
-        // data.session will also be null in that case.
-        // If email confirmation is OFF, data.user and data.session should be populated.
-        console.log(
-          "Sign up successful (check Supabase dashboard & console):",
-          data,
-        );
-        if (data.user && data.user.aud === "authenticated") {
-          // User is created and authenticated (email confirmation likely off or auto-confirmed)
-          showAuthStatus(
-            "Sign up successful! You are now logged in.",
-            "success",
-          );
+        
+        console.log("Sign up successful:", data);
+        if (data.user && !data.session) {
+          showAuthStatus("Sign up successful! Please check your email to confirm your account.", "success");
+        } else if (data.session) {
+          showAuthStatus("Sign up successful! You are now logged in.", "success");
           updateAuthUI(data.user);
-          // The onAuthStateChange listener should also pick this up and manage session.
-        } else if (data.user && !data.session) {
-          // User is created but requires confirmation (e.g., email verification)
-          // Since we turned "Confirm email" OFF, this state might mean something else or just be the default response.
-          showAuthStatus(
-            "Sign up successful! Please check your email to confirm. (If applicable)",
-            "success",
-          );
-          // updateAuthUI(null); // Or handle as a pending confirmation state if needed
-        } else {
-          // This case might occur if the user object exists but there's no session and no clear indication of next steps
-          // For now, we'll assume if there's a user, it's a success, but confirmation might be pending.
-          showAuthStatus(
-            "Sign up successful! Confirmation might be required.",
-            "success",
-          );
+          // Store session for background script access
+          await chrome.storage.local.set({ supabase_session: data.session });
         }
-      } catch (e) {
-        console.error("Sign up exception:", e);
-        showAuthStatus(
-          "Sign up failed: An unexpected error occurred.",
-          "error",
-        );
+        
+        // Clear form
+        emailInput.value = "";
+        passwordInput.value = "";
+      } catch (error) {
+        console.error("Sign up error:", error);
+        showAuthStatus(`Sign up failed: ${error.message}`, "error");
       }
     });
   }
 
-  // Login
+  // Log In
   if (loginButton && supabaseClient) {
     loginButton.addEventListener("click", async () => {
       const email = emailInput.value;
@@ -367,28 +451,24 @@ document.addEventListener("DOMContentLoaded", () => {
           showAuthStatus(`Login failed: ${error.message}`, "error");
           return;
         }
-        // data.user and data.session should be populated on successful login.
         console.log("Login successful:", data);
-        if (data.user) {
-          showAuthStatus("Login successful!", "success");
-          // UI update (hiding form, showing email) will be handled by onAuthStateChange.
-          emailInput.value = ""; // Clear form
-          passwordInput.value = "";
-        } else {
-          // This case should ideally not happen if there's no error.
-          showAuthStatus(
-            "Login completed, but no user data returned. Please check console.",
-            "error",
-          );
-        }
-      } catch (e) {
-        console.error("Login exception:", e);
-        showAuthStatus("Login failed: An unexpected error occurred.", "error");
+        showAuthStatus("Login successful!", "success");
+        updateAuthUI(data.user);
+        
+        // Store session for background script access
+        await chrome.storage.local.set({ supabase_session: data.session });
+        
+        // Clear form
+        emailInput.value = "";
+        passwordInput.value = "";
+      } catch (error) {
+        console.error("Login error:", error);
+        showAuthStatus(`Login failed: ${error.message}`, "error");
       }
     });
   }
 
-  // Logout
+  // Log Out
   if (logoutButton && supabaseClient) {
     logoutButton.addEventListener("click", async () => {
       try {
@@ -398,148 +478,97 @@ document.addEventListener("DOMContentLoaded", () => {
           showAuthStatus(`Logout failed: ${error.message}`, "error");
           return;
         }
-        // UI update (showing form, clearing email) will be handled by onAuthStateChange.
-        showAuthStatus("Logged out successfully.", "success");
-        // emailInput.value = ""; // Ensure form is clear if needed, though onAuthStateChange should handle UI.
-        // passwordInput.value = "";
-      } catch (e) {
-        console.error("Logout exception:", e);
-        showAuthStatus("Logout failed: An unexpected error occurred.", "error");
+        console.log("Logout successful");
+        showAuthStatus("Logged out successfully!", "success");
+        updateAuthUI(null);
+        
+        // Clear stored session
+        await chrome.storage.local.remove("supabase_session");
+      } catch (error) {
+        console.error("Logout error:", error);
+        showAuthStatus(`Logout failed: ${error.message}`, "error");
       }
     });
   }
 
-  // Listen for auth state changes (login, logout, token refreshed)
+  // Set up auth listener
   if (supabaseClient) {
-    supabaseClient.auth.onAuthStateChange(async (event, session) => {
-      console.log("Auth event:", event, "Session:", session);
-      const user = session?.user || null;
-      updateAuthUI(user); // Update general UI elements
-
-      // A-04: Store/remove user session
-      if (
-        event === "SIGNED_IN" ||
-        event === "TOKEN_REFRESHED" ||
-        event === "USER_UPDATED"
-      ) {
-        if (session) {
-          try {
-            await chrome.storage.local.set({ supabase_session: session });
-            console.log(
-              "Supabase session stored/updated in chrome.storage.local",
-              session,
-            );
-          } catch (e) {
-            console.error("Error storing supabase session:", e);
-          }
-        } else {
-          // This case (SIGNED_IN with null session) should ideally not happen with email/password
-          // but good to be aware of for other auth methods.
-          console.warn("Auth event SIGNED_IN received, but session is null.");
-          try {
-            await chrome.storage.local.remove("supabase_session");
-            console.log(
-              "Supabase session removed from chrome.storage.local due to null session on SIGNED_IN.",
-            );
-          } catch (e) {
-            console.error("Error removing supabase session:", e);
-          }
-        }
-      } else if (event === "SIGNED_OUT") {
-        try {
-          await chrome.storage.local.remove("supabase_session");
-          console.log(
-            "Supabase session removed from chrome.storage.local on SIGNED_OUT.",
-          );
-        } catch (e) {
-          console.error("Error removing supabase session:", e);
-        }
+    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(async (event, session) => {
+      console.log("Auth state changed:", event, session?.user);
+      
+      if (session) {
+        updateAuthUI(session.user);
+        // Store session for background script access
+        await chrome.storage.local.set({ supabase_session: session });
+      } else {
+        updateAuthUI(null);
+        // Clear stored session
+        await chrome.storage.local.remove("supabase_session");
       }
     });
   }
 
-  // Check initial auth state when the page loads
+  // Check initial auth state
   async function checkInitialAuthState() {
     if (!supabaseClient) {
-      updateAuthUI(null); // Ensure UI is in logged-out state if Supabase isn't ready
+      console.log("Supabase client not available, skipping auth check.");
       return;
     }
+    
     try {
-      // Attempt to get current session from Supabase client (might involve a fetch if tokens need refresh)
-      const {
-        data: { session },
-        error,
-      } = await supabaseClient.auth.getSession();
-
+      const { data: { session }, error } = await supabaseClient.auth.getSession();
       if (error) {
-        console.error(
-          "Error getting initial session from Supabase client:",
-          error.message,
-        );
-        // If getSession fails, try to see if we have a stale session in chrome.storage.local
-        // This is a fallback and might indicate token expiry issues if Supabase can't refresh.
-        try {
-          const localData = await chrome.storage.local.get("supabase_session");
-          if (localData.supabase_session) {
-            console.warn(
-              "Using potentially stale session from local storage after getSession() error.",
-            );
-            updateAuthUI(localData.supabase_session.user);
-          } else {
-            updateAuthUI(null);
-          }
-        } catch (e) {
-          console.error(
-            "Error reading session from chrome.storage.local during fallback:",
-            e,
-          );
-          updateAuthUI(null);
-        }
+        console.error("Error getting session:", error);
+        showAuthStatus("Error checking login status.", "error");
         return;
       }
-
-      console.log("Initial session from Supabase client:", session);
-      updateAuthUI(session?.user || null);
-
-      // Sync chrome.storage.local with the session state from Supabase client
-      if (session) {
-        try {
-          await chrome.storage.local.set({ supabase_session: session });
-          console.log("Initial session synced to chrome.storage.local.");
-        } catch (e) {
-          console.error(
-            "Error storing initial session to chrome.storage.local:",
-            e,
-          );
-        }
+      
+      console.log("Initial session check:", session?.user);
+      if (session && session.user) {
+        updateAuthUI(session.user);
+        // Ensure session is stored for background script
+        await chrome.storage.local.set({ supabase_session: session });
       } else {
-        try {
-          await chrome.storage.local.remove("supabase_session");
-          console.log(
-            "Initial check found no active session, ensured chrome.storage.local is clear.",
-          );
-        } catch (e) {
-          console.error(
-            "Error removing session from chrome.storage.local during initial check:",
-            e,
-          );
-        }
+        updateAuthUI(null);
       }
-    } catch (e) {
-      console.error("Exception in checkInitialAuthState:", e);
-      updateAuthUI(null); // Default to logged-out state on any unexpected error
+    } catch (error) {
+      console.error("Error during initial auth check:", error);
+      showAuthStatus("Error checking login status.", "error");
     }
   }
 
-  // Call checkInitialAuthState when the script loads and Supabase client is available
-  if (supabaseClient) {
-    checkInitialAuthState();
-  } else {
-    // If supabaseClient is not yet initialized (e.g. lib not loaded), ensure UI is logged out.
-    // This is a fallback, the main check runs if/when supabaseClient initializes.
-    updateAuthUI(null);
-    console.warn(
-      "Supabase client not available at initial check time. UI set to logged out.",
-    );
+  // Perform initial auth check
+  checkInitialAuthState();
+
+  // Handle Stripe checkout returns
+  handleStripeReturn();
+
+  // --- Success/Cancel Handling for Stripe Returns ---
+
+  /**
+   * Handle URL parameters for Stripe checkout returns
+   */
+  function handleStripeReturn() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const success = urlParams.get('success');
+    const cancelled = urlParams.get('cancelled');
+
+    if (success === 'true') {
+      showPurchaseStatus("🎉 Payment successful! Your credits will be added shortly.", "success");
+      // Refresh credits display after a short delay to allow webhook processing
+      setTimeout(() => {
+        loadAndDisplayCredits();
+      }, 2000);
+      
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (cancelled === 'true') {
+      showPurchaseStatus("Payment was cancelled. No charges were made.", "error");
+      
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
   }
+
+  console.log("CoPrompt Options: All event listeners set up successfully.");
 });
