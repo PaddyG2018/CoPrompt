@@ -31,8 +31,8 @@ jobs:
 
     - name: Lint JavaScript/TypeScript
       run: |
-        # Use npx to ensure the locally installed eslint is used
-        npx eslint .
+        # Use npm run lint to match local development environment
+        npm run lint
 
     # - name: Validate manifest.json
     #   run: |
