@@ -12,7 +12,7 @@ STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret_here
 
 # Stripe Product IDs (will be populated after setup)
 STRIPE_STARTER_PACK_PRICE_ID=price_starter_pack_id
-STRIPE_POWER_PACK_PRICE_ID=price_power_pack_id  
+STRIPE_POWER_PACK_PRICE_ID=price_power_pack_id
 STRIPE_PRO_PACK_PRICE_ID=price_pro_pack_id
 ```
 
@@ -26,6 +26,7 @@ STRIPE_PRO_PACK_PRICE_ID=price_pro_pack_id
 ## 3. Webhook Setup
 
 After we deploy the Supabase function, you'll need to:
+
 1. Go to "Developers" > "Webhooks" in Stripe Dashboard
 2. Add endpoint: `https://your-project.supabase.co/functions/v1/stripe-webhook`
 3. Select events: `checkout.session.completed`, `payment_intent.succeeded`
@@ -33,4 +34,4 @@ After we deploy the Supabase function, you'll need to:
 
 ## 4. Products Setup
 
-Run the setup script after configuring your keys to create products and get their IDs. 
+Run the setup script after configuring your keys to create products and get their IDs.

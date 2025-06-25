@@ -5,7 +5,8 @@
     <script src="lib/supabase.js"></script>
     <style>
       body {
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         width: 320px;
         padding: 20px;
         margin: 0;
@@ -43,7 +44,7 @@
         background-color: #ccc;
         cursor: not-allowed;
       }
-      
+
       /* Credit Display Styles */
       .credits-container {
         background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
@@ -53,14 +54,14 @@
         border: 1px solid #e2e8f0;
         position: relative;
       }
-      
+
       .credits-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
         margin-bottom: 8px;
       }
-      
+
       .credits-title {
         font-size: 13px;
         font-weight: 600;
@@ -68,7 +69,7 @@
         text-transform: uppercase;
         letter-spacing: 0.5px;
       }
-      
+
       .credits-refresh {
         background: none;
         border: none;
@@ -83,60 +84,64 @@
         width: 32px;
         height: 32px;
       }
-      
+
       .credits-refresh:hover {
         background-color: rgba(100, 116, 139, 0.1);
         color: #0070f3;
       }
-      
+
       .credits-refresh:disabled {
         cursor: not-allowed;
         opacity: 0.5;
       }
-      
+
       .credits-refresh svg {
         width: 16px;
         height: 16px;
         transition: transform 0.3s ease;
       }
-      
+
       .credits-refresh:hover svg {
         transform: rotate(90deg);
       }
-      
+
       .credits-refresh:disabled svg {
         animation: none;
       }
-      
+
       .credits-refresh.loading svg {
         animation: spin 1s linear infinite;
       }
-      
+
       @keyframes spin {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
+        from {
+          transform: rotate(0deg);
+        }
+        to {
+          transform: rotate(360deg);
+        }
       }
-      
+
       .credits-balance {
         font-size: 24px;
         font-weight: 700;
         margin: 8px 0;
         transition: color 0.3s ease;
       }
-      
+
       /* Color coding for credit levels */
       .credits-high {
         color: #059669; /* Green for >20 credits */
       }
-      
+
       .credits-medium {
         color: #d97706; /* Orange for 10-20 credits */
       }
-      
+
       .credits-low {
         color: #dc2626; /* Red for <10 credits */
       }
-      
+
       .credits-status {
         font-size: 12px;
         margin-top: 8px;
@@ -145,33 +150,33 @@
         text-align: center;
         font-weight: 500;
       }
-      
+
       .credits-status.high {
         background-color: #dcfce7;
         color: #166534;
       }
-      
+
       .credits-status.medium {
         background-color: #fed7aa;
         color: #9a3412;
       }
-      
+
       .credits-status.low {
         background-color: #fee2e2;
         color: #991b1b;
       }
-      
+
       .credits-loading {
         color: #64748b;
         font-style: italic;
       }
-      
+
       .credits-error {
         color: #dc2626;
         font-size: 12px;
         margin-top: 8px;
       }
-      
+
       .auth-prompt {
         text-align: center;
         padding: 20px 16px;
@@ -179,7 +184,7 @@
         border-radius: 8px;
         margin: 15px 0;
       }
-      
+
       .auth-prompt-text {
         font-size: 14px;
         color: #64748b;
@@ -190,36 +195,52 @@
   <body>
     <h1>CoPrompt V2</h1>
 
-    <p>Enhance your AI prompts with a single click! Get 25 free credits when you sign up.</p>
+    <p>
+      Enhance your AI prompts with a single click! Get 25 free credits when you
+      sign up.
+    </p>
 
     <!-- Credit Display Container -->
     <div class="credits-container">
       <div class="credits-header">
         <div class="credits-title">Account Credits</div>
-        <button class="credits-refresh" id="refreshCredits" title="Refresh balance">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <button
+          class="credits-refresh"
+          id="refreshCredits"
+          title="Refresh balance"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
             <polyline points="23 4 23 10 17 10"></polyline>
             <polyline points="1 20 1 14 7 14"></polyline>
-            <path d="m3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            <path
+              d="m3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"
+            ></path>
           </svg>
         </button>
       </div>
-      
+
       <div class="credits-balance" id="creditsBalance">
         <span class="credits-loading">Loading...</span>
       </div>
-      
-      <div class="credits-status" id="creditsStatus" style="display: none;">
+
+      <div class="credits-status" id="creditsStatus" style="display: none">
         Ready to enhance prompts
       </div>
-      
-      <div class="credits-error" id="creditsError" style="display: none;">
+
+      <div class="credits-error" id="creditsError" style="display: none">
         Unable to load credits
       </div>
     </div>
 
     <!-- Authentication Prompt (shown when not logged in) -->
-    <div class="auth-prompt" id="authPrompt" style="display: none;">
+    <div class="auth-prompt" id="authPrompt" style="display: none">
       <div class="auth-prompt-text">Sign up to get 25 free credits</div>
       <button class="button" id="signUpButton">Get Started</button>
     </div>
