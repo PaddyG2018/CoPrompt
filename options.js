@@ -35,23 +35,23 @@ document.addEventListener("DOMContentLoaded", () => {
   // V2A-02: Handle pre-filled email from URL parameters
   function handleURLParameters() {
     const urlParams = new URLSearchParams(window.location.search);
-    const emailParam = urlParams.get('email');
-    
+    const emailParam = urlParams.get("email");
+
     if (emailParam && emailInput) {
       emailInput.value = emailParam;
-      
+
       // Show welcome message for new users
       if (authStatusDiv) {
         authStatusDiv.textContent = `Welcome! Please create your account with ${emailParam} to get 25 free credits.`;
         authStatusDiv.className = "status info";
         authStatusDiv.style.display = "block";
       }
-      
+
       // Focus on password input since email is pre-filled
       if (passwordInput) {
         passwordInput.focus();
       }
-      
+
       // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
     }
@@ -67,7 +67,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // TEMPORARY: Point to local Supabase for testing - COMMENTED OUT FOR LIVE
   // const SUPABASE_URL = "http://127.0.0.1:54321";
-  // const SUPABASE_ANON_KEY = 
+  // const SUPABASE_ANON_KEY =
   //   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
 
   let supabaseClient = null; // Renamed for clarity
@@ -112,7 +112,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!chrome.storage || !chrome.storage.local) {
       console.error("Chrome storage API is not available.");
       if (totalPromptTokensEl) totalPromptTokensEl.textContent = "Error";
-      if (totalCompletionTokensEl) totalCompletionTokensEl.textContent = "Error";
+      if (totalCompletionTokensEl)
+        totalCompletionTokensEl.textContent = "Error";
       if (totalTokensAllTimeEl) totalTokensAllTimeEl.textContent = "Error";
       return;
     }
@@ -121,28 +122,36 @@ document.addEventListener("DOMContentLoaded", () => {
       // V2: Load from new token_usage_log format
       const result = await chrome.storage.local.get("token_usage_log");
       const usageLog = result.token_usage_log || [];
-      
+
       if (usageLog.length > 0) {
         // Calculate totals from log entries
-        const totals = usageLog.reduce((acc, entry) => {
-          acc.prompt_tokens += entry.prompt_tokens || 0;
-          acc.completion_tokens += entry.completion_tokens || 0;
-          acc.total_tokens += entry.total_tokens || 0;
-          return acc;
-        }, { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 });
+        const totals = usageLog.reduce(
+          (acc, entry) => {
+            acc.prompt_tokens += entry.prompt_tokens || 0;
+            acc.completion_tokens += entry.completion_tokens || 0;
+            acc.total_tokens += entry.total_tokens || 0;
+            return acc;
+          },
+          { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+        );
 
         if (totalPromptTokensEl) {
-          totalPromptTokensEl.textContent = totals.prompt_tokens.toLocaleString();
+          totalPromptTokensEl.textContent =
+            totals.prompt_tokens.toLocaleString();
         }
         if (totalCompletionTokensEl) {
-          totalCompletionTokensEl.textContent = totals.completion_tokens.toLocaleString();
+          totalCompletionTokensEl.textContent =
+            totals.completion_tokens.toLocaleString();
         }
         if (totalTokensAllTimeEl) {
-          totalTokensAllTimeEl.textContent = totals.total_tokens.toLocaleString();
+          totalTokensAllTimeEl.textContent =
+            totals.total_tokens.toLocaleString();
         }
         if (lastUsageUpdateEl) {
           const lastEntry = usageLog[usageLog.length - 1];
-          lastUsageUpdateEl.textContent = new Date(lastEntry.timestamp).toLocaleString();
+          lastUsageUpdateEl.textContent = new Date(
+            lastEntry.timestamp,
+          ).toLocaleString();
         }
       } else {
         // No usage data
@@ -172,51 +181,71 @@ document.addEventListener("DOMContentLoaded", () => {
   // --- V2 Credits Logic ---
   async function loadAndDisplayCredits() {
     console.log("[loadAndDisplayCredits] Starting to load credits...");
-    
+
     if (!supabaseClient) {
       console.log("[loadAndDisplayCredits] No Supabase client available");
-      if (creditsBalanceEl) creditsBalanceEl.textContent = "Auth service unavailable";
+      if (creditsBalanceEl)
+        creditsBalanceEl.textContent = "Auth service unavailable";
       return;
     }
 
     try {
       console.log("[loadAndDisplayCredits] Getting session...");
-      const { data: { session } } = await supabaseClient.auth.getSession();
+      const {
+        data: { session },
+      } = await supabaseClient.auth.getSession();
       if (!session || !session.user) {
         console.log("[loadAndDisplayCredits] No session found");
-        if (creditsBalanceEl) creditsBalanceEl.textContent = "Please log in to view credits";
+        if (creditsBalanceEl)
+          creditsBalanceEl.textContent = "Please log in to view credits";
         return;
       }
 
-      console.log("[loadAndDisplayCredits] Session found, user:", session.user.email);
-      console.log("[loadAndDisplayCredits] Querying user_profiles for user ID:", session.user.id);
+      console.log(
+        "[loadAndDisplayCredits] Session found, user:",
+        session.user.email,
+      );
+      console.log(
+        "[loadAndDisplayCredits] Querying user_profiles for user ID:",
+        session.user.id,
+      );
 
       // Fetch current credits from user_profiles
       const { data: profile, error: profileError } = await supabaseClient
-        .from('user_profiles')
-        .select('credits')
-        .eq('id', session.user.id)
+        .from("user_profiles")
+        .select("credits")
+        .eq("id", session.user.id)
         .single();
 
-      console.log("[loadAndDisplayCredits] Profile query result:", { profile, profileError });
+      console.log("[loadAndDisplayCredits] Profile query result:", {
+        profile,
+        profileError,
+      });
 
       if (profileError) {
-        console.error('[loadAndDisplayCredits] Error fetching user profile:', profileError);
-        displayCredits('--', 'Unable to load credits');
+        console.error(
+          "[loadAndDisplayCredits] Error fetching user profile:",
+          profileError,
+        );
+        displayCredits("--", "Unable to load credits");
         return;
       }
 
       if (profile) {
-        console.log("[loadAndDisplayCredits] Profile found, credits:", profile.credits);
+        console.log(
+          "[loadAndDisplayCredits] Profile found, credits:",
+          profile.credits,
+        );
         displayCredits(profile.credits);
       } else {
         console.log("[loadAndDisplayCredits] No profile found");
         // No profile found, this shouldn't happen but handle gracefully
-        displayCredits(0, 'No profile found');
+        displayCredits(0, "No profile found");
       }
     } catch (error) {
       console.error("[loadAndDisplayCredits] Error loading credits:", error);
-      if (creditsBalanceEl) creditsBalanceEl.textContent = "Error loading credits";
+      if (creditsBalanceEl)
+        creditsBalanceEl.textContent = "Error loading credits";
     }
   }
 
@@ -243,16 +272,16 @@ document.addEventListener("DOMContentLoaded", () => {
   const CREDIT_PACKAGES = {
     starter: { credits: 50, price: 500, name: "Starter Pack" }, // Price in cents
     power: { credits: 200, price: 1500, name: "Power Pack" },
-    pro: { credits: 500, price: 3000, name: "Pro Pack" }
+    pro: { credits: 500, price: 3000, name: "Pro Pack" },
   };
 
   // Initialize package button listeners
-  packageButtons.forEach(button => {
+  packageButtons.forEach((button) => {
     button.addEventListener("click", async (e) => {
       const packageType = e.target.getAttribute("data-package");
       const credits = parseInt(e.target.getAttribute("data-credits"));
       const price = parseInt(e.target.getAttribute("data-price"));
-      
+
       await initiateCreditPurchase(packageType, credits, price);
     });
   });
@@ -262,13 +291,19 @@ document.addEventListener("DOMContentLoaded", () => {
    */
   async function initiateCreditPurchase(packageType, credits, priceInCents) {
     if (!supabaseClient) {
-      showPurchaseStatus("Authentication service not available. Please refresh the page.", "error");
+      showPurchaseStatus(
+        "Authentication service not available. Please refresh the page.",
+        "error",
+      );
       return;
     }
 
     try {
       // Check authentication
-      const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabaseClient.auth.getSession();
       if (sessionError || !session) {
         showPurchaseStatus("Please log in to purchase credits.", "error");
         return;
@@ -287,12 +322,14 @@ document.addEventListener("DOMContentLoaded", () => {
         priceId,
         session.user.email,
         credits,
-        packageType
+        packageType,
       );
-
     } catch (error) {
       console.error("[Purchase] Error initiating purchase:", error);
-      showPurchaseStatus("An error occurred during checkout. Please try again.", "error");
+      showPurchaseStatus(
+        "An error occurred during checkout. Please try again.",
+        "error",
+      );
     }
   }
 
@@ -411,17 +448,23 @@ document.addEventListener("DOMContentLoaded", () => {
           showAuthStatus(`Sign up failed: ${error.message}`, "error");
           return;
         }
-        
+
         console.log("Sign up successful:", data);
         if (data.user && !data.session) {
-          showAuthStatus("Sign up successful! Please check your email to confirm your account.", "success");
+          showAuthStatus(
+            "Sign up successful! Please check your email to confirm your account.",
+            "success",
+          );
         } else if (data.session) {
-          showAuthStatus("Sign up successful! You are now logged in.", "success");
+          showAuthStatus(
+            "Sign up successful! You are now logged in.",
+            "success",
+          );
           updateAuthUI(data.user);
           // Store session for background script access
           await chrome.storage.local.set({ supabase_session: data.session });
         }
-        
+
         // Clear form
         emailInput.value = "";
         passwordInput.value = "";
@@ -454,10 +497,10 @@ document.addEventListener("DOMContentLoaded", () => {
         console.log("Login successful:", data);
         showAuthStatus("Login successful!", "success");
         updateAuthUI(data.user);
-        
+
         // Store session for background script access
         await chrome.storage.local.set({ supabase_session: data.session });
-        
+
         // Clear form
         emailInput.value = "";
         passwordInput.value = "";
@@ -481,7 +524,7 @@ document.addEventListener("DOMContentLoaded", () => {
         console.log("Logout successful");
         showAuthStatus("Logged out successfully!", "success");
         updateAuthUI(null);
-        
+
         // Clear stored session
         await chrome.storage.local.remove("supabase_session");
       } catch (error) {
@@ -493,9 +536,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Set up auth listener
   if (supabaseClient) {
-    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(async (event, session) => {
+    const {
+      data: { subscription },
+    } = supabaseClient.auth.onAuthStateChange(async (event, session) => {
       console.log("Auth state changed:", event, session?.user);
-      
+
       if (session) {
         updateAuthUI(session.user);
         // Store session for background script access
@@ -514,15 +559,18 @@ document.addEventListener("DOMContentLoaded", () => {
       console.log("Supabase client not available, skipping auth check.");
       return;
     }
-    
+
     try {
-      const { data: { session }, error } = await supabaseClient.auth.getSession();
+      const {
+        data: { session },
+        error,
+      } = await supabaseClient.auth.getSession();
       if (error) {
         console.error("Error getting session:", error);
         showAuthStatus("Error checking login status.", "error");
         return;
       }
-      
+
       console.log("Initial session check:", session?.user);
       if (session && session.user) {
         updateAuthUI(session.user);
@@ -550,21 +598,27 @@ document.addEventListener("DOMContentLoaded", () => {
    */
   function handleStripeReturn() {
     const urlParams = new URLSearchParams(window.location.search);
-    const success = urlParams.get('success');
-    const cancelled = urlParams.get('cancelled');
+    const success = urlParams.get("success");
+    const cancelled = urlParams.get("cancelled");
 
-    if (success === 'true') {
-      showPurchaseStatus("🎉 Payment successful! Your credits will be added shortly.", "success");
+    if (success === "true") {
+      showPurchaseStatus(
+        "🎉 Payment successful! Your credits will be added shortly.",
+        "success",
+      );
       // Refresh credits display after a short delay to allow webhook processing
       setTimeout(() => {
         loadAndDisplayCredits();
       }, 2000);
-      
+
       // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
-    } else if (cancelled === 'true') {
-      showPurchaseStatus("Payment was cancelled. No charges were made.", "error");
-      
+    } else if (cancelled === "true") {
+      showPurchaseStatus(
+        "Payment was cancelled. No charges were made.",
+        "error",
+      );
+
       // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
     }

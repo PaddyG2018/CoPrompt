@@ -328,21 +328,21 @@ function createFloatingButton() {
   async function checkUserAuthentication() {
     try {
       // Check if we have a stored Supabase session
-      const result = await chrome.storage.local.get('supabase_session');
+      const result = await chrome.storage.local.get("supabase_session");
       const session = result.supabase_session;
-      
+
       if (!session || !session.access_token) {
         console.log("[CoPrompt Debug] No session found in storage");
         return false;
       }
-      
+
       // Check if session is still valid (not expired)
       const now = Math.floor(Date.now() / 1000);
       if (session.expires_at && session.expires_at <= now) {
         console.log("[CoPrompt Debug] Session expired");
         return false;
       }
-      
+
       console.log("[CoPrompt Debug] User is authenticated");
       return true;
     } catch (error) {
@@ -354,15 +354,15 @@ function createFloatingButton() {
   // V2A-02: Show authentication modal
   function showAuthModal(buttonElement, reqId, targetInputElement) {
     // Remove any existing modal
-    const existingModal = document.getElementById('coprompt-auth-modal');
+    const existingModal = document.getElementById("coprompt-auth-modal");
     if (existingModal) {
       existingModal.remove();
     }
 
     // Create modal HTML
-    const modal = document.createElement('div');
-    modal.id = 'coprompt-auth-modal';
-    modal.className = 'coprompt-auth-modal';
+    const modal = document.createElement("div");
+    modal.id = "coprompt-auth-modal";
+    modal.className = "coprompt-auth-modal";
     modal.innerHTML = `
       <div class="coprompt-modal-backdrop">
         <div class="coprompt-modal-content">
@@ -411,7 +411,7 @@ function createFloatingButton() {
     setupAuthModalListeners(modal, buttonElement, reqId, targetInputElement);
 
     // Focus on email input
-    const emailInput = modal.querySelector('#coprompt-email-input');
+    const emailInput = modal.querySelector("#coprompt-email-input");
     if (emailInput) {
       setTimeout(() => emailInput.focus(), 100);
     }
@@ -420,12 +420,12 @@ function createFloatingButton() {
   // V2A-02: Add modal styles
   function addAuthModalStyles() {
     // Check if styles already exist
-    if (document.getElementById('coprompt-auth-modal-styles')) {
+    if (document.getElementById("coprompt-auth-modal-styles")) {
       return;
     }
 
-    const styles = document.createElement('style');
-    styles.id = 'coprompt-auth-modal-styles';
+    const styles = document.createElement("style");
+    styles.id = "coprompt-auth-modal-styles";
     styles.textContent = `
       .coprompt-auth-modal {
         position: fixed;
@@ -590,12 +590,17 @@ function createFloatingButton() {
   }
 
   // V2A-02: Set up modal event listeners
-  function setupAuthModalListeners(modal, buttonElement, reqId, targetInputElement) {
-    const emailInput = modal.querySelector('#coprompt-email-input');
-    const submitBtn = modal.querySelector('#coprompt-auth-submit');
-    const cancelBtn = modal.querySelector('#coprompt-cancel-btn');
-    const settingsLink = modal.querySelector('#coprompt-settings-link');
-    const statusDiv = modal.querySelector('#coprompt-auth-status');
+  function setupAuthModalListeners(
+    modal,
+    buttonElement,
+    reqId,
+    targetInputElement,
+  ) {
+    const emailInput = modal.querySelector("#coprompt-email-input");
+    const submitBtn = modal.querySelector("#coprompt-auth-submit");
+    const cancelBtn = modal.querySelector("#coprompt-cancel-btn");
+    const settingsLink = modal.querySelector("#coprompt-settings-link");
+    const statusDiv = modal.querySelector("#coprompt-auth-status");
 
     // Email validation
     function isValidEmail(email) {
@@ -611,102 +616,120 @@ function createFloatingButton() {
     // Handle email submission
     async function handleEmailSubmit() {
       const email = emailInput.value.trim();
-      
+
       if (!email) {
-        showAuthStatus('Please enter your email address.', 'error');
+        showAuthStatus("Please enter your email address.", "error");
         return;
       }
-      
+
       if (!isValidEmail(email)) {
-        showAuthStatus('Please enter a valid email address.', 'error');
+        showAuthStatus("Please enter a valid email address.", "error");
         return;
       }
 
       submitBtn.disabled = true;
-      submitBtn.textContent = 'Sending...';
-      
+      submitBtn.textContent = "Sending...";
+
       try {
         // Send magic link via background script
         const response = await chrome.runtime.sendMessage({
-          type: 'SEND_MAGIC_LINK',
-          email: email
+          type: "SEND_MAGIC_LINK",
+          email: email,
         });
-        
+
         if (response.success) {
-          showAuthStatus('Magic link sent! Check your email and click the link to sign in.', 'success');
-          
+          showAuthStatus(
+            "Magic link sent! Check your email and click the link to sign in.",
+            "success",
+          );
+
           // Start polling for authentication
-          pollForAuthentication(modal, buttonElement, reqId, targetInputElement);
+          pollForAuthentication(
+            modal,
+            buttonElement,
+            reqId,
+            targetInputElement,
+          );
         } else {
-          showAuthStatus(response.error || 'Failed to send magic link. Please try again.', 'error');
+          showAuthStatus(
+            response.error || "Failed to send magic link. Please try again.",
+            "error",
+          );
           submitBtn.disabled = false;
-          submitBtn.textContent = 'Send Magic Link';
+          submitBtn.textContent = "Send Magic Link";
         }
       } catch (error) {
-        console.error('[CoPrompt Debug] Error sending magic link:', error);
-        showAuthStatus('Network error. Please try again.', 'error');
+        console.error("[CoPrompt Debug] Error sending magic link:", error);
+        showAuthStatus("Network error. Please try again.", "error");
         submitBtn.disabled = false;
-        submitBtn.textContent = 'Send Magic Link';
+        submitBtn.textContent = "Send Magic Link";
       }
     }
 
     // Submit on button click
-    submitBtn.addEventListener('click', handleEmailSubmit);
+    submitBtn.addEventListener("click", handleEmailSubmit);
 
     // Submit on Enter key
-    emailInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
+    emailInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
         e.preventDefault();
         handleEmailSubmit();
       }
     });
 
     // Cancel button
-    cancelBtn.addEventListener('click', () => {
+    cancelBtn.addEventListener("click", () => {
       modal.remove();
     });
 
     // Settings link
-    settingsLink.addEventListener('click', (e) => {
+    settingsLink.addEventListener("click", (e) => {
       e.preventDefault();
-      chrome.runtime.sendMessage({ type: 'OPEN_OPTIONS_PAGE' });
+      chrome.runtime.sendMessage({ type: "OPEN_OPTIONS_PAGE" });
       modal.remove();
     });
 
     // Close on backdrop click
-    modal.querySelector('.coprompt-modal-backdrop').addEventListener('click', (e) => {
-      if (e.target === e.currentTarget) {
-        modal.remove();
-      }
-    });
+    modal
+      .querySelector(".coprompt-modal-backdrop")
+      .addEventListener("click", (e) => {
+        if (e.target === e.currentTarget) {
+          modal.remove();
+        }
+      });
 
     // Close on Escape key
-    document.addEventListener('keydown', function escapeHandler(e) {
-      if (e.key === 'Escape') {
+    document.addEventListener("keydown", function escapeHandler(e) {
+      if (e.key === "Escape") {
         modal.remove();
-        document.removeEventListener('keydown', escapeHandler);
+        document.removeEventListener("keydown", escapeHandler);
       }
     });
   }
 
   // V2A-02: Poll for authentication completion
-  function pollForAuthentication(modal, buttonElement, reqId, targetInputElement) {
+  function pollForAuthentication(
+    modal,
+    buttonElement,
+    reqId,
+    targetInputElement,
+  ) {
     let pollCount = 0;
     const maxPolls = 60; // 5 minutes at 5-second intervals
-    
+
     const pollInterval = setInterval(async () => {
       pollCount++;
-      
+
       const isAuthenticated = await checkUserAuthentication();
       if (isAuthenticated) {
         clearInterval(pollInterval);
         modal.remove();
-        
+
         // Show success message briefly
         if (buttonElement) {
           const originalText = buttonElement.innerHTML;
-          buttonElement.innerHTML = '✅ Authenticated! Enhancing...';
-          
+          buttonElement.innerHTML = "✅ Authenticated! Enhancing...";
+
           // Proceed with original enhancement
           setTimeout(() => {
             handleEnhanceClick(buttonElement, reqId, targetInputElement);
@@ -714,10 +737,10 @@ function createFloatingButton() {
         }
       } else if (pollCount >= maxPolls) {
         clearInterval(pollInterval);
-        const statusDiv = modal.querySelector('#coprompt-auth-status');
+        const statusDiv = modal.querySelector("#coprompt-auth-status");
         if (statusDiv) {
-          statusDiv.textContent = 'Authentication timeout. Please try again.';
-          statusDiv.className = 'coprompt-auth-status error';
+          statusDiv.textContent = "Authentication timeout. Please try again.";
+          statusDiv.className = "coprompt-auth-status error";
         }
       }
     }, 5000); // Poll every 5 seconds
@@ -738,7 +761,9 @@ function createFloatingButton() {
     // V2A-02: Check authentication before proceeding
     const isAuthenticated = await checkUserAuthentication();
     if (!isAuthenticated) {
-      console.log("[CoPrompt Debug] User not authenticated, showing auth modal");
+      console.log(
+        "[CoPrompt Debug] User not authenticated, showing auth modal",
+      );
       showAuthModal(buttonElement, reqId, targetInputElement);
       return; // Don't proceed with enhancement
     }

@@ -79,7 +79,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       .then((data) => {
         const session = data.supabase_session;
         const userAccessToken = session?.access_token || null;
-        
+
         if (DEBUG)
           console.log(
             "[Background] Retrieved User Access Token present:",
@@ -125,15 +125,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           });
       })
       .catch((error) => {
-        console.error(
-          "[Background] Error retrieving session:",
-          error,
-        );
+        console.error("[Background] Error retrieving session:", error);
         chrome.tabs.sendMessage(tabIdFromSender, {
           // Use tabIdFromSender
           type: "ENHANCE_PROMPT_ERROR",
-          error:
-            "Failed to retrieve authentication details. Please try again.",
+          error: "Failed to retrieve authentication details. Please try again.",
           targetInputId: targetInputIdFromRequest, // Use targetInputIdFromRequest
           requestId: request.requestId,
         });
@@ -156,30 +152,36 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // No response needed/sent
   } else if (request.type === "SEND_MAGIC_LINK") {
     // V2A-02: Handle magic link sending
-    console.log("[Background] Received SEND_MAGIC_LINK request for:", request.email);
-    
+    console.log(
+      "[Background] Received SEND_MAGIC_LINK request for:",
+      request.email,
+    );
+
     try {
       // For now, open the options page with a pre-filled email
       // In a full implementation, this would integrate with Supabase Auth
-      const optionsUrl = chrome.runtime.getURL('options.html') + '?email=' + encodeURIComponent(request.email);
+      const optionsUrl =
+        chrome.runtime.getURL("options.html") +
+        "?email=" +
+        encodeURIComponent(request.email);
       chrome.tabs.create({ url: optionsUrl }, (tab) => {
-        sendResponse({ 
-          success: true, 
-          message: 'Please complete signup in the new tab that opened.' 
+        sendResponse({
+          success: true,
+          message: "Please complete signup in the new tab that opened.",
         });
       });
     } catch (error) {
       console.error("[Background] Error handling magic link request:", error);
-      sendResponse({ 
-        success: false, 
-        error: 'Failed to open signup page. Please try again.' 
+      sendResponse({
+        success: false,
+        error: "Failed to open signup page. Please try again.",
       });
     }
     return true; // Indicates async response
   } else if (request.type === "OPEN_OPTIONS_PAGE") {
     // V2A-02: Open options page
     console.log("[Background] Opening options page");
-    chrome.tabs.create({ url: chrome.runtime.getURL('options.html') });
+    chrome.tabs.create({ url: chrome.runtime.getURL("options.html") });
     // No response needed
   }
   // Note: No need to return true for synchronous handlers above
@@ -189,7 +191,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 async function storeTokenUsageWithDeviceId(usage) {
   try {
     const timestamp = new Date().toISOString();
-    
+
     // Get deviceId for analytics tracking
     const deviceId = await getOrCreateDeviceId();
 
@@ -212,7 +214,10 @@ async function storeTokenUsageWithDeviceId(usage) {
     await chrome.storage.local.set({ token_usage_log: trimmedLog });
 
     if (DEBUG) {
-      console.log("[Background] Token usage stored with device analytics:", { usage, deviceId });
+      console.log("[Background] Token usage stored with device analytics:", {
+        usage,
+        deviceId,
+      });
     }
   } catch (error) {
     console.error("[Background] Error storing token usage:", error);
@@ -231,14 +236,18 @@ async function getOrCreateDeviceId() {
 
   if (!deviceId) {
     // Generate a new UUID-like device ID for analytics tracking
-    deviceId = crypto.randomUUID ? crypto.randomUUID() : 
-      'device-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now().toString(36);
-    
+    deviceId = crypto.randomUUID
+      ? crypto.randomUUID()
+      : "device-" +
+        Math.random().toString(36).substr(2, 9) +
+        "-" +
+        Date.now().toString(36);
+
     await chrome.storage.sync.set({
       coprompt_device_id: deviceId,
       device_created_at: new Date().toISOString(),
     });
-    
+
     console.log(
       "[Background] Generated new Device ID for analytics:",
       deviceId,

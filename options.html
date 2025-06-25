@@ -25,7 +25,9 @@
         margin-bottom: 5px;
         font-weight: bold;
       }
-      input[type="text"], input[type="email"], input[type="password"] {
+      input[type="text"],
+      input[type="email"],
+      input[type="password"] {
         width: 100%;
         padding: 8px;
         border: 1px solid #ccc;
@@ -260,23 +262,25 @@
     <h1>CoPrompt V2 Settings</h1>
 
     <div class="credits-info">
-      <h2 style="margin-top: 0;">Account Credits</h2>
+      <h2 style="margin-top: 0">Account Credits</h2>
       <div class="credits-balance">
         Balance: <span id="creditsBalance">Please log in</span> credits
       </div>
-      <p style="margin-bottom: 10px;">
-        Credits are used for AI-powered prompt enhancement. New users receive 25 credits automatically.
+      <p style="margin-bottom: 10px">
+        Credits are used for AI-powered prompt enhancement. New users receive 25
+        credits automatically.
       </p>
       <button id="refreshCreditsButton">Refresh Balance</button>
     </div>
 
     <!-- P3-02: Credit Purchase System -->
-    <div class="credits-purchase" id="creditsPurchase" style="display: none;">
-      <h2 style="margin-top: 0; color: #28a745;">💳 Buy More Credits</h2>
-      <p style="margin-bottom: 20px; color: #666;">
-        Choose a credit package that fits your needs. All purchases are secure and processed through Stripe.
+    <div class="credits-purchase" id="creditsPurchase" style="display: none">
+      <h2 style="margin-top: 0; color: #28a745">💳 Buy More Credits</h2>
+      <p style="margin-bottom: 20px; color: #666">
+        Choose a credit package that fits your needs. All purchases are secure
+        and processed through Stripe.
       </p>
-      
+
       <div class="purchase-packages">
         <!-- Starter Package -->
         <div class="package-card" data-package="starter">
@@ -287,7 +291,12 @@
           <div class="package-credits">50 Credits</div>
           <div class="package-value">$0.10 per credit</div>
           <div class="package-description">Perfect for trying out CoPrompt</div>
-          <button class="package-button" data-package="starter" data-price="500" data-credits="50">
+          <button
+            class="package-button"
+            data-package="starter"
+            data-price="500"
+            data-credits="50"
+          >
             Buy Starter Pack
           </button>
         </div>
@@ -303,7 +312,12 @@
           <div class="package-value">$0.075 per credit</div>
           <div class="package-savings">Save 25%</div>
           <div class="package-description">Great value for regular users</div>
-          <button class="package-button" data-package="power" data-price="1500" data-credits="200">
+          <button
+            class="package-button"
+            data-package="power"
+            data-price="1500"
+            data-credits="200"
+          >
             Buy Power Pack
           </button>
         </div>
@@ -318,7 +332,12 @@
           <div class="package-value">$0.06 per credit</div>
           <div class="package-savings">Save 40%</div>
           <div class="package-description">Best value for power users</div>
-          <button class="package-button" data-package="pro" data-price="3000" data-credits="500">
+          <button
+            class="package-button"
+            data-package="pro"
+            data-price="3000"
+            data-credits="500"
+          >
             Buy Pro Pack
           </button>
         </div>
@@ -332,7 +351,11 @@
         <p>• 30-day money-back guarantee</p>
       </div>
 
-      <div class="purchase-status" id="purchaseStatus" style="display: none;"></div>
+      <div
+        class="purchase-status"
+        id="purchaseStatus"
+        style="display: none"
+      ></div>
     </div>
 
     <div id="status" class="status" style="display: none"></div>

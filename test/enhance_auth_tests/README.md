@@ -5,6 +5,7 @@ This directory contains test scripts for validating the V2A authentication imple
 ## Setup
 
 1. Install dependencies:
+
 ```bash
 npm install
 ```
@@ -17,11 +18,13 @@ npm install
 ## Running Tests
 
 ### Authentication Flow Tests
+
 ```bash
 node auth_flow.test.js
 ```
 
 ### API Key Setup
+
 ```bash
 node setup_api_key.js
 ```
@@ -37,4 +40,4 @@ node setup_api_key.js
 - ✅ Authentication enforcement (401 responses)
 - ✅ Credit system (25 credits on signup)
 - ✅ End-to-end enhancement flow
-- ✅ BYOK removal verification 
+- ✅ BYOK removal verification
