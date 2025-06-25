@@ -7,7 +7,6 @@ const DEBUG = true; // Or find a way to share this flag
  * @param {string | null} apiKey - The user's OpenAI API key (currently not used by this function, as Supabase proxy uses anon key).
  * @param {string} systemInstruction - The system message for the AI.
  * @param {string} userPrompt - The user's prompt.
- * @param {string} deviceId - The unique device identifier.
  * @param {string | null} userAccessToken - The user's JWT for Supabase authentication (optional).
  * @returns {Promise<object>} A promise that resolves to an object containing the enhanced prompt string and usage data.
  *                           Example: { enhancedPrompt: "response text", usage: { prompt_tokens: X, completion_tokens: Y, total_tokens: Z } }
@@ -16,16 +15,14 @@ export async function callOpenAI(
   apiKey,
   systemInstruction,
   userPrompt,
-  deviceId,
   userAccessToken,
 ) {
   if (DEBUG)
     console.log(
-      "[apiClient] callOpenAI called with (system, user, deviceId, userAccessToken present?):",
+      "[apiClient] callOpenAI called with (system, user, userAccessToken present?):",
       {
         systemInstruction,
         userPrompt,
-        deviceId,
         userAccessToken: !!userAccessToken,
       },
     );
@@ -38,7 +35,8 @@ export async function callOpenAI(
   try {
     // MODIFIED: URL points to Supabase Edge Function
     const response = await fetch(
-      "https://evfuyrixpjgfytwfijpx.supabase.co/functions/v1/enhance",
+      // "https://evfuyrixpjgfytwfijpx.supabase.co/functions/v1/enhance", // LIVE URL - Commented out for local testing
+      "http://127.0.0.1:54321/functions/v1/enhance", // LOCAL URL for testing
       {
         method: "POST",
         headers: {
@@ -48,7 +46,7 @@ export async function callOpenAI(
           // apikey header for Supabase (anon key)
           apikey: process.env.SUPABASE_ANON_KEY,
         },
-        // The body remains the same for now, the proxy will eventually use this.
+        // V2A-05: Removed deviceId from API call - auth is JWT-based, deviceId only for local analytics
         body: JSON.stringify({
           model: "gpt-4.1-mini",
           messages: [
@@ -56,7 +54,6 @@ export async function callOpenAI(
             { role: "user", content: userPrompt },
           ],
           temperature: 0.7,
-          deviceId: deviceId,
         }),
         signal: controller.signal,
       },

@@ -1,1 +1,83 @@
- 
+# Guide: Adding Support for New AI Chat Websites to CoPrompt
+
+This document outlines the process and considerations for extending the CoPrompt Chrome Extension's functionality to support additional AI chat websites (e.g., Lovable, Perplexity, etc.).
+
+## Overview of Current Architecture
+
+CoPrompt utilizes a modular approach to support different platforms (currently ChatGPT, Claude, Gemini). Key components involved are:
+
+1.  **`manifest.json`**: Defines permissions, content script injection rules, and web accessible resources. Each supported site's domain must be explicitly listed here.
+2.  **`content/contextExtractor.js`**: Contains the `PLATFORM_CONFIGS` object. This is the central hub for platform-specific details, including:
+    *   `hostIncludes`: An array of hostname strings to identify the platform.
+    *   `selector`: A CSS selector string to find conversation message elements (both user and assistant).
+    *   `extractRoleAndContent`: A function that takes a message DOM element (found by `selector`) and returns an object `{ role: 'user' | 'assistant', content: string }`.
+3.  **`utils/domUtils.js`**: Includes the `findActiveInputElement()` function, which uses various strategies (specific selectors and generic fallbacks) to locate the main text input area on the page. It also contains `updateInputElement()` to insert the enhanced prompt.
+4.  **`content.js`**: The main content script orchestrates button injection, observes DOM changes, and communicates with the background script and injected script. It relies on `domUtils.js` and `contextExtractor.js`.
+5.  **`injected.js`**: Script injected into the host page's context, primarily responsible for interacting with the page's JavaScript environment if needed (though current interaction is mainly DOM-based via content scripts).
+
+## Implementation Plan for Adding a New Site
+
+Follow these steps to add support for a new website:
+
+1.  **Analyze Target Site's DOM**:
+    *   Use browser developer tools to inspect the target website (e.g., Lovable).
+    *   **Identify Input Element**: Determine the unique CSS selector(s) for the main prompt input field (it could be a `<textarea>` or a `<div contenteditable="true">`, or something else). Note its characteristics.
+    *   **Identify Conversation Elements**: Find the container elements for individual chat messages (both user prompts and AI responses). Determine how to distinguish between user messages and AI messages (e.g., specific classes, data attributes).
+    *   **Extract Message Content**: For both user and AI message elements, find the specific child element(s) containing the actual text content.
+
+2.  **Update `manifest.json`**:
+    *   Add the target site's URL pattern(s) (e.g., `"https://lovable.ai/*"`) to:
+        *   `host_permissions`
+        *   `content_scripts[0].matches`
+        *   `web_accessible_resources[0].matches`
+
+3.  **Update `content/contextExtractor.js`**:
+    *   Add a new configuration object to the `PLATFORM_CONFIGS` constant. Example for "Lovable":
+        ```javascript
+        LOVABLE: {
+          name: "Lovable", // Or the site's name
+          hostIncludes: ["lovable.ai"], // Or the relevant hostname(s)
+          selector: ".user-message-class, .ai-response-class", // Replace with actual selectors
+          extractRoleAndContent: (element) => {
+            let role = "";
+            let content = "";
+            if (element.matches(".user-message-class")) { // Replace with actual user message selector
+              role = USER_ROLE; // Assuming USER_ROLE = 'user'
+              // Add logic to find content within user message element
+              content = element.querySelector('.content-selector')?.textContent?.trim() || "";
+            } else if (element.matches(".ai-response-class")) { // Replace with actual AI response selector
+              role = ASSISTANT_ROLE; // Assuming ASSISTANT_ROLE = 'assistant'
+              // Add logic to find content within AI response element
+              content = element.querySelector('.content-selector')?.textContent?.trim() || "";
+            }
+            return { role, content };
+          },
+        },
+        ```
+    *   Ensure `USER_ROLE` and `ASSISTANT_ROLE` constants are used correctly.
+    *   Refine the `selector` and `extractRoleAndContent` logic based on the DOM analysis (Step 1).
+
+4.  **Test and potentially Update `utils/domUtils.js`**:
+    *   Load the extension on the target site.
+    *   Test if the CoPrompt button appears and correctly targets the input field.
+    *   If `findActiveInputElement()` fails to find the input field, add a new specific strategy *before* the generic fallbacks in the function, using the selector identified in Step 1.
+    *   Test the prompt enhancement feature to ensure `updateInputElement()` correctly inserts the text into the target site's input field. Adjust event dispatching if necessary.
+
+5.  **Thorough Testing**:
+    *   **Target Site**: Test all core CoPrompt functionalities on the newly added site:
+        *   Button appearance and positioning.
+        *   Prompt enhancement (including context extraction if applicable).
+        *   Button drag-and-drop.
+    *   **Regression Testing**: Test the extension on *all previously supported sites* (ChatGPT, Claude, Gemini) to ensure no functionality has been broken by the changes. Pay close attention to input field detection and context extraction.
+
+## Risk and Complexity Assessment
+
+*   **Complexity**: Generally low to moderate, depending heavily on the target site's DOM structure complexity and stability. Sites using standard HTML elements (`<textarea>`) are often easier than those with complex JavaScript frameworks and custom elements.
+*   **Risk**:
+    *   **Low Risk to Existing Sites**: The modular design using `PLATFORM_CONFIGS` isolates most site-specific logic. Changes to `domUtils.js` require more careful regression testing, but the fallback strategy aims to minimize impact.
+    *   **Potential Issues**:
+        *   **DOM Changes**: Target sites might change their structure, breaking selectors. This requires ongoing maintenance.
+        *   **Dynamic Loading**: Content scripts run at `document_end`, but some sites load UI dynamically. Button injection or element finding might need timing adjustments or reliance on `MutationObserver` in `content.js`.
+        *   **Input Handling**: Non-standard input fields might require custom logic in `updateInputElement` to correctly simulate user input and trigger the site's internal state updates.
+
+By following these steps, support for new AI chat websites can be added systematically while minimizing disruption to existing functionality. 
