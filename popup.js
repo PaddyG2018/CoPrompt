@@ -2,9 +2,14 @@ document.addEventListener("DOMContentLoaded", function () {
   console.log("[Popup] CoPrompt V2 popup loaded");
 
   // Supabase Configuration (matching options.js)
-  const SUPABASE_URL = "http://127.0.0.1:54321";
+  const SUPABASE_URL = "https://evfuyrixpjgfytwfijpx.supabase.co"; // LIVE - NOW ACTIVE
   const SUPABASE_ANON_KEY = 
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2ZnV5cml4cGpnZnl0d2ZpanB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwODA0MDIsImV4cCI6MjA1OTY1NjQwMn0.GD6oTrvjKMdqSK4LgyRmD0E1k0zbKFg79sAlXy-fLyc";
+
+  // Local development - COMMENTED OUT FOR LIVE
+  // const SUPABASE_URL = "http://127.0.0.1:54321";
+  // const SUPABASE_ANON_KEY = 
+  //   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
 
   let supabaseClient = null;
 
@@ -85,17 +90,20 @@ document.addEventListener("DOMContentLoaded", function () {
       // Fetch credits from user_profiles table
       const { data: profile, error: profileError } = await supabaseClient
         .from('user_profiles')
-        .select('balance')
+        .select('credits')
         .eq('id', session.user.id)
         .single();
 
       if (profileError) {
         console.error("[Popup] Error fetching user profile:", profileError);
+        console.error("[Popup] Full error details:", JSON.stringify(profileError, null, 2));
+        console.error("[Popup] Error message:", profileError.message);
+        console.error("[Popup] Error code:", profileError.code);
         showError("Unable to load credits");
         return;
       }
 
-      const credits = profile?.balance || 0;
+      const credits = profile?.credits || 0;
       console.log("[Popup] Credits loaded:", credits);
       displayCredits(credits);
 

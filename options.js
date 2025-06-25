@@ -61,14 +61,14 @@ document.addEventListener("DOMContentLoaded", () => {
   handleURLParameters();
 
   // --- Supabase Client Initialization (PX-07) ---
-  // const SUPABASE_URL = "https://evfuyrixpjgfytwfijpx.supabase.co"; // LIVE - COMMENTED OUT FOR LOCAL DEV
-  // const SUPABASE_ANON_KEY = // LIVE - COMMENTED OUT FOR LOCAL DEV
-  //   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2ZnV5cml4cGpnZnl0d2ZpanB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwODA0MDIsImV4cCI6MjA1OTY1NjQwMn0.GD6oTrvjKMdqSK4LgyRmD0E1k0zbKFg79sAlXy-fLyc";
+  const SUPABASE_URL = "https://evfuyrixpjgfytwfijpx.supabase.co"; // LIVE - NOW ACTIVE
+  const SUPABASE_ANON_KEY = // LIVE - NOW ACTIVE
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2ZnV5cml4cGpnZnl0d2ZpanB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwODA0MDIsImV4cCI6MjA1OTY1NjQwMn0.GD6oTrvjKMdqSK4LgyRmD0E1k0zbKFg79sAlXy-fLyc";
 
-  // TEMPORARY: Point to local Supabase for testing - REVERTED // Now ACTIVE for local dev
-  const SUPABASE_URL = "http://127.0.0.1:54321";
-  const SUPABASE_ANON_KEY = 
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
+  // TEMPORARY: Point to local Supabase for testing - COMMENTED OUT FOR LIVE
+  // const SUPABASE_URL = "http://127.0.0.1:54321";
+  // const SUPABASE_ANON_KEY = 
+  //   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
 
   let supabaseClient = null; // Renamed for clarity
   if (window.supabase) {
@@ -171,37 +171,65 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // --- V2 Credits Logic ---
   async function loadAndDisplayCredits() {
+    console.log("[loadAndDisplayCredits] Starting to load credits...");
+    
     if (!supabaseClient) {
+      console.log("[loadAndDisplayCredits] No Supabase client available");
       if (creditsBalanceEl) creditsBalanceEl.textContent = "Auth service unavailable";
       return;
     }
 
     try {
+      console.log("[loadAndDisplayCredits] Getting session...");
       const { data: { session } } = await supabaseClient.auth.getSession();
       if (!session || !session.user) {
+        console.log("[loadAndDisplayCredits] No session found");
         if (creditsBalanceEl) creditsBalanceEl.textContent = "Please log in to view credits";
         return;
       }
 
-      // Query user_profiles for credit balance
-      const { data: profile, error } = await supabaseClient
+      console.log("[loadAndDisplayCredits] Session found, user:", session.user.email);
+      console.log("[loadAndDisplayCredits] Querying user_profiles for user ID:", session.user.id);
+
+      // Fetch current credits from user_profiles
+      const { data: profile, error: profileError } = await supabaseClient
         .from('user_profiles')
-        .select('balance')
+        .select('credits')
         .eq('id', session.user.id)
         .single();
 
-      if (error) {
-        console.error("Error fetching user credits:", error);
-        if (creditsBalanceEl) creditsBalanceEl.textContent = "Error loading credits";
+      console.log("[loadAndDisplayCredits] Profile query result:", { profile, profileError });
+
+      if (profileError) {
+        console.error('[loadAndDisplayCredits] Error fetching user profile:', profileError);
+        displayCredits('--', 'Unable to load credits');
         return;
       }
 
-      if (creditsBalanceEl) {
-        creditsBalanceEl.textContent = profile?.balance || 0;
+      if (profile) {
+        console.log("[loadAndDisplayCredits] Profile found, credits:", profile.credits);
+        displayCredits(profile.credits);
+      } else {
+        console.log("[loadAndDisplayCredits] No profile found");
+        // No profile found, this shouldn't happen but handle gracefully
+        displayCredits(0, 'No profile found');
       }
     } catch (error) {
-      console.error("Error loading credits:", error);
+      console.error("[loadAndDisplayCredits] Error loading credits:", error);
       if (creditsBalanceEl) creditsBalanceEl.textContent = "Error loading credits";
+    }
+  }
+
+  /**
+   * Display credits in the UI
+   */
+  function displayCredits(balance, message) {
+    if (creditsBalanceEl) {
+      if (message) {
+        creditsBalanceEl.textContent = message;
+      } else {
+        creditsBalanceEl.textContent = balance;
+      }
     }
   }
 
@@ -246,108 +274,25 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      showPurchaseStatus("Initializing secure payment...", "loading");
+      showPurchaseStatus("Redirecting to secure payment...", "loading");
 
-      // For demo purposes, we'll simulate a successful purchase
-      // In production, this would integrate with Stripe Checkout
-      const success = await simulateStripeCheckout(packageType, credits, priceInCents);
-      
-      if (success) {
-        // Grant credits to user
-        await grantCreditsToUser(session.user.id, credits, packageType);
-      } else {
-        showPurchaseStatus("Payment was cancelled or failed. Please try again.", "error");
+      // Get Stripe price ID for this package
+      const priceId = window.StripeClient?.getPriceId(packageType);
+      if (!priceId) {
+        throw new Error(`Price ID not found for package: ${packageType}`);
       }
+
+      // Redirect to Stripe Checkout
+      await window.StripeClient.redirectToCheckout(
+        priceId,
+        session.user.email,
+        credits,
+        packageType
+      );
 
     } catch (error) {
       console.error("[Purchase] Error initiating purchase:", error);
       showPurchaseStatus("An error occurred during checkout. Please try again.", "error");
-    }
-  }
-
-  /**
-   * Simulate Stripe checkout (replace with real Stripe integration)
-   */
-  async function simulateStripeCheckout(packageType, credits, priceInCents) {
-    return new Promise((resolve) => {
-      // Simulate processing time
-      setTimeout(() => {
-        // For demo, randomly succeed 90% of the time
-        const success = Math.random() > 0.1;
-        resolve(success);
-      }, 2000);
-    });
-  }
-
-  /**
-   * Grant credits to user after successful payment
-   */
-  async function grantCreditsToUser(userId, credits, packageType) {
-    try {
-      showPurchaseStatus("Payment successful! Adding credits to your account...", "loading");
-
-      // TODO: In production, this should be done server-side via webhook
-      // For now, we'll do it client-side for demo purposes
-      
-      // Get current balance
-      const { data: profile, error: profileError } = await supabaseClient
-        .from('user_profiles')
-        .select('balance')
-        .eq('id', userId)
-        .single();
-
-      if (profileError) {
-        throw new Error("Failed to fetch current balance: " + profileError.message);
-      }
-
-      const currentBalance = profile?.balance || 0;
-      const newBalance = currentBalance + credits;
-
-      // Update user balance
-      const { error: updateError } = await supabaseClient
-        .from('user_profiles')
-        .update({ balance: newBalance })
-        .eq('id', userId);
-
-      if (updateError) {
-        throw new Error("Failed to update balance: " + updateError.message);
-      }
-
-      // Log the purchase event
-      const { error: logError } = await supabaseClient
-        .from('usage_events')
-        .insert({
-          user_id: userId,
-          event_type: 'credit_purchase',
-          credits_used: -credits, // Negative because this is adding credits
-          metadata: {
-            package_type: packageType,
-            credits_purchased: credits,
-            previous_balance: currentBalance,
-            new_balance: newBalance
-          }
-        });
-
-      if (logError) {
-        console.warn("[Purchase] Failed to log purchase event:", logError);
-        // Don't fail the purchase for logging errors
-      }
-
-      // Show success message
-      showPurchaseStatus(
-        `🎉 Success! ${credits} credits have been added to your account. New balance: ${newBalance} credits.`,
-        "success"
-      );
-
-      // Refresh the credits display
-      await loadAndDisplayCredits();
-
-    } catch (error) {
-      console.error("[Purchase] Error granting credits:", error);
-      showPurchaseStatus(
-        "Payment was processed but there was an error adding credits. Please contact support.",
-        "error"
-      );
     }
   }
 
@@ -594,6 +539,36 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Perform initial auth check
   checkInitialAuthState();
+
+  // Handle Stripe checkout returns
+  handleStripeReturn();
+
+  // --- Success/Cancel Handling for Stripe Returns ---
+
+  /**
+   * Handle URL parameters for Stripe checkout returns
+   */
+  function handleStripeReturn() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const success = urlParams.get('success');
+    const cancelled = urlParams.get('cancelled');
+
+    if (success === 'true') {
+      showPurchaseStatus("🎉 Payment successful! Your credits will be added shortly.", "success");
+      // Refresh credits display after a short delay to allow webhook processing
+      setTimeout(() => {
+        loadAndDisplayCredits();
+      }, 2000);
+      
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (cancelled === 'true') {
+      showPurchaseStatus("Payment was cancelled. No charges were made.", "error");
+      
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }
 
   console.log("CoPrompt Options: All event listeners set up successfully.");
 });

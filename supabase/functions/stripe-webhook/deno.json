@@ -1,0 +1,15 @@
+{
+  "imports": {
+    "stripe": "https://esm.sh/stripe@12.9.0?target=deno",
+    "supabase": "https://esm.sh/@supabase/supabase-js@2"
+  },
+  "compilerOptions": {
+    "lib": ["deno.window"],
+    "strict": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitReturns": true,
+    "noUncheckedIndexedAccess": true
+  }
+} 
