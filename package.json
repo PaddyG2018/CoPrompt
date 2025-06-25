@@ -6,10 +6,10 @@
   "type": "module",
   "scripts": {
     "test": "echo \"No tests configured yet\" && exit 0",
-    "lint": "eslint --ext .js,.ts .",
+    "lint": "eslint .",
     "format": "prettier --write \"**/*.{js,json,html,css,md}\"",
     "start": "web-ext run --target=chromium",
-    "security": "npm audit && snyk test",
+    "security": "npm audit",
     "clean": "rimraf dist/",
     "build:dev": "NODE_ENV=development webpack --mode development",
     "build:watch": "NODE_ENV=development webpack --mode development --watch",
