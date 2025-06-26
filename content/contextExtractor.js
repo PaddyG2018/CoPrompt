@@ -112,41 +112,50 @@ const PLATFORM_CONFIGS = {
   LOVABLE: {
     name: "Lovable",
     hostIncludes: ["lovable.dev"],
-    selector: ".message, .chat-message, [data-role], .user-message, .ai-message, .conversation-item",
+    selector:
+      ".message, .chat-message, [data-role], .user-message, .ai-message, .conversation-item",
     extractRoleAndContent: (element) => {
       let role = "";
       let content = "";
-      
+
       // Check for data attributes first (most reliable)
       const dataRole = element.getAttribute("data-role");
       if (dataRole) {
         role = dataRole === "user" ? USER_ROLE : ASSISTANT_ROLE;
       } else {
         // Check for class-based role detection
-        if (element.matches(".user-message") || element.classList.contains("user")) {
+        if (
+          element.matches(".user-message") ||
+          element.classList.contains("user")
+        ) {
           role = USER_ROLE;
-        } else if (element.matches(".ai-message, .assistant-message") || element.classList.contains("assistant") || element.classList.contains("ai")) {
+        } else if (
+          element.matches(".ai-message, .assistant-message") ||
+          element.classList.contains("assistant") ||
+          element.classList.contains("ai")
+        ) {
           role = ASSISTANT_ROLE;
         } else {
           // Fallback: check parent containers or position-based detection
           const messageContainer = element.closest("[data-message-role]");
           if (messageContainer) {
-            const containerRole = messageContainer.getAttribute("data-message-role");
+            const containerRole =
+              messageContainer.getAttribute("data-message-role");
             role = containerRole === "user" ? USER_ROLE : ASSISTANT_ROLE;
           }
         }
       }
-      
+
       // Extract content with multiple fallback strategies
       const contentSelectors = [
         ".message-content",
-        ".chat-content", 
+        ".chat-content",
         ".text-content",
         ".message-text",
         "p",
-        ".content"
+        ".content",
       ];
-      
+
       for (const selector of contentSelectors) {
         const contentEl = element.querySelector(selector);
         if (contentEl) {
@@ -154,12 +163,12 @@ const PLATFORM_CONFIGS = {
           break;
         }
       }
-      
+
       // Fallback to element's direct text content
       if (!content) {
         content = element.textContent?.trim() || "";
       }
-      
+
       return { role, content };
     },
   },

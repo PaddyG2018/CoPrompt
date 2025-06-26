@@ -9,7 +9,7 @@ export function getDefaultSitePreferences() {
     "chatgpt.com": { enabled: true },
     "claude.ai": { enabled: true },
     "gemini.google.com": { enabled: true },
-    "lovable.dev": { enabled: true }
+    "lovable.dev": { enabled: true },
   };
 }
 
@@ -19,10 +19,10 @@ export function getDefaultSitePreferences() {
  */
 export async function getSitePreferences() {
   try {
-    const result = await chrome.storage.sync.get(['site_preferences']);
+    const result = await chrome.storage.sync.get(["site_preferences"]);
     return result.site_preferences || getDefaultSitePreferences();
   } catch (error) {
-    console.error('[SitePrefs] Error getting site preferences:', error);
+    console.error("[SitePrefs] Error getting site preferences:", error);
     return getDefaultSitePreferences();
   }
 }
@@ -37,7 +37,7 @@ export async function saveSitePreferences(preferences) {
     await chrome.storage.sync.set({ site_preferences: preferences });
     return true;
   } catch (error) {
-    console.error('[SitePrefs] Error saving site preferences:', error);
+    console.error("[SitePrefs] Error saving site preferences:", error);
     return false;
   }
 }
@@ -49,14 +49,14 @@ export async function saveSitePreferences(preferences) {
  */
 export async function isSiteEnabled(hostname) {
   const preferences = await getSitePreferences();
-  
+
   // Check each configured site to see if hostname matches
   for (const [site, config] of Object.entries(preferences)) {
     if (hostname.includes(site)) {
       return config.enabled;
     }
   }
-  
+
   // Default to false for unknown sites (safety first)
   return false;
 }
@@ -80,16 +80,16 @@ export async function shouldShowOnCurrentSite() {
 export async function toggleSite(site, enabled) {
   try {
     const preferences = await getSitePreferences();
-    
+
     if (preferences[site]) {
       preferences[site].enabled = enabled;
       return await saveSitePreferences(preferences);
     } else {
-      console.warn('[SitePrefs] Unknown site:', site);
+      console.warn("[SitePrefs] Unknown site:", site);
       return false;
     }
   } catch (error) {
-    console.error('[SitePrefs] Error toggling site:', error);
+    console.error("[SitePrefs] Error toggling site:", error);
     return false;
   }
 }
@@ -101,33 +101,33 @@ export async function toggleSite(site, enabled) {
 export function getSiteDisplayInfo() {
   return [
     {
-      key: 'chatgpt.com',
-      name: 'ChatGPT',
-      icon: '💬',
-      url: 'chatgpt.com',
-      description: 'OpenAI ChatGPT'
+      key: "chatgpt.com",
+      name: "ChatGPT",
+      icon: "💬",
+      url: "chatgpt.com",
+      description: "OpenAI ChatGPT",
     },
     {
-      key: 'claude.ai', 
-      name: 'Claude',
-      icon: '🤖',
-      url: 'claude.ai',
-      description: 'Anthropic Claude'
+      key: "claude.ai",
+      name: "Claude",
+      icon: "🤖",
+      url: "claude.ai",
+      description: "Anthropic Claude",
     },
     {
-      key: 'gemini.google.com',
-      name: 'Gemini',
-      icon: '✨',
-      url: 'gemini.google.com', 
-      description: 'Google Gemini'
+      key: "gemini.google.com",
+      name: "Gemini",
+      icon: "✨",
+      url: "gemini.google.com",
+      description: "Google Gemini",
     },
     {
-      key: 'lovable.dev',
-      name: 'Lovable',
-      icon: '💝',
-      url: 'lovable.dev',
-      description: 'Lovable AI Development'
-    }
+      key: "lovable.dev",
+      name: "Lovable",
+      icon: "💝",
+      url: "lovable.dev",
+      description: "Lovable AI Development",
+    },
   ];
 }
 
@@ -138,18 +138,18 @@ export function getSiteDisplayInfo() {
  */
 export async function initializeSitePreferences() {
   try {
-    const result = await chrome.storage.sync.get(['site_preferences']);
-    
+    const result = await chrome.storage.sync.get(["site_preferences"]);
+
     if (!result.site_preferences) {
       // First time user - set defaults
       await saveSitePreferences(getDefaultSitePreferences());
-      console.log('[SitePrefs] Initialized default site preferences');
+      console.log("[SitePrefs] Initialized default site preferences");
       return true;
     }
-    
+
     return false; // Already initialized
   } catch (error) {
-    console.error('[SitePrefs] Error initializing site preferences:', error);
+    console.error("[SitePrefs] Error initializing site preferences:", error);
     return false;
   }
-} 
+}

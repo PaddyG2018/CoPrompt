@@ -25,7 +25,10 @@ import { makeDraggable } from "./content/interactionHandler.js";
 import { handleWindowMessage } from "./content/messageHandler.js"; // Ensure this name matches export
 import { generateUniqueId } from "./utils/helpers.js";
 import { ENHANCING_LABEL } from "./utils/constants.js"; // Add this import
-import { shouldShowOnCurrentSite, initializeSitePreferences } from "./utils/sitePreferences.js"; // Add site preferences import
+import {
+  shouldShowOnCurrentSite,
+  initializeSitePreferences,
+} from "./utils/sitePreferences.js"; // Add site preferences import
 
 // --- Utility Functions ---
 // Debounce function to prevent rapid-fire executions
@@ -1054,41 +1057,52 @@ export function getConversationContext() {
       messageElements.forEach((el) => {
         let role = "";
         let content = "";
-        
+
         // Check for data attributes first (most reliable)
         const dataRole = el.getAttribute("data-role");
         if (dataRole) {
           role = dataRole === "user" ? "user" : "assistant";
         } else {
           // Check for class-based role detection
-          if (el.matches(".user-message, .user-chat, .user") || el.classList.contains("user")) {
+          if (
+            el.matches(".user-message, .user-chat, .user") ||
+            el.classList.contains("user")
+          ) {
             role = "user";
-          } else if (el.matches(".ai-message, .assistant-message, .ai-chat, .assistant") || 
-                     el.classList.contains("assistant") || el.classList.contains("ai")) {
+          } else if (
+            el.matches(
+              ".ai-message, .assistant-message, .ai-chat, .assistant",
+            ) ||
+            el.classList.contains("assistant") ||
+            el.classList.contains("ai")
+          ) {
             role = "assistant";
           } else {
             // Fallback: check parent containers
-            const messageContainer = el.closest("[data-message-role], [data-role]");
+            const messageContainer = el.closest(
+              "[data-message-role], [data-role]",
+            );
             if (messageContainer) {
-              const containerRole = messageContainer.getAttribute("data-message-role") || 
-                                   messageContainer.getAttribute("data-role");
+              const containerRole =
+                messageContainer.getAttribute("data-message-role") ||
+                messageContainer.getAttribute("data-role");
               role = containerRole === "user" ? "user" : "assistant";
             }
           }
         }
-        
+
         // Extract content with multiple fallback strategies
         const contentSelectors = [
           ".message-content",
-          ".chat-content", 
+          ".chat-content",
           ".text-content",
           ".message-text",
           ".content",
           "p",
           ".markdown",
-          ".prose"
+          ".prose",
         ];
-        
+
         for (const selector of contentSelectors) {
           const contentEl = el.querySelector(selector);
           if (contentEl) {
@@ -1096,7 +1110,7 @@ export function getConversationContext() {
             if (content) break;
           }
         }
-        
+
         // Fallback to element's direct text content
         if (!content) {
           content = el.textContent?.trim() || "";
@@ -1255,15 +1269,17 @@ if (typeof handleWindowMessage === "function") {
         "[Content Script] Handling ENHANCE_PROMPT_ERROR from background:",
         error,
       );
-      
+
       // V2A-06: Check if authentication is required
       if (message.authRequired) {
-        console.log("[Content Script] Authentication required, showing auth modal");
+        console.log(
+          "[Content Script] Authentication required, showing auth modal",
+        );
         // Find the target input element using the targetInputId
         const inputElement = targetInputId
           ? document.getElementById(targetInputId)
           : findActiveInputElement();
-        
+
         // Show authentication modal instead of error alert
         showAuthModal(buttonElement, requestId, inputElement);
       } else {
@@ -1292,10 +1308,12 @@ if (typeof handleWindowMessage === "function") {
 console.log("CoPrompt: content.js loaded.");
 
 // Initialize site preferences for new users
-initializeSitePreferences().then((wasInitialized) => {
-  if (wasInitialized) {
-    console.log("CoPrompt: Site preferences initialized with defaults");
-  }
-}).catch((error) => {
-  console.error("CoPrompt: Error initializing site preferences:", error);
-});
+initializeSitePreferences()
+  .then((wasInitialized) => {
+    if (wasInitialized) {
+      console.log("CoPrompt: Site preferences initialized with defaults");
+    }
+  })
+  .catch((error) => {
+    console.error("CoPrompt: Error initializing site preferences:", error);
+  });

@@ -282,25 +282,29 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   // Initialize package button listeners
-  console.log('[Purchase] Looking for package buttons...');
-  console.log('[Purchase] Found buttons:', packageButtons.length);
-  
+  console.log("[Purchase] Looking for package buttons...");
+  console.log("[Purchase] Found buttons:", packageButtons.length);
+
   packageButtons.forEach((button, index) => {
     console.log(`[Purchase] Setting up button ${index}:`, {
       packageType: button.getAttribute("data-package"),
       credits: button.getAttribute("data-credits"),
-      price: button.getAttribute("data-price")
+      price: button.getAttribute("data-price"),
     });
-    
+
     button.addEventListener("click", async (e) => {
-      console.log('[Purchase] Button clicked:', e.target);
-      
+      console.log("[Purchase] Button clicked:", e.target);
+
       const packageType = e.target.getAttribute("data-package");
       const credits = parseInt(e.target.getAttribute("data-credits"));
       const price = parseInt(e.target.getAttribute("data-price"));
 
-      console.log('[Purchase] Extracted data:', { packageType, credits, price });
-      
+      console.log("[Purchase] Extracted data:", {
+        packageType,
+        credits,
+        price,
+      });
+
       await initiateCreditPurchase(packageType, credits, price);
     });
   });
@@ -309,10 +313,14 @@ document.addEventListener("DOMContentLoaded", () => {
    * Initiate credit purchase workflow
    */
   async function initiateCreditPurchase(packageType, credits, priceInCents) {
-    console.log('[Purchase] initiateCreditPurchase called with:', { packageType, credits, priceInCents });
-    
+    console.log("[Purchase] initiateCreditPurchase called with:", {
+      packageType,
+      credits,
+      priceInCents,
+    });
+
     if (!supabaseClient) {
-      console.error('[Purchase] No supabase client available');
+      console.error("[Purchase] No supabase client available");
       showPurchaseStatus(
         "Authentication service not available. Please refresh the page.",
         "error",
@@ -321,48 +329,51 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     try {
-      console.log('[Purchase] Checking authentication...');
+      console.log("[Purchase] Checking authentication...");
       // Check authentication
       const {
         data: { session },
         error: sessionError,
       } = await supabaseClient.auth.getSession();
-      
-      console.log('[Purchase] Session check result:', { session: !!session, sessionError });
-      
+
+      console.log("[Purchase] Session check result:", {
+        session: !!session,
+        sessionError,
+      });
+
       if (sessionError || !session) {
-        console.error('[Purchase] Authentication failed:', sessionError);
+        console.error("[Purchase] Authentication failed:", sessionError);
         showPurchaseStatus("Please log in to purchase credits.", "error");
         return;
       }
 
-      console.log('[Purchase] User authenticated:', session.user.email);
+      console.log("[Purchase] User authenticated:", session.user.email);
       showPurchaseStatus("Redirecting to secure payment...", "info");
 
       // Check if StripeClient is available
-      console.log('[Purchase] Checking StripeClient availability:', {
+      console.log("[Purchase] Checking StripeClient availability:", {
         StripeClient: !!window.StripeClient,
         getPriceId: !!window.StripeClient?.getPriceId,
-        redirectToCheckout: !!window.StripeClient?.redirectToCheckout
+        redirectToCheckout: !!window.StripeClient?.redirectToCheckout,
       });
 
       if (!window.StripeClient) {
-        throw new Error('StripeClient not loaded. Please refresh the page.');
+        throw new Error("StripeClient not loaded. Please refresh the page.");
       }
 
       // Get Stripe price ID for this package
       const priceId = window.StripeClient.getPriceId(packageType);
-      console.log('[Purchase] Price ID lookup:', { packageType, priceId });
-      
+      console.log("[Purchase] Price ID lookup:", { packageType, priceId });
+
       if (!priceId) {
         throw new Error(`Price ID not found for package: ${packageType}`);
       }
 
-      console.log('[Purchase] Calling redirectToCheckout with:', {
+      console.log("[Purchase] Calling redirectToCheckout with:", {
         priceId,
         email: session.user.email,
         credits,
-        packageType
+        packageType,
       });
 
       // Redirect to Stripe Checkout
@@ -372,9 +383,10 @@ document.addEventListener("DOMContentLoaded", () => {
         credits,
         packageType,
       );
-      
-      console.log('[Purchase] redirectToCheckout completed (this should not be reached if redirect worked)');
-      
+
+      console.log(
+        "[Purchase] redirectToCheckout completed (this should not be reached if redirect worked)",
+      );
     } catch (error) {
       console.error("[Purchase] Error initiating purchase:", error);
       showPurchaseStatus(
@@ -641,17 +653,20 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       const result = await chrome.storage.local.get("prefilled_email");
       const prefilledEmail = result.prefilled_email;
-      
+
       if (prefilledEmail && emailInput) {
         console.log("Found prefilled email:", prefilledEmail);
         emailInput.value = prefilledEmail;
         emailInput.focus(); // Focus on the email field to draw attention
-        
+
         // Clear the prefilled email to avoid re-using it on subsequent visits
         await chrome.storage.local.remove("prefilled_email");
-        
+
         // Show a helpful message
-        showAuthStatus("Email pre-filled from your signup request. Please enter a password to continue.", "success");
+        showAuthStatus(
+          "Email pre-filled from your signup request. Please enter a password to continue.",
+          "success",
+        );
       }
     } catch (error) {
       console.error("Error checking for prefilled email:", error);
@@ -706,33 +721,33 @@ document.addEventListener("DOMContentLoaded", () => {
   function getSiteDisplayInfo() {
     return [
       {
-        key: 'chatgpt.com',
-        name: 'ChatGPT',
-        icon: '💬',
-        url: 'chatgpt.com',
-        description: 'OpenAI ChatGPT'
+        key: "chatgpt.com",
+        name: "ChatGPT",
+        icon: "💬",
+        url: "chatgpt.com",
+        description: "OpenAI ChatGPT",
       },
       {
-        key: 'claude.ai', 
-        name: 'Claude',
-        icon: '🤖',
-        url: 'claude.ai',
-        description: 'Anthropic Claude'
+        key: "claude.ai",
+        name: "Claude",
+        icon: "🤖",
+        url: "claude.ai",
+        description: "Anthropic Claude",
       },
       {
-        key: 'gemini.google.com',
-        name: 'Gemini',
-        icon: '✨',
-        url: 'gemini.google.com', 
-        description: 'Google Gemini'
+        key: "gemini.google.com",
+        name: "Gemini",
+        icon: "✨",
+        url: "gemini.google.com",
+        description: "Google Gemini",
       },
       {
-        key: 'lovable.dev',
-        name: 'Lovable',
-        icon: '💝',
-        url: 'lovable.dev',
-        description: 'Lovable AI Development'
-      }
+        key: "lovable.dev",
+        name: "Lovable",
+        icon: "💝",
+        url: "lovable.dev",
+        description: "Lovable AI Development",
+      },
     ];
   }
 
@@ -742,7 +757,7 @@ document.addEventListener("DOMContentLoaded", () => {
       "chatgpt.com": { enabled: true },
       "claude.ai": { enabled: true },
       "gemini.google.com": { enabled: true },
-      "lovable.dev": { enabled: true }
+      "lovable.dev": { enabled: true },
     };
   }
 
@@ -761,14 +776,15 @@ document.addEventListener("DOMContentLoaded", () => {
   // Load and display site preferences
   async function loadSitePreferences() {
     try {
-      const result = await chrome.storage.sync.get(['site_preferences']);
-      const preferences = result.site_preferences || getDefaultSitePreferences();
-      
-      console.log('Loaded site preferences:', preferences);
+      const result = await chrome.storage.sync.get(["site_preferences"]);
+      const preferences =
+        result.site_preferences || getDefaultSitePreferences();
+
+      console.log("Loaded site preferences:", preferences);
       displaySitePreferences(preferences);
     } catch (error) {
-      console.error('Error loading site preferences:', error);
-      showSitePrefsStatus('Error loading site preferences', 'error');
+      console.error("Error loading site preferences:", error);
+      showSitePrefsStatus("Error loading site preferences", "error");
     }
   }
 
@@ -777,22 +793,22 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!siteTogglesContainer) return;
 
     // Clear existing content
-    siteTogglesContainer.innerHTML = '';
+    siteTogglesContainer.innerHTML = "";
 
     const sites = getSiteDisplayInfo();
-    
-    sites.forEach(site => {
+
+    sites.forEach((site) => {
       const isEnabled = preferences[site.key]?.enabled !== false; // Default to true if undefined
-      
-      const toggleDiv = document.createElement('div');
-      toggleDiv.className = `site-toggle ${isEnabled ? 'enabled' : 'disabled'}`;
-      
+
+      const toggleDiv = document.createElement("div");
+      toggleDiv.className = `site-toggle ${isEnabled ? "enabled" : "disabled"}`;
+
       toggleDiv.innerHTML = `
         <input 
           type="checkbox" 
           id="site-${site.key}" 
           class="site-toggle-checkbox"
-          ${isEnabled ? 'checked' : ''}
+          ${isEnabled ? "checked" : ""}
           data-site="${site.key}"
         >
         <div class="site-toggle-info">
@@ -804,20 +820,20 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="site-toggle-description">${site.description}</div>
         </div>
       `;
-      
+
       // Add click handler for the entire toggle area
-      const checkbox = toggleDiv.querySelector('.site-toggle-checkbox');
-      const toggleInfo = toggleDiv.querySelector('.site-toggle-info');
-      
-      toggleInfo.addEventListener('click', () => {
+      const checkbox = toggleDiv.querySelector(".site-toggle-checkbox");
+      const toggleInfo = toggleDiv.querySelector(".site-toggle-info");
+
+      toggleInfo.addEventListener("click", () => {
         checkbox.checked = !checkbox.checked;
         updateToggleVisuals(toggleDiv, checkbox.checked);
       });
-      
-      checkbox.addEventListener('change', () => {
+
+      checkbox.addEventListener("change", () => {
         updateToggleVisuals(toggleDiv, checkbox.checked);
       });
-      
+
       siteTogglesContainer.appendChild(toggleDiv);
     });
   }
@@ -825,31 +841,31 @@ document.addEventListener("DOMContentLoaded", () => {
   // Update toggle visual state
   function updateToggleVisuals(toggleDiv, isEnabled) {
     if (isEnabled) {
-      toggleDiv.classList.remove('disabled');
-      toggleDiv.classList.add('enabled');
+      toggleDiv.classList.remove("disabled");
+      toggleDiv.classList.add("enabled");
     } else {
-      toggleDiv.classList.remove('enabled');
-      toggleDiv.classList.add('disabled');
+      toggleDiv.classList.remove("enabled");
+      toggleDiv.classList.add("disabled");
     }
   }
 
   // Save site preferences
   async function saveSitePreferences() {
     try {
-      const checkboxes = document.querySelectorAll('.site-toggle-checkbox');
+      const checkboxes = document.querySelectorAll(".site-toggle-checkbox");
       const preferences = {};
-      
-      checkboxes.forEach(checkbox => {
+
+      checkboxes.forEach((checkbox) => {
         const site = checkbox.dataset.site;
         preferences[site] = { enabled: checkbox.checked };
       });
-      
+
       await chrome.storage.sync.set({ site_preferences: preferences });
-      showSitePrefsStatus('Site preferences saved successfully!', 'success');
-      console.log('Saved site preferences:', preferences);
+      showSitePrefsStatus("Site preferences saved successfully!", "success");
+      console.log("Saved site preferences:", preferences);
     } catch (error) {
-      console.error('Error saving site preferences:', error);
-      showSitePrefsStatus('Error saving site preferences', 'error');
+      console.error("Error saving site preferences:", error);
+      showSitePrefsStatus("Error saving site preferences", "error");
     }
   }
 
@@ -859,21 +875,21 @@ document.addEventListener("DOMContentLoaded", () => {
       const defaults = getDefaultSitePreferences();
       await chrome.storage.sync.set({ site_preferences: defaults });
       displaySitePreferences(defaults);
-      showSitePrefsStatus('Site preferences reset to defaults', 'success');
-      console.log('Reset site preferences to defaults');
+      showSitePrefsStatus("Site preferences reset to defaults", "success");
+      console.log("Reset site preferences to defaults");
     } catch (error) {
-      console.error('Error resetting site preferences:', error);
-      showSitePrefsStatus('Error resetting site preferences', 'error');
+      console.error("Error resetting site preferences:", error);
+      showSitePrefsStatus("Error resetting site preferences", "error");
     }
   }
 
   // Set up site preferences event listeners
   if (saveSitePrefsButton) {
-    saveSitePrefsButton.addEventListener('click', saveSitePreferences);
+    saveSitePrefsButton.addEventListener("click", saveSitePreferences);
   }
 
   if (resetSitePrefsButton) {
-    resetSitePrefsButton.addEventListener('click', resetSitePreferences);
+    resetSitePrefsButton.addEventListener("click", resetSitePreferences);
   }
 
   // Initialize site preferences
