@@ -1,4 +1,4 @@
-const DEBUG = true; // Define DEBUG at the top of the file
+const DEBUG = false; // Define DEBUG at the top of the file
 
 import {
   DEFAULT_SYSTEM_INSTRUCTION,
@@ -86,7 +86,35 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             !!userAccessToken,
           );
 
-        // V2A-05: Call API without deviceId (JWT-based auth only)
+        // V2A-06: Check if user is authenticated before making API call
+        if (!userAccessToken) {
+          console.log("[Background] No user authentication found, prompting for signup");
+          // Send authentication required error to content script
+          chrome.tabs.sendMessage(tabIdFromSender, {
+            type: "ENHANCE_PROMPT_ERROR",
+            error: "Authentication required. Please sign up to get 25 free credits.",
+            authRequired: true, // Flag to trigger auth modal
+            targetInputId: targetInputIdFromRequest,
+            requestId: request.requestId,
+          });
+          return;
+        }
+
+        // Check if session is expired
+        const now = Math.floor(Date.now() / 1000);
+        if (session.expires_at && session.expires_at <= now) {
+          console.log("[Background] User session expired, prompting for re-authentication");
+          chrome.tabs.sendMessage(tabIdFromSender, {
+            type: "ENHANCE_PROMPT_ERROR", 
+            error: "Session expired. Please log in again.",
+            authRequired: true, // Flag to trigger auth modal
+            targetInputId: targetInputIdFromRequest,
+            requestId: request.requestId,
+          });
+          return;
+        }
+
+        // V2A-05: Call API with valid user JWT
         callOpenAI(
           null,
           systemInstructionForApi,
@@ -157,26 +185,23 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       request.email,
     );
 
-    try {
-      // For now, open the options page with a pre-filled email
-      // In a full implementation, this would integrate with Supabase Auth
-      const optionsUrl =
-        chrome.runtime.getURL("options.html") +
-        "?email=" +
-        encodeURIComponent(request.email);
-      chrome.tabs.create({ url: optionsUrl }, (tab) => {
-        sendResponse({
-          success: true,
-          message: "Please complete signup in the new tab that opened.",
-        });
+    // Store the email for the options page to pick up
+    chrome.storage.local.set({ prefilled_email: request.email }).then(() => {
+      // Open options page using explicit tab creation
+      chrome.tabs.create({ url: chrome.runtime.getURL("options.html") });
+      
+      sendResponse({
+        success: true,
+        message: "Please complete signup in the new tab that opened.",
       });
-    } catch (error) {
+    }).catch((error) => {
       console.error("[Background] Error handling magic link request:", error);
       sendResponse({
         success: false,
         error: "Failed to open signup page. Please try again.",
       });
-    }
+    });
+    
     return true; // Indicates async response
   } else if (request.type === "OPEN_OPTIONS_PAGE") {
     // V2A-02: Open options page

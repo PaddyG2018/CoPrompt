@@ -18,9 +18,11 @@ document.addEventListener("DOMContentLoaded", function () {
   const creditsStatus = document.getElementById("creditsStatus");
   const creditsError = document.getElementById("creditsError");
   const refreshCredits = document.getElementById("refreshCredits");
+  const creditsContainer = document.querySelector(".credits-container");
   const authPrompt = document.getElementById("authPrompt");
   const signUpButton = document.getElementById("signUpButton");
   const optionsButton = document.getElementById("optionsButton");
+  const supportButton = document.getElementById("supportButton");
 
   // Initialize Supabase client
   if (window.supabase) {
@@ -39,12 +41,17 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Open settings page
   optionsButton.addEventListener("click", function () {
-    chrome.runtime.openOptionsPage();
+    chrome.tabs.create({ url: chrome.runtime.getURL("options.html") });
   });
 
   // Sign up button (opens settings)
   signUpButton.addEventListener("click", function () {
-    chrome.runtime.openOptionsPage();
+    chrome.tabs.create({ url: chrome.runtime.getURL("options.html") });
+  });
+
+  // Support button (opens contact page)
+  supportButton.addEventListener("click", function () {
+    chrome.tabs.create({ url: "https://www.coprompt.app/contact" });
   });
 
   // Refresh credits button
@@ -124,7 +131,8 @@ document.addEventListener("DOMContentLoaded", function () {
   function displayCredits(credits) {
     console.log("[Popup] Displaying credits:", credits);
 
-    // Hide auth prompt and error
+    // Show credits container and hide auth prompt
+    if (creditsContainer) creditsContainer.style.display = "block";
     authPrompt.style.display = "none";
     creditsError.style.display = "none";
 
@@ -173,6 +181,8 @@ document.addEventListener("DOMContentLoaded", function () {
    * Show loading state
    */
   function setLoadingState() {
+    // Show credits container during loading
+    if (creditsContainer) creditsContainer.style.display = "block";
     authPrompt.style.display = "none";
     creditsError.style.display = "none";
     creditsStatus.style.display = "none";
@@ -186,19 +196,18 @@ document.addEventListener("DOMContentLoaded", function () {
    * Show authentication prompt
    */
   function showAuthPrompt() {
+    // Hide credits container completely and show auth prompt
+    if (creditsContainer) creditsContainer.style.display = "none";
     authPrompt.style.display = "block";
     creditsError.style.display = "none";
-    creditsStatus.style.display = "none";
-    creditsBalance.innerHTML =
-      '<span class="credits-loading">Sign in to view</span>';
-    refreshCredits.disabled = true;
-    refreshCredits.classList.remove("loading");
   }
 
   /**
    * Show error message
    */
   function showError(message) {
+    // Show credits container but hide auth prompt
+    if (creditsContainer) creditsContainer.style.display = "block";
     authPrompt.style.display = "none";
     creditsStatus.style.display = "none";
     creditsBalance.innerHTML = '<span class="credits-loading">--</span>';

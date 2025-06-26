@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import Stripe from "https://esm.sh/stripe@12.9.0?target=deno";
 
+// Initialize Stripe client outside of the handler to reuse across requests
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
   apiVersion: "2022-11-15",
   httpClient: Stripe.createFetchHttpClient(),
@@ -14,9 +15,12 @@ serve(async (req) => {
   }
 
   try {
+    console.log("🚀 Processing checkout session request...");
+    
     const { price_id, customer_email, metadata } = await req.json();
 
     if (!price_id || !customer_email) {
+      console.log("❌ Missing required fields");
       return new Response(
         JSON.stringify({ error: "price_id and customer_email are required" }),
         {
@@ -30,7 +34,8 @@ serve(async (req) => {
       `🛒 Creating checkout session for ${customer_email}, price: ${price_id}`,
     );
 
-    // Create Stripe checkout session
+    // Create Stripe checkout session with optimized settings
+    const sessionStartTime = Date.now();
     const session = await stripe.checkout.sessions.create({
       customer_email: customer_email,
       line_items: [
@@ -46,9 +51,14 @@ serve(async (req) => {
       payment_intent_data: {
         metadata: metadata || {},
       },
+      // Add settings to speed up the process
+      billing_address_collection: 'auto',
+      payment_method_types: ['card'],
+      expires_at: Math.floor(Date.now() / 1000) + (30 * 60), // 30 minutes from now
     });
-
-    console.log(`✅ Created checkout session: ${session.id}`);
+    
+    const sessionTime = Date.now() - sessionStartTime;
+    console.log(`✅ Created checkout session: ${session.id} (took ${sessionTime}ms)`);
 
     return new Response(
       JSON.stringify({
@@ -62,7 +72,16 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error("❌ Error creating checkout session:", error.message);
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error("❌ Error stack:", error.stack);
+    
+    // Return a more specific error response
+    const errorResponse = {
+      error: error.message,
+      type: error.type || 'unknown_error',
+      timestamp: new Date().toISOString()
+    };
+    
+    return new Response(JSON.stringify(errorResponse), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });

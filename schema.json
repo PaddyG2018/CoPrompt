@@ -23,6 +23,53 @@
       },
       "required": ["apiKeyStorage", "usageStats", "errorLogs", "preferences"]
     },
+    "site_preferences": {
+      "type": "object",
+      "properties": {
+        "chatgpt.com": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Whether CoPrompt is enabled on ChatGPT"
+            }
+          },
+          "required": ["enabled"]
+        },
+        "claude.ai": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Whether CoPrompt is enabled on Claude"
+            }
+          },
+          "required": ["enabled"]
+        },
+        "gemini.google.com": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Whether CoPrompt is enabled on Gemini"
+            }
+          },
+          "required": ["enabled"]
+        },
+        "lovable.dev": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Whether CoPrompt is enabled on Lovable"
+            }
+          },
+          "required": ["enabled"]
+        }
+      },
+      "additionalProperties": false,
+      "description": "Site-specific enable/disable preferences for CoPrompt"
+    },
     "api_key": {
       "type": "object",
       "properties": {
