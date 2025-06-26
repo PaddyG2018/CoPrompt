@@ -16,7 +16,7 @@ serve(async (req) => {
 
   try {
     console.log("🚀 Processing checkout session request...");
-    
+
     const { price_id, customer_email, metadata } = await req.json();
 
     if (!price_id || !customer_email) {
@@ -52,13 +52,15 @@ serve(async (req) => {
         metadata: metadata || {},
       },
       // Add settings to speed up the process
-      billing_address_collection: 'auto',
-      payment_method_types: ['card'],
-      expires_at: Math.floor(Date.now() / 1000) + (30 * 60), // 30 minutes from now
+      billing_address_collection: "auto",
+      payment_method_types: ["card"],
+      expires_at: Math.floor(Date.now() / 1000) + 30 * 60, // 30 minutes from now
     });
-    
+
     const sessionTime = Date.now() - sessionStartTime;
-    console.log(`✅ Created checkout session: ${session.id} (took ${sessionTime}ms)`);
+    console.log(
+      `✅ Created checkout session: ${session.id} (took ${sessionTime}ms)`,
+    );
 
     return new Response(
       JSON.stringify({
@@ -73,14 +75,14 @@ serve(async (req) => {
   } catch (error) {
     console.error("❌ Error creating checkout session:", error.message);
     console.error("❌ Error stack:", error.stack);
-    
+
     // Return a more specific error response
     const errorResponse = {
       error: error.message,
-      type: error.type || 'unknown_error',
-      timestamp: new Date().toISOString()
+      type: error.type || "unknown_error",
+      timestamp: new Date().toISOString(),
     };
-    
+
     return new Response(JSON.stringify(errorResponse), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
