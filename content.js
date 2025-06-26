@@ -25,6 +25,7 @@ import { makeDraggable } from "./content/interactionHandler.js";
 import { handleWindowMessage } from "./content/messageHandler.js"; // Ensure this name matches export
 import { generateUniqueId } from "./utils/helpers.js";
 import { ENHANCING_LABEL } from "./utils/constants.js"; // Add this import
+import { shouldShowOnCurrentSite, initializeSitePreferences } from "./utils/sitePreferences.js"; // Add site preferences import
 
 // --- Utility Functions ---
 // Debounce function to prevent rapid-fire executions
@@ -149,7 +150,7 @@ const debouncedObserverCallback = debounce(async (_mutations) => {
 
   if (inputField && !buttonInjected) {
     debugLog("Input field found by observer, creating floating button.");
-    createFloatingButton();
+    createFloatingButton(); // Note: async but don't need to await in observer
   }
 }, 100);
 
@@ -172,9 +173,9 @@ if (!window.coPromptObserver) {
 }
 
 // Initial injection attempt
-setTimeout(() => {
+setTimeout(async () => {
   // Prefer floating button
-  createFloatingButton();
+  await createFloatingButton();
 }, 1000); // Wait for page to fully load
 
 // Periodic check to ensure button remains visible
@@ -199,7 +200,7 @@ setInterval(() => {
       "Periodic Check: Button/Container not found but target exists, recreating",
     );
     buttonInjected = false;
-    createFloatingButton();
+    createFloatingButton(); // Note: async but don't need to await in interval
     return;
   }
 
@@ -244,8 +245,15 @@ setInterval(() => {
 }, 5000); // Check every 5 seconds
 
 // Create Floating Button function
-function createFloatingButton() {
+async function createFloatingButton() {
   // debugLog("Creating floating CoPrompt button"); // REMOVE basic creation log
+
+  // NEW: Check site preferences first
+  const siteEnabled = await shouldShowOnCurrentSite();
+  if (!siteEnabled) {
+    debugLog("Site disabled in preferences, not creating button");
+    return; // Don't create button if site is disabled
+  }
 
   // NEW: Find the target input field *first*
   const targetInputElement = findActiveInputElement(); // This function already logs errors/warnings
@@ -950,7 +958,7 @@ function createFloatingButton() {
     } else {
       debugLog("Button not found after delay, recreating");
       buttonInjected = false;
-      createFloatingButton();
+      createFloatingButton(); // Note: async but don't need to await in timeout
     }
   }, 500);
 }
@@ -1008,15 +1016,13 @@ export function getConversationContext() {
       });
     } else if (isAllowedHostname(hostname, ["gemini.google.com"])) {
       debugLog("Extracting context for Gemini");
-      // Use the more specific custom element tags identified
+      // Try multiple selector strategies for Gemini
       const messageElements = document.querySelectorAll(
-        "user-query-content, model-response",
+        ".user-query, .model-response-text, query-content, response-content, .conversation-turn",
       );
-
       messageElements.forEach((el) => {
         let role = "";
         let content = "";
-
         // Check if it's a user message container
         if (el.classList.contains("user-query")) {
           role = "user";
@@ -1033,6 +1039,67 @@ export function getConversationContext() {
           content = el.textContent.trim();
           // Remove potential artifacts like "edit" buttons if necessary
           // content = content.replace(/\s*edit$/i, '').trim();
+        }
+
+        if (role && content) {
+          messages.push({ role: role, content: content });
+        }
+      });
+    } else if (isAllowedHostname(hostname, ["lovable.dev"])) {
+      debugLog("Extracting context for Lovable");
+      // Comprehensive selector strategy for Lovable's AI chat interface
+      const messageElements = document.querySelectorAll(
+        ".message, .chat-message, [data-role], .user-message, .ai-message, .conversation-item, .chat-entry, .conversation-message",
+      );
+      messageElements.forEach((el) => {
+        let role = "";
+        let content = "";
+        
+        // Check for data attributes first (most reliable)
+        const dataRole = el.getAttribute("data-role");
+        if (dataRole) {
+          role = dataRole === "user" ? "user" : "assistant";
+        } else {
+          // Check for class-based role detection
+          if (el.matches(".user-message, .user-chat, .user") || el.classList.contains("user")) {
+            role = "user";
+          } else if (el.matches(".ai-message, .assistant-message, .ai-chat, .assistant") || 
+                     el.classList.contains("assistant") || el.classList.contains("ai")) {
+            role = "assistant";
+          } else {
+            // Fallback: check parent containers
+            const messageContainer = el.closest("[data-message-role], [data-role]");
+            if (messageContainer) {
+              const containerRole = messageContainer.getAttribute("data-message-role") || 
+                                   messageContainer.getAttribute("data-role");
+              role = containerRole === "user" ? "user" : "assistant";
+            }
+          }
+        }
+        
+        // Extract content with multiple fallback strategies
+        const contentSelectors = [
+          ".message-content",
+          ".chat-content", 
+          ".text-content",
+          ".message-text",
+          ".content",
+          "p",
+          ".markdown",
+          ".prose"
+        ];
+        
+        for (const selector of contentSelectors) {
+          const contentEl = el.querySelector(selector);
+          if (contentEl) {
+            content = contentEl.textContent?.trim() || "";
+            if (content) break;
+          }
+        }
+        
+        // Fallback to element's direct text content
+        if (!content) {
+          content = el.textContent?.trim() || "";
         }
 
         if (role && content) {
@@ -1188,8 +1255,22 @@ if (typeof handleWindowMessage === "function") {
         "[Content Script] Handling ENHANCE_PROMPT_ERROR from background:",
         error,
       );
-      alert(`Enhancement failed: ${error || "Unknown error"}`);
-      if (buttonElement) resetButtonState(buttonElement);
+      
+      // V2A-06: Check if authentication is required
+      if (message.authRequired) {
+        console.log("[Content Script] Authentication required, showing auth modal");
+        // Find the target input element using the targetInputId
+        const inputElement = targetInputId
+          ? document.getElementById(targetInputId)
+          : findActiveInputElement();
+        
+        // Show authentication modal instead of error alert
+        showAuthModal(buttonElement, requestId, inputElement);
+      } else {
+        // Regular error handling
+        alert(`Enhancement failed: ${error || "Unknown error"}`);
+        if (buttonElement) resetButtonState(buttonElement);
+      }
       return false;
     }
 
@@ -1209,3 +1290,12 @@ if (typeof handleWindowMessage === "function") {
 
 // --- Initial Setup ---
 console.log("CoPrompt: content.js loaded.");
+
+// Initialize site preferences for new users
+initializeSitePreferences().then((wasInitialized) => {
+  if (wasInitialized) {
+    console.log("CoPrompt: Site preferences initialized with defaults");
+  }
+}).catch((error) => {
+  console.error("CoPrompt: Error initializing site preferences:", error);
+});

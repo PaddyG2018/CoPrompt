@@ -5,22 +5,22 @@
     <script src="lib/supabase.js"></script>
     <style>
       :root {
-        --primary-color: #3b82f6;
-        --primary-hover: #2563eb;
+        /* CoPrompt Brand Colors - matching website */
+        --coprompt-blue: #0070F3;
+        --coprompt-blue-light: #E6F3FF;
+        --coprompt-purple: #8E24AA;
+        --coprompt-dark: #111111;
+        --coprompt-gray-50: #F8F9FA;
+        --coprompt-gray-100: #F1F3F4;
+        --coprompt-gray-200: #E8EAED;
+        --coprompt-gray-400: #9AA0A6;
+        --coprompt-gray-600: #5F6368;
+        --coprompt-gray-900: #202124;
+
+        /* Success/Warning/Error */
         --success-color: #10b981;
         --warning-color: #f59e0b;
         --danger-color: #ef4444;
-        --text-primary: #1f2937;
-        --text-secondary: #6b7280;
-        --text-muted: #9ca3af;
-        --bg-primary: #ffffff;
-        --bg-secondary: #f9fafb;
-        --bg-elevated: #ffffff;
-        --border-color: #e5e7eb;
-        --border-radius: 12px;
-        --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-        --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
       }
 
       * {
@@ -28,30 +28,26 @@
       }
 
       body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
         width: 380px;
         padding: 0;
         margin: 0;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: var(--text-primary);
+        background: var(--coprompt-gray-50);
+        color: var(--coprompt-gray-900);
         line-height: 1.5;
+        min-height: 400px;
+        font-size: 14px;
       }
 
       .popup-container {
-        background: var(--bg-primary);
+        background: white;
+        border-radius: 12px;
+        margin: 12px;
         padding: 24px;
-        position: relative;
-        overflow: hidden;
-      }
-
-      .popup-container::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 4px;
-        background: linear-gradient(90deg, var(--primary-color), var(--success-color), var(--primary-color));
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.04);
+        animation: fade-in 0.2s ease-out;
       }
 
       .header {
@@ -63,14 +59,14 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 8px;
+        gap: 10px;
         margin-bottom: 8px;
       }
 
       .logo-icon {
         width: 32px;
         height: 32px;
-        background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+        background: linear-gradient(135deg, var(--coprompt-blue) 0%, var(--coprompt-purple) 100%);
         border-radius: 8px;
         display: flex;
         align-items: center;
@@ -78,10 +74,15 @@
         color: white;
         font-weight: 700;
         font-size: 16px;
+        transition: transform 0.2s ease;
+      }
+
+      .logo-icon:hover {
+        transform: scale(1.05);
       }
 
       .logo-text {
-        color: var(--text-primary);
+        color: var(--coprompt-dark);
         font-size: 24px;
         font-weight: 700;
         letter-spacing: -0.5px;
@@ -89,24 +90,24 @@
 
       .tagline {
         font-size: 14px;
-        color: var(--text-secondary);
+        color: var(--coprompt-gray-600);
         margin: 0;
-        font-weight: 500;
+        font-weight: 400;
       }
 
-      /* Credit Display Styles */
+      /* Clean Credit Card */
       .credits-container {
-        background: var(--bg-elevated);
-        border: 1px solid var(--border-color);
-        border-radius: var(--border-radius);
+        background: white;
+        border: 1px solid var(--coprompt-gray-200);
+        border-radius: 12px;
         padding: 20px;
         margin: 20px 0;
-        box-shadow: var(--shadow-sm);
         transition: all 0.2s ease;
       }
 
       .credits-container:hover {
-        box-shadow: var(--shadow-md);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        border-color: var(--coprompt-blue);
       }
 
       .credits-header {
@@ -119,18 +120,18 @@
       .credits-title {
         font-size: 13px;
         font-weight: 600;
-        color: var(--text-muted);
+        color: var(--coprompt-gray-600);
         text-transform: uppercase;
         letter-spacing: 0.5px;
       }
 
       .credits-refresh {
-        background: var(--bg-secondary);
-        border: 1px solid var(--border-color);
+        background: white;
+        border: 1px solid var(--coprompt-gray-200);
         cursor: pointer;
         padding: 8px;
         border-radius: 8px;
-        color: var(--text-secondary);
+        color: var(--coprompt-blue);
         transition: all 0.2s ease;
         display: flex;
         align-items: center;
@@ -140,11 +141,8 @@
       }
 
       .credits-refresh:hover:not(:disabled) {
-        background: var(--primary-color);
-        border-color: var(--primary-color);
-        color: white;
-        transform: translateY(-1px);
-        box-shadow: var(--shadow-sm);
+        background: var(--coprompt-blue-light);
+        border-color: var(--coprompt-blue);
       }
 
       .credits-refresh:disabled {
@@ -175,45 +173,42 @@
         font-size: 36px;
         font-weight: 800;
         margin: 12px 0;
-        transition: color 0.3s ease;
         text-align: center;
         letter-spacing: -1px;
+        color: var(--coprompt-blue);
       }
 
-      /* Color coding for credit levels */
+      /* Credit level styling */
       .credits-high { color: var(--success-color); }
       .credits-medium { color: var(--warning-color); }
       .credits-low { color: var(--danger-color); }
 
       .credits-status {
         font-size: 13px;
-        padding: 8px 12px;
+        padding: 8px 16px;
         border-radius: 20px;
         text-align: center;
-        font-weight: 600;
+        font-weight: 500;
         margin-top: 12px;
       }
 
       .credits-status.high {
-        background-color: #ecfdf5;
-        color: #065f46;
-        border: 1px solid #a7f3d0;
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--success-color);
       }
 
       .credits-status.medium {
-        background-color: #fffbeb;
-        color: #92400e;
-        border: 1px solid #fde68a;
+        background: rgba(245, 158, 11, 0.1);
+        color: var(--warning-color);
       }
 
       .credits-status.low {
-        background-color: #fef2f2;
-        color: #991b1b;
-        border: 1px solid #fecaca;
+        background: rgba(239, 68, 68, 0.1);
+        color: var(--danger-color);
       }
 
       .credits-loading {
-        color: var(--text-muted);
+        color: var(--coprompt-gray-400);
         font-style: italic;
         font-weight: 500;
       }
@@ -226,103 +221,120 @@
         font-weight: 500;
       }
 
+      /* Clean Auth Prompt Card */
       .auth-prompt {
+        background: white;
+        border: 1px solid var(--coprompt-gray-200);
+        border-radius: 12px;
         text-align: center;
         padding: 24px 20px;
-        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-        border: 1px solid var(--border-color);
-        border-radius: var(--border-radius);
         margin: 20px 0;
+        animation: fade-in 0.2s ease-out;
+        transition: all 0.2s ease;
+      }
+
+      .auth-prompt:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        border-color: var(--coprompt-blue);
       }
 
       .auth-prompt-icon {
         width: 48px;
         height: 48px;
-        background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
-        border-radius: 50%;
+        background: linear-gradient(135deg, var(--coprompt-blue) 0%, var(--coprompt-purple) 100%);
+        border-radius: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
         margin: 0 auto 16px;
         color: white;
-        font-size: 20px;
+        font-size: 24px;
+        font-weight: 700;
+        transition: transform 0.2s ease;
+      }
+
+      .auth-prompt:hover .auth-prompt-icon {
+        transform: scale(1.05);
       }
 
       .auth-prompt-title {
         font-size: 18px;
         font-weight: 700;
-        color: var(--text-primary);
+        color: var(--coprompt-dark);
         margin-bottom: 8px;
+        line-height: 1.3;
       }
 
       .auth-prompt-text {
         font-size: 14px;
-        color: var(--text-secondary);
+        color: var(--coprompt-gray-600);
         margin-bottom: 20px;
-        line-height: 1.6;
+        line-height: 1.5;
       }
 
+      /* Clean CoPrompt Buttons - matching website style */
       .button {
-        display: block;
-        background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+        background: linear-gradient(135deg, var(--coprompt-blue) 0%, var(--coprompt-purple) 100%);
         color: white;
-        text-align: center;
-        padding: 12px 20px;
-        border-radius: 10px;
-        text-decoration: none;
-        margin-top: 16px;
-        cursor: pointer;
-        font-weight: 600;
         border: none;
-        transition: all 0.2s ease;
+        border-radius: 8px;
+        padding: 12px 20px;
+        font-weight: 600;
         font-size: 14px;
-        box-shadow: var(--shadow-sm);
+        transition: all 0.2s ease;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+        text-align: center;
+        width: 100%;
+        margin-top: 8px;
       }
 
       .button:hover {
-        background: linear-gradient(135deg, var(--primary-hover), #1d4ed8);
         transform: translateY(-1px);
-        box-shadow: var(--shadow-md);
+        box-shadow: 0 4px 12px rgba(0, 112, 243, 0.3);
       }
 
       .button:active {
         transform: translateY(0);
       }
 
-      .button:disabled {
-        background: var(--text-muted);
-        cursor: not-allowed;
-        transform: none;
-      }
-
       .button.secondary {
-        background: var(--bg-secondary);
-        color: var(--text-primary);
-        border: 1px solid var(--border-color);
+        background: white;
+        color: var(--coprompt-blue);
+        border: 1px solid var(--coprompt-gray-200);
       }
 
       .button.secondary:hover {
-        background: var(--bg-primary);
-        border-color: var(--primary-color);
+        background: var(--coprompt-blue-light);
+        border-color: var(--coprompt-blue);
+        box-shadow: 0 2px 8px rgba(0, 112, 243, 0.15);
       }
 
       .footer {
         text-align: center;
         margin-top: 20px;
         padding-top: 16px;
-        border-top: 1px solid var(--border-color);
+        border-top: 1px solid var(--coprompt-gray-200);
       }
 
       .footer-text {
         font-size: 12px;
-        color: var(--text-muted);
-        margin: 0;
+        color: var(--coprompt-gray-400);
+        margin: 8px 0 0 0;
+        line-height: 1.4;
+      }
+
+      /* Animations */
+      @keyframes fade-in {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
       }
 
       /* Responsive adjustments */
       @media (max-width: 400px) {
         body { width: 320px; }
-        .popup-container { padding: 20px; }
+        .popup-container { margin: 8px; padding: 20px; }
         .credits-balance { font-size: 32px; }
       }
     </style>
@@ -334,10 +346,10 @@
           <div class="logo-icon">C</div>
           <div class="logo-text">CoPrompt</div>
         </div>
-        <p class="tagline">AI-powered prompt enhancement</p>
+        <p class="tagline">Transform your AI interactions</p>
       </div>
 
-      <!-- Credit Display Container -->
+      <!-- Credit Display Card -->
       <div class="credits-container">
         <div class="credits-header">
           <div class="credits-title">Account Credits</div>
@@ -378,7 +390,7 @@
 
       <!-- Authentication Prompt (shown when not logged in) -->
       <div class="auth-prompt" id="authPrompt" style="display: none">
-        <div class="auth-prompt-icon">🎯</div>
+        <div class="auth-prompt-icon">C</div>
         <div class="auth-prompt-title">Get Started with CoPrompt</div>
         <div class="auth-prompt-text">
           Sign up now and receive 25 free credits to enhance your AI prompts. No credit card required!
@@ -388,7 +400,7 @@
 
       <div class="footer">
         <button id="optionsButton" class="button secondary">Settings & Billing</button>
-        <p class="footer-text">Click on any text input to enhance your prompts</p>
+        <button id="supportButton" class="button secondary" style="margin-top: 8px;">Help & Support</button>
       </div>
     </div>
 

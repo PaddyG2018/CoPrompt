@@ -54,6 +54,28 @@ export function findActiveInputElement() {
     }
   }
 
+  // Strategy 3.6: Look for Lovable.dev input elements
+  if (!inputField) {
+    // Lovable.dev may use various input patterns for their AI chat interface
+    const lovableSelectors = [
+      "textarea[placeholder*='ask'], textarea[placeholder*='prompt'], textarea[placeholder*='chat']", // Common placeholders
+      "div[contenteditable='true'][placeholder*='ask'], div[contenteditable='true'][placeholder*='prompt']",
+      ".chat-input textarea, .prompt-input textarea, .message-input textarea", // Common class patterns
+      ".chat-input div[contenteditable='true'], .prompt-input div[contenteditable='true']",
+      "[data-testid*='chat-input'], [data-testid*='prompt-input'], [data-testid*='message-input']", // Test ID patterns
+      ".input-container textarea, .input-container div[contenteditable='true']", // Container patterns
+      "form textarea:last-of-type, form div[contenteditable='true']:last-of-type" // Form-based patterns
+    ];
+    
+    for (const selector of lovableSelectors) {
+      inputField = document.querySelector(selector);
+      if (inputField && inputField.offsetParent !== null) {
+        // debugLog("Found via Lovable selector:", selector); // Quieted
+        return inputField;
+      }
+    }
+  }
+
   // Strategy 4: Any visible textarea (General fallback, might catch Claude/others if Strategy 3 fails)
   if (!inputField) {
     const textareas = document.querySelectorAll("textarea");

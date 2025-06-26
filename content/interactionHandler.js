@@ -19,7 +19,7 @@ const DRAG_THRESHOLD = 3; // Lowered threshold for more sensitivity
 import { findActiveInputElement } from "../utils/domUtils.js";
 
 // Add local DEBUG flag
-const DEBUG = true; // Set true for development logs
+const DEBUG = false; // Set true for development logs
 
 // Logging specifically for interaction handler
 function logInteractionHandlerDebug(...args) {

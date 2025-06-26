@@ -1,4 +1,4 @@
-const DEBUG = true; // Or find a way to share this flag
+const DEBUG = false; // Or find a way to share this flag
 
 /**
  * Calls the OpenAI Chat Completions API.
@@ -35,16 +35,16 @@ export async function callOpenAI(
   try {
     // MODIFIED: URL points to Supabase Edge Function
     const response = await fetch(
-      // "https://evfuyrixpjgfytwfijpx.supabase.co/functions/v1/enhance", // LIVE URL - Commented out for local testing
-      "http://127.0.0.1:54321/functions/v1/enhance", // LOCAL URL for testing
+      "https://evfuyrixpjgfytwfijpx.supabase.co/functions/v1/enhance", // LIVE URL - NOW ACTIVE
+      // "http://127.0.0.1:54321/functions/v1/enhance", // LOCAL URL for testing - COMMENTED OUT
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           // MODIFIED: Authorization uses Supabase anon key OR user JWT if available
-          Authorization: `Bearer ${userAccessToken || process.env.SUPABASE_ANON_KEY}`,
+          Authorization: `Bearer ${userAccessToken || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2ZnV5cml4cGpnZnl0d2ZpanB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwODA0MDIsImV4cCI6MjA1OTY1NjQwMn0.GD6oTrvjKMdqSK4LgyRmD0E1k0zbKFg79sAlXy-fLyc"}`,
           // apikey header for Supabase (anon key)
-          apikey: process.env.SUPABASE_ANON_KEY,
+          apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2ZnV5cml4cGpnZnl0d2ZpanB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwODA0MDIsImV4cCI6MjA1OTY1NjQwMn0.GD6oTrvjKMdqSK4LgyRmD0E1k0zbKFg79sAlXy-fLyc",
         },
         // V2A-05: Removed deviceId from API call - auth is JWT-based, deviceId only for local analytics
         body: JSON.stringify({

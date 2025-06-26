@@ -12,18 +12,19 @@
     "service_worker": "background.js",
     "type": "module"
   },
-  "permissions": ["storage"],
+  "permissions": ["storage", "tabs"],
   "host_permissions": [
     "https://chat.openai.com/*",
     "https://chatgpt.com/*",
     "https://claude.ai/*",
     "https://gemini.google.com/*",
-    "https://api.openai.com/*"
+    "https://lovable.dev/*",
+    "https://evfuyrixpjgfytwfijpx.supabase.co/*"
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'",
     "sandbox": "sandbox allow-scripts; script-src 'self' 'unsafe-eval'; child-src 'self';",
-    "connect-src": "'self' https://api.openai.com https://chat.openai.com https://evfuyrixpjgfytwfijpx.supabase.co https://api.stripe.com"
+    "connect-src": "'self' https://chat.openai.com https://evfuyrixpjgfytwfijpx.supabase.co https://api.stripe.com"
   },
   "content_scripts": [
     {
@@ -31,7 +32,8 @@
         "https://chat.openai.com/*",
         "https://chatgpt.com/*",
         "https://claude.ai/*",
-        "https://gemini.google.com/*"
+        "https://gemini.google.com/*",
+        "https://lovable.dev/*"
       ],
       "js": ["content.js"],
       "css": ["content.css"],
@@ -56,7 +58,8 @@
         "https://chat.openai.com/*",
         "https://chatgpt.com/*",
         "https://claude.ai/*",
-        "https://gemini.google.com/*"
+        "https://gemini.google.com/*",
+        "https://lovable.dev/*"
       ]
     }
   ],
