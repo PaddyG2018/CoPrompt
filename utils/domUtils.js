@@ -64,9 +64,9 @@ export function findActiveInputElement() {
       ".chat-input div[contenteditable='true'], .prompt-input div[contenteditable='true']",
       "[data-testid*='chat-input'], [data-testid*='prompt-input'], [data-testid*='message-input']", // Test ID patterns
       ".input-container textarea, .input-container div[contenteditable='true']", // Container patterns
-      "form textarea:last-of-type, form div[contenteditable='true']:last-of-type" // Form-based patterns
+      "form textarea:last-of-type, form div[contenteditable='true']:last-of-type", // Form-based patterns
     ];
-    
+
     for (const selector of lovableSelectors) {
       inputField = document.querySelector(selector);
       if (inputField && inputField.offsetParent !== null) {

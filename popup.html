@@ -6,15 +6,15 @@
     <style>
       :root {
         /* CoPrompt Brand Colors - matching website */
-        --coprompt-blue: #0070F3;
-        --coprompt-blue-light: #E6F3FF;
-        --coprompt-purple: #8E24AA;
+        --coprompt-blue: #0070f3;
+        --coprompt-blue-light: #e6f3ff;
+        --coprompt-purple: #8e24aa;
         --coprompt-dark: #111111;
-        --coprompt-gray-50: #F8F9FA;
-        --coprompt-gray-100: #F1F3F4;
-        --coprompt-gray-200: #E8EAED;
-        --coprompt-gray-400: #9AA0A6;
-        --coprompt-gray-600: #5F6368;
+        --coprompt-gray-50: #f8f9fa;
+        --coprompt-gray-100: #f1f3f4;
+        --coprompt-gray-200: #e8eaed;
+        --coprompt-gray-400: #9aa0a6;
+        --coprompt-gray-600: #5f6368;
         --coprompt-gray-900: #202124;
 
         /* Success/Warning/Error */
@@ -28,7 +28,9 @@
       }
 
       body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
         width: 380px;
@@ -46,7 +48,9 @@
         border-radius: 12px;
         margin: 12px;
         padding: 24px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.04);
+        box-shadow:
+          0 2px 8px rgba(0, 0, 0, 0.08),
+          0 1px 4px rgba(0, 0, 0, 0.04);
         animation: fade-in 0.2s ease-out;
       }
 
@@ -66,7 +70,11 @@
       .logo-icon {
         width: 32px;
         height: 32px;
-        background: linear-gradient(135deg, var(--coprompt-blue) 0%, var(--coprompt-purple) 100%);
+        background: linear-gradient(
+          135deg,
+          var(--coprompt-blue) 0%,
+          var(--coprompt-purple) 100%
+        );
         border-radius: 8px;
         display: flex;
         align-items: center;
@@ -165,8 +173,12 @@
       }
 
       @keyframes spin {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
+        from {
+          transform: rotate(0deg);
+        }
+        to {
+          transform: rotate(360deg);
+        }
       }
 
       .credits-balance {
@@ -179,9 +191,15 @@
       }
 
       /* Credit level styling */
-      .credits-high { color: var(--success-color); }
-      .credits-medium { color: var(--warning-color); }
-      .credits-low { color: var(--danger-color); }
+      .credits-high {
+        color: var(--success-color);
+      }
+      .credits-medium {
+        color: var(--warning-color);
+      }
+      .credits-low {
+        color: var(--danger-color);
+      }
 
       .credits-status {
         font-size: 13px;
@@ -241,7 +259,11 @@
       .auth-prompt-icon {
         width: 48px;
         height: 48px;
-        background: linear-gradient(135deg, var(--coprompt-blue) 0%, var(--coprompt-purple) 100%);
+        background: linear-gradient(
+          135deg,
+          var(--coprompt-blue) 0%,
+          var(--coprompt-purple) 100%
+        );
         border-radius: 12px;
         display: flex;
         align-items: center;
@@ -274,7 +296,11 @@
 
       /* Clean CoPrompt Buttons - matching website style */
       .button {
-        background: linear-gradient(135deg, var(--coprompt-blue) 0%, var(--coprompt-purple) 100%);
+        background: linear-gradient(
+          135deg,
+          var(--coprompt-blue) 0%,
+          var(--coprompt-purple) 100%
+        );
         color: white;
         border: none;
         border-radius: 8px;
@@ -327,15 +353,28 @@
 
       /* Animations */
       @keyframes fade-in {
-        from { opacity: 0; transform: translateY(8px); }
-        to { opacity: 1; transform: translateY(0); }
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
       }
 
       /* Responsive adjustments */
       @media (max-width: 400px) {
-        body { width: 320px; }
-        .popup-container { margin: 8px; padding: 20px; }
-        .credits-balance { font-size: 32px; }
+        body {
+          width: 320px;
+        }
+        .popup-container {
+          margin: 8px;
+          padding: 20px;
+        }
+        .credits-balance {
+          font-size: 32px;
+        }
       }
     </style>
   </head>
@@ -393,14 +432,23 @@
         <div class="auth-prompt-icon">C</div>
         <div class="auth-prompt-title">Get Started with CoPrompt</div>
         <div class="auth-prompt-text">
-          Sign up now and receive 25 free credits to enhance your AI prompts. No credit card required!
+          Sign up now and receive 25 free credits to enhance your AI prompts. No
+          credit card required!
         </div>
         <button class="button" id="signUpButton">Get 25 Free Credits</button>
       </div>
 
       <div class="footer">
-        <button id="optionsButton" class="button secondary">Settings & Billing</button>
-        <button id="supportButton" class="button secondary" style="margin-top: 8px;">Help & Support</button>
+        <button id="optionsButton" class="button secondary">
+          Settings & Billing
+        </button>
+        <button
+          id="supportButton"
+          class="button secondary"
+          style="margin-top: 8px"
+        >
+          Help & Support
+        </button>
       </div>
     </div>
 

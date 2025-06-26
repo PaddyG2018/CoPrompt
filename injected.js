@@ -401,7 +401,7 @@ function findActiveInputElement() {
         'div.ProseMirror[contenteditable="true"], ' + // ChatGPT Class & Claude Class
         'div.ql-editor[contenteditable="true"], ' + // Gemini Class
         'textarea[placeholder*="ask"], textarea[placeholder*="prompt"], textarea[placeholder*="chat"], ' + // Lovable placeholders
-        '.chat-input textarea, .prompt-input textarea, .message-input textarea, ' + // Lovable class patterns
+        ".chat-input textarea, .prompt-input textarea, .message-input textarea, " + // Lovable class patterns
         '[data-testid*="chat-input"], [data-testid*="prompt-input"], ' + // Lovable test IDs
         'textarea:not([style*="display: none"]):not([disabled])', // General fallback (visible, enabled textarea)
     );

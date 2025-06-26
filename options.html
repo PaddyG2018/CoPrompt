@@ -9,15 +9,15 @@
     <style>
       :root {
         /* CoPrompt Brand Colors - matching website */
-        --coprompt-blue: #0070F3;
-        --coprompt-blue-light: #E6F3FF;
-        --coprompt-purple: #8E24AA;
+        --coprompt-blue: #0070f3;
+        --coprompt-blue-light: #e6f3ff;
+        --coprompt-purple: #8e24aa;
         --coprompt-dark: #111111;
-        --coprompt-gray-50: #F8F9FA;
-        --coprompt-gray-100: #F1F3F4;
-        --coprompt-gray-200: #E8EAED;
-        --coprompt-gray-400: #9AA0A6;
-        --coprompt-gray-600: #5F6368;
+        --coprompt-gray-50: #f8f9fa;
+        --coprompt-gray-100: #f1f3f4;
+        --coprompt-gray-200: #e8eaed;
+        --coprompt-gray-400: #9aa0a6;
+        --coprompt-gray-600: #5f6368;
         --coprompt-gray-900: #202124;
 
         /* Success/Warning/Error */
@@ -31,7 +31,9 @@
       }
 
       body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
         background: var(--coprompt-gray-50);
@@ -50,12 +52,18 @@
         background: white;
         border-radius: 16px;
         overflow: hidden;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.04);
+        box-shadow:
+          0 4px 12px rgba(0, 0, 0, 0.08),
+          0 1px 4px rgba(0, 0, 0, 0.04);
         animation: fade-in 0.3s ease-out;
       }
 
       .dashboard-header {
-        background: linear-gradient(135deg, var(--coprompt-blue) 0%, var(--coprompt-purple) 100%);
+        background: linear-gradient(
+          135deg,
+          var(--coprompt-blue) 0%,
+          var(--coprompt-purple) 100%
+        );
         color: white;
         padding: 48px 32px;
         text-align: center;
@@ -108,7 +116,11 @@
       .section-icon {
         width: 40px;
         height: 40px;
-        background: linear-gradient(135deg, var(--coprompt-blue) 0%, var(--coprompt-purple) 100%);
+        background: linear-gradient(
+          135deg,
+          var(--coprompt-blue) 0%,
+          var(--coprompt-purple) 100%
+        );
         border-radius: 10px;
         display: flex;
         align-items: center;
@@ -323,7 +335,11 @@
 
       /* Clean CoPrompt Buttons - matching website */
       .coprompt-button {
-        background: linear-gradient(135deg, var(--coprompt-blue) 0%, var(--coprompt-purple) 100%);
+        background: linear-gradient(
+          135deg,
+          var(--coprompt-blue) 0%,
+          var(--coprompt-purple) 100%
+        );
         color: white;
         border: none;
         border-radius: 8px;
@@ -522,15 +538,21 @@
 
       /* Animations */
       @keyframes fade-in {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
       }
 
       @media (max-width: 1024px) {
         .dashboard-container {
           max-width: 95vw;
         }
-        
+
         .dashboard-content {
           padding: 24px;
         }
@@ -540,32 +562,32 @@
         body {
           padding: 8px;
         }
-        
+
         .dashboard-container {
           max-width: 100vw;
         }
-        
+
         .dashboard-content {
           padding: 20px;
         }
-        
+
         .purchase-packages {
           grid-template-columns: 1fr;
         }
-        
+
         .auth-form {
           grid-template-columns: 1fr;
         }
-        
+
         .credits-display {
           flex-direction: column;
           text-align: center;
         }
-        
+
         .dashboard-header {
           padding: 32px 24px;
         }
-        
+
         .dashboard-title {
           font-size: 32px;
         }
@@ -573,7 +595,11 @@
 
       /* Legacy button compatibility */
       .button {
-        background: linear-gradient(135deg, var(--coprompt-blue) 0%, var(--coprompt-purple) 100%);
+        background: linear-gradient(
+          135deg,
+          var(--coprompt-blue) 0%,
+          var(--coprompt-purple) 100%
+        );
         color: white;
         border: none;
         border-radius: 8px;
@@ -670,7 +696,7 @@
       .site-toggle-url {
         font-size: 12px;
         color: var(--coprompt-gray-600);
-        font-family: 'SF Mono', Monaco, monospace;
+        font-family: "SF Mono", Monaco, monospace;
       }
 
       .site-toggle-description {
@@ -684,7 +710,9 @@
     <div class="dashboard-container">
       <div class="dashboard-header">
         <h1 class="dashboard-title">CoPrompt Dashboard</h1>
-        <p class="dashboard-subtitle">Manage your account, credits, and settings</p>
+        <p class="dashboard-subtitle">
+          Manage your account, credits, and settings
+        </p>
       </div>
 
       <div class="dashboard-content">
@@ -702,14 +730,20 @@
               <p class="credits-label">Available Credits</p>
             </div>
             <div class="credits-actions">
-              <button id="refreshCreditsButton" class="coprompt-button secondary">
+              <button
+                id="refreshCreditsButton"
+                class="coprompt-button secondary"
+              >
                 🔄 Refresh
               </button>
             </div>
           </div>
 
-          <p style="margin: 0; font-size: 14px; color: var(--coprompt-gray-600);">
-            Credits are used for AI-powered prompt enhancement. New users receive 25 credits automatically.
+          <p
+            style="margin: 0; font-size: 14px; color: var(--coprompt-gray-600)"
+          >
+            Credits are used for AI-powered prompt enhancement. New users
+            receive 25 credits automatically.
           </p>
         </div>
 
@@ -720,8 +754,15 @@
             <h2 class="section-title">Buy More Credits</h2>
           </div>
 
-          <p style="margin-bottom: 32px; color: var(--coprompt-gray-600); font-size: 16px;">
-            Choose a credit package that fits your needs. All purchases are secure and processed through Stripe.
+          <p
+            style="
+              margin-bottom: 32px;
+              color: var(--coprompt-gray-600);
+              font-size: 16px;
+            "
+          >
+            Choose a credit package that fits your needs. All purchases are
+            secure and processed through Stripe.
           </p>
 
           <div class="purchase-packages">
@@ -823,9 +864,7 @@
           </div>
 
           <div class="purchase-info">
-            <h4 class="purchase-info-title">
-              🔒 Secure & Reliable Payment
-            </h4>
+            <h4 class="purchase-info-title">🔒 Secure & Reliable Payment</h4>
             <ul class="purchase-info-list">
               <li class="purchase-info-item">
                 <span class="package-feature-icon">✓</span>
@@ -879,7 +918,7 @@
             </div>
           </div>
 
-          <div style="text-align: center; margin-top: 24px;">
+          <div style="text-align: center; margin-top: 24px">
             <button id="refreshUsageButton" class="coprompt-button secondary">
               📈 Refresh Stats
             </button>
@@ -893,19 +932,30 @@
             <h2 class="section-title">Site Preferences</h2>
           </div>
 
-          <p style="margin-bottom: 24px; color: var(--coprompt-gray-600); font-size: 14px;">
-            Choose which websites to enable CoPrompt on. You can disable the extension on specific sites if needed.
+          <p
+            style="
+              margin-bottom: 24px;
+              color: var(--coprompt-gray-600);
+              font-size: 14px;
+            "
+          >
+            Choose which websites to enable CoPrompt on. You can disable the
+            extension on specific sites if needed.
           </p>
 
           <div class="site-toggles" id="siteToggles">
             <!-- Site toggles will be populated by JavaScript -->
           </div>
 
-          <div style="text-align: center; margin-top: 24px;">
+          <div style="text-align: center; margin-top: 24px">
             <button id="saveSitePrefsButton" class="coprompt-button">
               💾 Save Preferences
             </button>
-            <button id="resetSitePrefsButton" class="coprompt-button secondary" style="margin-left: 12px;">
+            <button
+              id="resetSitePrefsButton"
+              class="coprompt-button secondary"
+              style="margin-left: 12px"
+            >
               🔄 Reset to Defaults
             </button>
           </div>
@@ -924,7 +974,7 @@
             <h2 class="section-title">User Account</h2>
           </div>
 
-          <div class="stats-grid" style="margin-bottom: 24px;">
+          <div class="stats-grid" style="margin-bottom: 24px">
             <div class="stat-card account-stat-card">
               <div class="stat-value status" id="userStatus">Not logged in</div>
               <div class="stat-label">Account Status</div>
@@ -935,7 +985,7 @@
             </div>
           </div>
 
-          <div style="text-align: center; margin-bottom: 24px;">
+          <div style="text-align: center; margin-bottom: 24px">
             <button
               id="logoutButton"
               class="coprompt-button secondary"

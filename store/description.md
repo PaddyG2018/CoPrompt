@@ -72,4 +72,4 @@ Need help? Visit our [documentation](https://www.coprompt.app/docs) or contact u
 
 ---
 
-*Transform every prompt into a masterpiece. Try CoPrompt V2 today with 25 free credits!*
+_Transform every prompt into a masterpiece. Try CoPrompt V2 today with 25 free credits!_
