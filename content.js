@@ -371,40 +371,51 @@ async function createFloatingButton() {
     }
 
     // Create modal HTML
-    const modal = document.createElement("div");
-    modal.id = "coprompt-auth-modal";
-    modal.className = "coprompt-auth-modal";
-    modal.innerHTML = `
-      <div class="coprompt-modal-backdrop">
-        <div class="coprompt-modal-content">
-          <div class="coprompt-modal-header">
-            <h2>Get 25 Free Credits</h2>
-          </div>
-          <div class="coprompt-modal-body">
-            <p>Sign up with your email to start enhancing prompts with CoPrompt V2.</p>
-            <p class="coprompt-benefit">✨ 25 free prompt enhancements</p>
-            <p class="coprompt-benefit">🚀 No API key required</p>
-            <p class="coprompt-benefit">💳 No credit card needed</p>
-            
-            <div class="coprompt-auth-form">
-              <input type="email" 
-                     placeholder="Enter your email" 
-                     class="coprompt-email-input"
-                     id="coprompt-email-input">
-              <button class="coprompt-auth-submit" id="coprompt-auth-submit">
-                Send Magic Link
-              </button>
+    const modalHTML = `
+      <div class="coprompt-auth-modal-overlay" id="coprompt-auth-modal">
+        <div class="coprompt-modal-backdrop">
+          <div class="coprompt-modal-content">
+            <div class="coprompt-auth-header">
+              <h2>Get 25 Free Credits</h2>
+              <p>Sign up with your email to start enhancing prompts with CoPrompt.</p>
             </div>
             
-            <div class="coprompt-auth-status" id="coprompt-auth-status"></div>
-            
-            <div class="coprompt-modal-footer">
-              <button class="coprompt-cancel-btn" id="coprompt-cancel-btn">
-                Cancel
+            <div class="coprompt-auth-benefits">
+              <div class="coprompt-benefit">
+                <span class="coprompt-benefit-icon">✨</span>
+                <span>25 free prompt enhancements</span>
+              </div>
+              <div class="coprompt-benefit">
+                <span class="coprompt-benefit-icon">🚀</span>
+                <span>No API key required</span>
+              </div>
+              <div class="coprompt-benefit">
+                <span class="coprompt-benefit-icon">💳</span>
+                <span>No credit card needed</span>
+              </div>
+            </div>
+
+            <div class="coprompt-auth-form">
+              <input 
+                type="email" 
+                id="coprompt-auth-email" 
+                placeholder="Enter your email"
+                class="coprompt-email-input"
+              />
+              <button 
+                id="coprompt-auth-submit" 
+                class="coprompt-auth-submit"
+              >
+                Send Magic Link
               </button>
+              <div id="coprompt-auth-status" class="coprompt-auth-status"></div>
+            </div>
+
+            <div class="coprompt-modal-footer">
+              <button id="coprompt-auth-cancel" class="coprompt-cancel-btn">Cancel</button>
               <p class="coprompt-login-link">
                 Already have an account? 
-                <a href="#" id="coprompt-settings-link">Sign in via Settings</a>
+                <a href="#" id="coprompt-auth-settings">Sign in via Settings</a>
               </p>
             </div>
           </div>
@@ -413,7 +424,10 @@ async function createFloatingButton() {
     `;
 
     // Add modal to DOM
-    document.body.appendChild(modal);
+    document.body.innerHTML += modalHTML;
+
+    // Get the modal element we just added
+    const modal = document.getElementById("coprompt-auth-modal");
 
     // Add modal styles
     addAuthModalStyles();
@@ -422,7 +436,7 @@ async function createFloatingButton() {
     setupAuthModalListeners(modal, buttonElement, reqId, targetInputElement);
 
     // Focus on email input
-    const emailInput = modal.querySelector("#coprompt-email-input");
+    const emailInput = modal.querySelector("#coprompt-auth-email");
     if (emailInput) {
       setTimeout(() => emailInput.focus(), 100);
     }
@@ -438,7 +452,7 @@ async function createFloatingButton() {
     const styles = document.createElement("style");
     styles.id = "coprompt-auth-modal-styles";
     styles.textContent = `
-      .coprompt-auth-modal {
+      .coprompt-auth-modal-overlay {
         position: fixed;
         top: 0;
         left: 0;
@@ -449,152 +463,277 @@ async function createFloatingButton() {
       }
 
       .coprompt-modal-backdrop {
-        background: rgba(0, 0, 0, 0.5);
-        width: 100%;
-        height: 100%;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        padding: 20px;
-        box-sizing: border-box;
+        background: rgba(0, 0, 0, 0.5) !important;
+        width: 100% !important;
+        height: 100% !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        padding: 20px !important;
+        box-sizing: border-box !important;
       }
 
       .coprompt-modal-content {
-        background: white;
-        border-radius: 12px;
-        padding: 32px;
-        max-width: 480px;
-        width: 100%;
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-        position: relative;
-        max-height: 90vh;
-        overflow-y: auto;
+        background: white !important;
+        border-radius: 12px !important;
+        padding: 32px !important;
+        max-width: 480px !important;
+        width: 100% !important;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15) !important;
+        position: relative !important;
+        max-height: 90vh !important;
+        overflow-y: auto !important;
+        /* Enhanced visibility for all platforms */
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+        z-index: 10001 !important;
       }
 
-      .coprompt-modal-header h2 {
-        margin: 0 0 16px 0;
-        color: #1a1a1a;
-        font-size: 24px;
-        font-weight: 600;
-        text-align: center;
+      .coprompt-auth-header h2 {
+        margin: 0 0 16px 0 !important;
+        color: #1a1a1a !important;
+        font-size: 24px !important;
+        font-weight: 600 !important;
+        text-align: center !important;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
       }
 
-      .coprompt-modal-body p {
-        margin: 0 0 16px 0;
-        color: #666;
-        font-size: 16px;
-        line-height: 1.5;
-        text-align: center;
+      .coprompt-auth-header p {
+        margin: 0 0 16px 0 !important;
+        color: #666 !important;
+        font-size: 16px !important;
+        line-height: 1.5 !important;
+        text-align: center !important;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+      }
+
+      .coprompt-auth-benefits {
+        margin: 24px 0 !important;
+        color: #1a1a1a !important;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
       }
 
       .coprompt-benefit {
-        margin: 8px 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 12px !important;
+        margin: 12px 0 !important;
         color: #333 !important;
         font-size: 14px !important;
-        text-align: left !important;
-        padding-left: 8px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+      }
+
+      .coprompt-benefit-icon {
+        font-size: 16px !important;
+        color: #333 !important;
       }
 
       .coprompt-auth-form {
-        margin: 24px 0;
+        margin: 24px 0 !important;
       }
 
       .coprompt-email-input {
-        width: 100%;
-        padding: 14px 16px;
-        border: 2px solid #e1e5e9;
-        border-radius: 8px;
-        margin-bottom: 16px;
-        font-size: 16px;
-        box-sizing: border-box;
-        transition: border-color 0.2s ease;
+        width: 100% !important;
+        padding: 14px 16px !important;
+        border: 2px solid #e1e5e9 !important;
+        border-radius: 8px !important;
+        margin-bottom: 16px !important;
+        font-size: 16px !important;
+        box-sizing: border-box !important;
+        transition: border-color 0.2s ease !important;
+        /* Enhanced visibility fixes for ChatGPT and Claude */
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+        line-height: 1.5 !important;
+        text-align: left !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        z-index: 10001 !important;
+      }
+
+      /* High specificity overrides for platform-specific styling */
+      .coprompt-auth-modal-overlay .coprompt-modal-content .coprompt-email-input,
+      .coprompt-auth-modal-overlay .coprompt-modal-backdrop .coprompt-modal-content .coprompt-email-input,
+      div.coprompt-auth-modal-overlay div.coprompt-modal-content input.coprompt-email-input {
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+        border: 2px solid #e1e5e9 !important;
+        font-size: 16px !important;
+        opacity: 1 !important;
+        visibility: visible !important;
       }
 
       .coprompt-email-input:focus {
-        outline: none;
-        border-color: #0070f3;
-        box-shadow: 0 0 0 3px rgba(0, 112, 243, 0.1);
+        outline: none !important;
+        border-color: #0070f3 !important;
+        box-shadow: 0 0 0 3px rgba(0, 112, 243, 0.1) !important;
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+      }
+
+      /* Enhanced focus state with high specificity */
+      .coprompt-auth-modal-overlay .coprompt-modal-content .coprompt-email-input:focus,
+      .coprompt-auth-modal-overlay .coprompt-modal-backdrop .coprompt-modal-content .coprompt-email-input:focus,
+      div.coprompt-auth-modal-overlay div.coprompt-modal-content input.coprompt-email-input:focus {
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+        border-color: #0070f3 !important;
+        box-shadow: 0 0 0 3px rgba(0, 112, 243, 0.1) !important;
       }
 
       .coprompt-auth-submit {
-        width: 100%;
-        padding: 14px 16px;
-        background: #0070f3;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        font-size: 16px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: background-color 0.2s ease;
+        width: 100% !important;
+        padding: 14px 16px !important;
+        background: #0070f3 !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 8px !important;
+        font-size: 16px !important;
+        font-weight: 600 !important;
+        cursor: pointer !important;
+        transition: background-color 0.2s ease !important;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+        opacity: 1 !important;
+        visibility: visible !important;
       }
 
       .coprompt-auth-submit:hover {
-        background: #0051cc;
+        background: #0051cc !important;
+        color: white !important;
       }
 
       .coprompt-auth-submit:disabled {
-        background: #ccc;
-        cursor: not-allowed;
+        background: #ccc !important;
+        cursor: not-allowed !important;
+        color: white !important;
       }
 
-      .coprompt-auth-status {
-        margin: 16px 0;
-        padding: 12px;
-        border-radius: 6px;
-        font-size: 14px;
-        display: none;
-      }
-
-      .coprompt-auth-status.success {
-        background: #f0f9f4;
-        color: #166534;
-        border: 1px solid #bbf7d0;
-        display: block;
-      }
-
-      .coprompt-auth-status.error {
-        background: #fef2f2;
-        color: #dc2626;
-        border: 1px solid #fecaca;
-        display: block;
-      }
-
-      .coprompt-modal-footer {
-        text-align: center;
-        margin-top: 24px;
-        padding-top: 24px;
-        border-top: 1px solid #e1e5e9;
+      /* High specificity overrides for buttons */
+      .coprompt-auth-modal-overlay .coprompt-modal-content .coprompt-auth-submit,
+      .coprompt-auth-modal-overlay .coprompt-modal-content button.coprompt-auth-submit,
+      div.coprompt-auth-modal-overlay div.coprompt-modal-content button.coprompt-auth-submit {
+        background: #0070f3 !important;
+        color: white !important;
+        border: none !important;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+        opacity: 1 !important;
+        visibility: visible !important;
       }
 
       .coprompt-cancel-btn {
-        background: #f5f5f5;
-        color: #666;
-        border: none;
-        padding: 10px 20px;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 14px;
-        margin-bottom: 16px;
+        background: #f5f5f5 !important;
+        color: #666 !important;
+        border: none !important;
+        padding: 10px 20px !important;
+        border-radius: 6px !important;
+        cursor: pointer !important;
+        font-size: 14px !important;
+        margin-bottom: 16px !important;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+        opacity: 1 !important;
+        visibility: visible !important;
       }
 
       .coprompt-cancel-btn:hover {
-        background: #e5e5e5;
+        background: #e5e5e5 !important;
+        color: #666 !important;
+      }
+
+      .coprompt-auth-status {
+        margin: 16px 0 !important;
+        padding: 12px !important;
+        border-radius: 6px !important;
+        font-size: 14px !important;
+        display: none !important;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+      }
+
+      .coprompt-auth-status.success {
+        background: #f0f9f4 !important;
+        color: #166534 !important;
+        border: 1px solid #bbf7d0 !important;
+        display: block !important;
+      }
+
+      .coprompt-auth-status.error {
+        background: #fef2f2 !important;
+        color: #dc2626 !important;
+        border: 1px solid #fecaca !important;
+        display: block !important;
+      }
+
+      .coprompt-modal-footer {
+        text-align: center !important;
+        margin-top: 24px !important;
+        padding-top: 24px !important;
+        border-top: 1px solid #e1e5e9 !important;
+        color: #1a1a1a !important;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
       }
 
       .coprompt-login-link {
         margin: 0 !important;
         font-size: 14px !important;
         color: #666 !important;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
       }
 
       .coprompt-login-link a {
-        color: #0070f3;
-        text-decoration: none;
+        color: #0070f3 !important;
+        text-decoration: none !important;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
       }
 
       .coprompt-login-link a:hover {
-        text-decoration: underline;
+        text-decoration: underline !important;
+        color: #0070f3 !important;
+      }
+
+      /* High specificity overrides for modal content */
+      .coprompt-auth-modal-overlay .coprompt-modal-backdrop,
+      div.coprompt-auth-modal-overlay div.coprompt-modal-backdrop {
+        background: rgba(0, 0, 0, 0.5) !important;
+      }
+
+      .coprompt-auth-modal-overlay .coprompt-modal-content,
+      .coprompt-auth-modal-overlay .coprompt-modal-backdrop .coprompt-modal-content,
+      div.coprompt-auth-modal-overlay div.coprompt-modal-content {
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+        border-radius: 12px !important;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15) !important;
+      }
+
+      /* High specificity overrides for text elements */
+      .coprompt-auth-modal-overlay .coprompt-modal-content h2,
+      .coprompt-auth-modal-overlay .coprompt-modal-content .coprompt-auth-header h2,
+      div.coprompt-auth-modal-overlay div.coprompt-modal-content h2 {
+        color: #1a1a1a !important;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+      }
+
+      .coprompt-auth-modal-overlay .coprompt-modal-content p,
+      .coprompt-auth-modal-overlay .coprompt-modal-content .coprompt-auth-header p,
+      div.coprompt-auth-modal-overlay div.coprompt-modal-content p {
+        color: #666 !important;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+      }
+
+      /* High specificity overrides for all text elements */
+      .coprompt-auth-modal-overlay .coprompt-modal-content .coprompt-login-link,
+      .coprompt-auth-modal-overlay .coprompt-modal-content .coprompt-benefit,
+      .coprompt-auth-modal-overlay .coprompt-modal-content .coprompt-auth-benefits,
+      div.coprompt-auth-modal-overlay div.coprompt-modal-content .coprompt-login-link,
+      div.coprompt-auth-modal-overlay div.coprompt-modal-content .coprompt-benefit {
+        color: #666 !important;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+      }
+
+      .coprompt-auth-modal-overlay .coprompt-modal-content .coprompt-login-link a,
+      div.coprompt-auth-modal-overlay div.coprompt-modal-content .coprompt-login-link a {
+        color: #0070f3 !important;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
       }
     `;
     document.head.appendChild(styles);
@@ -607,10 +746,10 @@ async function createFloatingButton() {
     reqId,
     targetInputElement,
   ) {
-    const emailInput = modal.querySelector("#coprompt-email-input");
+    const emailInput = modal.querySelector("#coprompt-auth-email");
     const submitBtn = modal.querySelector("#coprompt-auth-submit");
-    const cancelBtn = modal.querySelector("#coprompt-cancel-btn");
-    const settingsLink = modal.querySelector("#coprompt-settings-link");
+    const cancelBtn = modal.querySelector("#coprompt-auth-cancel");
+    const settingsLink = modal.querySelector("#coprompt-auth-settings");
     const statusDiv = modal.querySelector("#coprompt-auth-status");
 
     // Email validation
