@@ -23,8 +23,7 @@
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'",
-    "sandbox": "sandbox allow-scripts; script-src 'self' 'unsafe-eval'; child-src 'self';",
-    "connect-src": "'self' https://chat.openai.com https://evfuyrixpjgfytwfijpx.supabase.co https://api.stripe.com"
+    "sandbox": "sandbox allow-scripts; script-src 'self' 'unsafe-eval'; child-src 'self';"
   },
   "content_scripts": [
     {
@@ -61,6 +60,10 @@
         "https://gemini.google.com/*",
         "https://lovable.dev/*"
       ]
+    },
+    {
+      "resources": ["options.html", "lib/supabase.js", "lib/stripe-client.js"],
+      "matches": ["<all_urls>"]
     }
   ],
   "browser_specific_settings": {

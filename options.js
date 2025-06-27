@@ -15,11 +15,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // --- Auth UI Elements (PX-07) ---
   const userStatusEl = document.getElementById("userStatus");
   const userEmailEl = document.getElementById("userEmail");
-  const authForm = document.getElementById("authForm"); // The div containing email/password inputs and auth buttons
+  const authForm = document.getElementById("authForm"); // The div containing email input and magic link button
   const emailInput = document.getElementById("emailInput");
-  const passwordInput = document.getElementById("passwordInput");
-  const signUpButton = document.getElementById("signUpButton");
-  const loginButton = document.getElementById("loginButton");
+  const sendMagicLinkButton = document.getElementById("sendMagicLinkButton");
   const logoutButton = document.getElementById("logoutButton");
   const authStatusDiv = document.getElementById("authStatus"); // For auth-related messages
 
@@ -66,6 +64,186 @@ document.addEventListener("DOMContentLoaded", () => {
   // Call URL parameter handler
   handleURLParameters();
 
+  // Show auth status messages
+  function showAuthStatus(message, type) {
+    if (authStatusDiv) {
+      authStatusDiv.textContent = message;
+      authStatusDiv.className = "status " + type; // Reuse existing styling
+      authStatusDiv.style.display = "block";
+      setTimeout(() => {
+        authStatusDiv.style.display = "none";
+      }, 3000);
+    }
+  }
+
+  // Handle magic link authentication
+  async function handleMagicLinkAuth() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlHash = window.location.hash;
+    
+    console.log("[Options] Magic link check details:", {
+      search: window.location.search,
+      hash: urlHash,
+      hashLength: urlHash.length,
+      hasAccessToken: urlHash.includes('access_token='),
+      hasRefreshToken: urlHash.includes('refresh_token='),
+      hasTypeMagiclink: urlHash.includes('type=magiclink'),
+      fullURL: window.location.href
+    });
+    
+    // Check for magic link parameters in query string OR URL fragment
+    const isMagicLinkQuery = urlParams.get('magic_link') === 'true';
+    const isMagicLinkFragment = urlHash.includes('access_token=') || 
+                                urlHash.includes('refresh_token=') || 
+                                urlHash.includes('type=magiclink');
+    
+    console.log("[Options] Detection results:", {
+      isMagicLinkQuery,
+      isMagicLinkFragment,
+      willProcess: isMagicLinkQuery || isMagicLinkFragment
+    });
+    
+    if (isMagicLinkQuery || isMagicLinkFragment) {
+      console.log("[Options] Handling magic link authentication", { 
+        isMagicLinkQuery, 
+        isMagicLinkFragment, 
+        urlHash,
+        supabaseClient: !!supabaseClient 
+      });
+      
+      if (!supabaseClient) {
+        console.error("[Options] Supabase client not available");
+        showAuthStatus("Authentication service not available. Please refresh the page.", "error");
+        return;
+      }
+      
+      showAuthStatus("Processing magic link authentication...", "info");
+      
+      try {
+        // If we have URL fragments, we need to manually process them
+        if (isMagicLinkFragment) {
+          console.log("[Options] Processing URL fragments manually...");
+          
+          // Parse the URL hash to extract tokens
+          const hashParams = new URLSearchParams(urlHash.substring(1)); // Remove the # character
+          const accessToken = hashParams.get('access_token');
+          const refreshToken = hashParams.get('refresh_token');
+          const tokenType = hashParams.get('token_type');
+          const expiresIn = hashParams.get('expires_in');
+          
+          console.log("[Options] URL hash details:", {
+            originalHash: urlHash,
+            hashWithoutSymbol: urlHash.substring(1),
+            hashLength: urlHash.length,
+            allHashParams: Array.from(hashParams.entries())
+          });
+          
+          console.log("[Options] Extracted tokens:", {
+            hasAccessToken: !!accessToken,
+            hasRefreshToken: !!refreshToken,
+            tokenType,
+            expiresIn,
+            accessTokenLength: accessToken?.length,
+            refreshTokenLength: refreshToken?.length
+          });
+          
+          if (accessToken && refreshToken) {
+            console.log("[Options] Setting session manually with extracted tokens...");
+            
+            // Set the session manually using Supabase's setSession method
+            const { data: { session }, error: sessionError } = await supabaseClient.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken
+            });
+            
+            console.log("[Options] Manual session result:", { 
+              session: !!session, 
+              user: session?.user?.email, 
+              error: sessionError 
+            });
+            
+            if (sessionError) {
+              console.error("[Options] Error setting session:", sessionError);
+              throw sessionError;
+            }
+            
+            if (session && session.user) {
+              console.log("[Options] Magic link authentication successful:", session.user.email);
+              updateAuthUI(session.user);
+              await chrome.storage.local.set({ supabase_session: session });
+              
+              showAuthStatus("✅ Authentication successful! You now have 25 free credits.", "success");
+              
+              // Load and display credits
+              setTimeout(() => {
+                loadAndDisplayCredits();
+              }, 1000);
+              
+              // Clean up URL after successful authentication
+              console.log("[Options] Cleaning up URL hash after success");
+              window.history.replaceState({}, document.title, window.location.pathname);
+              return; // Early return on success
+            }
+          } else {
+            console.warn("[Options] Missing required tokens in URL hash");
+            showAuthStatus("Invalid magic link tokens. Please try signing up manually.", "error");
+          }
+        }
+        
+        // Fallback: Try to get existing session (for query parameter method)
+        console.log("[Options] Getting session from Supabase...");
+        const { data: { session }, error } = await supabaseClient.auth.getSession();
+        
+        console.log("[Options] Session result:", { session: !!session, user: session?.user?.email, error });
+        
+        if (error) {
+          console.error("[Options] Magic link session error:", error);
+          throw error;
+        }
+        
+        if (session && session.user) {
+          console.log("[Options] Magic link authentication successful:", session.user.email);
+          updateAuthUI(session.user);
+          await chrome.storage.local.set({ supabase_session: session });
+          
+          showAuthStatus("✅ Authentication successful! You now have 25 free credits.", "success");
+          
+          // Load and display credits
+          setTimeout(() => {
+            loadAndDisplayCredits();
+          }, 1000);
+          
+        } else {
+          console.warn("[Options] No session found after magic link");
+          showAuthStatus("Magic link authentication failed. Please try signing up manually.", "error");
+        }
+        
+        // Clean up URL regardless of success/failure
+        if (isMagicLinkFragment) {
+          // For URL fragments, clear the hash
+          console.log("[Options] Cleaning up URL hash");
+          window.history.replaceState({}, document.title, window.location.pathname);
+        } else {
+          // For query parameters, clear the search
+          console.log("[Options] Cleaning up URL search");
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+        
+      } catch (error) {
+        console.error("[Options] Magic link auth error:", error);
+        showAuthStatus("Authentication error: " + (error.message || "Please try again."), "error");
+        
+        // Clean up URL on error too
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    } else {
+      console.log("[Options] No magic link parameters detected");
+    }
+  }
+
+  // Make function globally accessible for debugging
+  window.handleMagicLinkAuth = handleMagicLinkAuth;
+
   // --- Supabase Client Initialization (PX-07) ---
   const SUPABASE_URL = "https://evfuyrixpjgfytwfijpx.supabase.co"; // LIVE - NOW ACTIVE
   const SUPABASE_ANON_KEY = // LIVE - NOW ACTIVE
@@ -82,6 +260,10 @@ document.addEventListener("DOMContentLoaded", () => {
       const { createClient } = window.supabase; // Destructure createClient from the global supabase object
       supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       console.log("Supabase client initialized successfully.");
+      
+      // Call magic link handler AFTER Supabase client is initialized
+      handleMagicLinkAuth();
+      
     } catch (error) {
       console.error("Error initializing Supabase client:", error);
       if (authStatusDiv) {
@@ -185,8 +367,15 @@ document.addEventListener("DOMContentLoaded", () => {
   loadAndDisplayUsageStats();
 
   // --- V2 Credits Logic ---
+  let isLoadingCredits = false; // Prevent multiple simultaneous credit loads
+  
   async function loadAndDisplayCredits() {
     console.log("[loadAndDisplayCredits] Starting to load credits...");
+
+    if (isLoadingCredits) {
+      console.log("[loadAndDisplayCredits] Already loading credits, skipping...");
+      return;
+    }
 
     if (!supabaseClient) {
       console.log("[loadAndDisplayCredits] No Supabase client available");
@@ -194,6 +383,8 @@ document.addEventListener("DOMContentLoaded", () => {
         creditsBalanceEl.textContent = "Auth service unavailable";
       return;
     }
+
+    isLoadingCredits = true;
 
     try {
       console.log("[loadAndDisplayCredits] Getting session...");
@@ -252,6 +443,8 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error("[loadAndDisplayCredits] Error loading credits:", error);
       if (creditsBalanceEl)
         creditsBalanceEl.textContent = "Error loading credits";
+    } finally {
+      isLoadingCredits = false;
     }
   }
 
@@ -480,119 +673,52 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Show auth status messages
-  function showAuthStatus(message, type) {
-    if (authStatusDiv) {
-      authStatusDiv.textContent = message;
-      authStatusDiv.className = "status " + type; // Reuse existing styling
-      authStatusDiv.style.display = "block";
-      setTimeout(() => {
-        authStatusDiv.style.display = "none";
-      }, 3000);
-    }
-  }
-
-  // Sign Up
-  if (signUpButton && supabaseClient) {
-    signUpButton.addEventListener("click", async () => {
-      const email = emailInput.value;
-      const password = passwordInput.value;
-      if (!email || !password) {
-        showAuthStatus("Email and password are required.", "error");
+  // Send Magic Link (unified authentication method)
+  if (sendMagicLinkButton && emailInput && supabaseClient) {
+    sendMagicLinkButton.addEventListener("click", async () => {
+      const email = emailInput.value.trim();
+      if (!email) {
+        showAuthStatus("Email address is required.", "error");
         return;
       }
-      try {
-        const { data, error } = await supabaseClient.auth.signUp({
-          email: email,
-          password: password,
-        });
-        if (error) {
-          console.error("Sign up error:", error);
-          showAuthStatus(`Sign up failed: ${error.message}`, "error");
-          return;
-        }
 
-        console.log("Sign up successful:", data);
-        if (data.user && !data.session) {
-          showAuthStatus(
-            "Sign up successful! Please check your email to confirm your account.",
-            "success",
-          );
-        } else if (data.session) {
-          showAuthStatus(
-            "Sign up successful! You are now logged in.",
-            "success",
-          );
-          updateAuthUI(data.user);
-          // Store session for background script access
-          await chrome.storage.local.set({ supabase_session: data.session });
-        }
-
-        // Clear form
-        emailInput.value = "";
-        passwordInput.value = "";
-      } catch (error) {
-        console.error("Sign up error:", error);
-        showAuthStatus(`Sign up failed: ${error.message}`, "error");
-      }
-    });
-  }
-
-  // Log In
-  if (loginButton && supabaseClient) {
-    loginButton.addEventListener("click", async () => {
-      const email = emailInput.value;
-      const password = passwordInput.value;
-      if (!email || !password) {
-        showAuthStatus("Email and password are required.", "error");
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        showAuthStatus("Please enter a valid email address.", "error");
         return;
       }
+
       try {
-        const { data, error } = await supabaseClient.auth.signInWithPassword({
-          email: email,
-          password: password,
+        sendMagicLinkButton.textContent = "Sending...";
+        sendMagicLinkButton.disabled = true;
+
+        // Send magic link via background script
+        const response = await new Promise((resolve, reject) => {
+          chrome.runtime.sendMessage(
+            { type: "SEND_MAGIC_LINK", email: email },
+            (response) => {
+              if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+              } else {
+                resolve(response);
+              }
+            }
+          );
         });
-        if (error) {
-          console.error("Login error:", error);
-          showAuthStatus(`Login failed: ${error.message}`, "error");
-          return;
+
+        if (response.success) {
+          showAuthStatus(response.message, "success");
+          emailInput.value = ""; // Clear email field
+        } else {
+          showAuthStatus(response.error || "Failed to send magic link", "error");
         }
-        console.log("Login successful:", data);
-        showAuthStatus("Login successful!", "success");
-        updateAuthUI(data.user);
-
-        // Store session for background script access
-        await chrome.storage.local.set({ supabase_session: data.session });
-
-        // Clear form
-        emailInput.value = "";
-        passwordInput.value = "";
       } catch (error) {
-        console.error("Login error:", error);
-        showAuthStatus(`Login failed: ${error.message}`, "error");
-      }
-    });
-  }
-
-  // Log Out
-  if (logoutButton && supabaseClient) {
-    logoutButton.addEventListener("click", async () => {
-      try {
-        const { error } = await supabaseClient.auth.signOut();
-        if (error) {
-          console.error("Logout error:", error);
-          showAuthStatus(`Logout failed: ${error.message}`, "error");
-          return;
-        }
-        console.log("Logout successful");
-        showAuthStatus("Logged out successfully!", "success");
-        updateAuthUI(null);
-
-        // Clear stored session
-        await chrome.storage.local.remove("supabase_session");
-      } catch (error) {
-        console.error("Logout error:", error);
-        showAuthStatus(`Logout failed: ${error.message}`, "error");
+        console.error("Magic link error:", error);
+        showAuthStatus("Failed to send magic link. Please try again.", "error");
+      } finally {
+        sendMagicLinkButton.textContent = "📬 Send Magic Link";
+        sendMagicLinkButton.disabled = false;
       }
     });
   }
@@ -648,36 +774,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Check for prefilled email from magic link flow
-  async function checkPrefilledEmail() {
-    try {
-      const result = await chrome.storage.local.get("prefilled_email");
-      const prefilledEmail = result.prefilled_email;
-
-      if (prefilledEmail && emailInput) {
-        console.log("Found prefilled email:", prefilledEmail);
-        emailInput.value = prefilledEmail;
-        emailInput.focus(); // Focus on the email field to draw attention
-
-        // Clear the prefilled email to avoid re-using it on subsequent visits
-        await chrome.storage.local.remove("prefilled_email");
-
-        // Show a helpful message
-        showAuthStatus(
-          "Email pre-filled from your signup request. Please enter a password to continue.",
-          "success",
-        );
-      }
-    } catch (error) {
-      console.error("Error checking for prefilled email:", error);
-    }
-  }
-
   // Perform initial auth check
   checkInitialAuthState();
-
-  // Check for prefilled email from magic link flow
-  checkPrefilledEmail();
 
   // Handle Stripe checkout returns
   handleStripeReturn();
@@ -896,4 +994,27 @@ document.addEventListener("DOMContentLoaded", () => {
   loadSitePreferences();
 
   console.log("CoPrompt Options: All event listeners set up successfully.");
+
+  // Log Out
+  if (logoutButton && supabaseClient) {
+    logoutButton.addEventListener("click", async () => {
+      try {
+        const { error } = await supabaseClient.auth.signOut();
+        if (error) {
+          console.error("Logout error:", error);
+          showAuthStatus(`Logout failed: ${error.message}`, "error");
+          return;
+        }
+        console.log("Logout successful");
+        showAuthStatus("Logged out successfully!", "success");
+        updateAuthUI(null);
+
+        // Clear stored session
+        await chrome.storage.local.remove("supabase_session");
+      } catch (error) {
+        console.error("Logout error:", error);
+        showAuthStatus(`Logout failed: ${error.message}`, "error");
+      }
+    });
+  }
 });
