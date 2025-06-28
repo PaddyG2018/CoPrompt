@@ -2,7 +2,8 @@ const DEBUG = false; // Define DEBUG at the top of the file
 
 // Supabase Configuration
 const SUPABASE_URL = "https://evfuyrixpjgfytwfijpx.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2ZnV5cml4cGpnZnl0d2ZpanB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwODA0MDIsImV4cCI6MjA1OTY1NjQwMn0.GD6oTrvjKMdqSK4LgyRmD0E1k0zbKFg79sAlXy-fLyc";
+const SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2ZnV5cml4cGpnZnl0d2ZpanB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwODA0MDIsImV4cCI6MjA1OTY1NjQwMn0.GD6oTrvjKMdqSK4LgyRmD0E1k0zbKFg79sAlXy-fLyc";
 
 import {
   DEFAULT_SYSTEM_INSTRUCTION,
@@ -189,43 +190,42 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // No response needed/sent
   } else if (request.type === "SEND_MAGIC_LINK") {
     // V2A-02: Handle magic link sending with proper Supabase authentication
-    console.log(
-      "[Background] Sending magic link for:",
-      request.email,
-    );
+    console.log("[Background] Sending magic link for:", request.email);
 
     // Send actual magic link via Supabase Auth
     const sendMagicLink = async () => {
       try {
-        const response = await fetch(SUPABASE_URL + '/auth/v1/magiclink', {
-          method: 'POST',
+        const response = await fetch(SUPABASE_URL + "/auth/v1/magiclink", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            'apikey': SUPABASE_ANON_KEY
+            "Content-Type": "application/json",
+            apikey: SUPABASE_ANON_KEY,
           },
           body: JSON.stringify({
             email: request.email,
             options: {
-              redirectTo: chrome.runtime.getURL("options.html")
-            }
-          })
+              redirectTo: chrome.runtime.getURL("options.html"),
+            },
+          }),
         });
 
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.msg || 'Failed to send magic link');
+          throw new Error(errorData.msg || "Failed to send magic link");
         }
 
         console.log("[Background] Magic link sent successfully");
         sendResponse({
           success: true,
-          message: "✅ Magic link sent! Check your email. If the link doesn't work directly, copy the URL and paste it in a new tab."
+          message:
+            "✅ Magic link sent! Check your email. If the link doesn't work directly, copy the URL and paste it in a new tab.",
         });
       } catch (error) {
         console.error("[Background] Magic link error:", error);
         sendResponse({
           success: false,
-          error: error.message || "Failed to send magic link. Please try again."
+          error:
+            error.message || "Failed to send magic link. Please try again.",
         });
       }
     };
@@ -325,20 +325,22 @@ chrome.runtime.onInstalled.addListener((details) => {
 
 // Handle magic link redirects that get blocked
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (changeInfo.url && changeInfo.url.includes('supabase.co/auth/v1/verify')) {
+  if (changeInfo.url && changeInfo.url.includes("supabase.co/auth/v1/verify")) {
     // Extract the redirect_to parameter from the Supabase verification URL
     try {
       const url = new URL(changeInfo.url);
-      const redirectTo = url.searchParams.get('redirect_to');
-      
-      if (redirectTo && redirectTo.includes('chrome-extension://')) {
-        console.log('[Background] Detected blocked magic link redirect, handling manually...');
+      const redirectTo = url.searchParams.get("redirect_to");
+
+      if (redirectTo && redirectTo.includes("chrome-extension://")) {
+        console.log(
+          "[Background] Detected blocked magic link redirect, handling manually...",
+        );
         // Close the blocked tab and open the extension options page directly
         chrome.tabs.remove(tabId);
         chrome.tabs.create({ url: redirectTo });
       }
     } catch (error) {
-      console.log('[Background] Error parsing magic link URL:', error);
+      console.log("[Background] Error parsing magic link URL:", error);
     }
   }
 });

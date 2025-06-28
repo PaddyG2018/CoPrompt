@@ -80,161 +80,212 @@ document.addEventListener("DOMContentLoaded", () => {
   async function handleMagicLinkAuth() {
     const urlParams = new URLSearchParams(window.location.search);
     const urlHash = window.location.hash;
-    
+
     console.log("[Options] Magic link check details:", {
       search: window.location.search,
       hash: urlHash,
       hashLength: urlHash.length,
-      hasAccessToken: urlHash.includes('access_token='),
-      hasRefreshToken: urlHash.includes('refresh_token='),
-      hasTypeMagiclink: urlHash.includes('type=magiclink'),
-      fullURL: window.location.href
+      hasAccessToken: urlHash.includes("access_token="),
+      hasRefreshToken: urlHash.includes("refresh_token="),
+      hasTypeMagiclink: urlHash.includes("type=magiclink"),
+      fullURL: window.location.href,
     });
-    
+
     // Check for magic link parameters in query string OR URL fragment
-    const isMagicLinkQuery = urlParams.get('magic_link') === 'true';
-    const isMagicLinkFragment = urlHash.includes('access_token=') || 
-                                urlHash.includes('refresh_token=') || 
-                                urlHash.includes('type=magiclink');
-    
+    const isMagicLinkQuery = urlParams.get("magic_link") === "true";
+    const isMagicLinkFragment =
+      urlHash.includes("access_token=") ||
+      urlHash.includes("refresh_token=") ||
+      urlHash.includes("type=magiclink");
+
     console.log("[Options] Detection results:", {
       isMagicLinkQuery,
       isMagicLinkFragment,
-      willProcess: isMagicLinkQuery || isMagicLinkFragment
+      willProcess: isMagicLinkQuery || isMagicLinkFragment,
     });
-    
+
     if (isMagicLinkQuery || isMagicLinkFragment) {
-      console.log("[Options] Handling magic link authentication", { 
-        isMagicLinkQuery, 
-        isMagicLinkFragment, 
+      console.log("[Options] Handling magic link authentication", {
+        isMagicLinkQuery,
+        isMagicLinkFragment,
         urlHash,
-        supabaseClient: !!supabaseClient 
+        supabaseClient: !!supabaseClient,
       });
-      
+
       if (!supabaseClient) {
         console.error("[Options] Supabase client not available");
-        showAuthStatus("Authentication service not available. Please refresh the page.", "error");
+        showAuthStatus(
+          "Authentication service not available. Please refresh the page.",
+          "error",
+        );
         return;
       }
-      
+
       showAuthStatus("Processing magic link authentication...", "info");
-      
+
       try {
         // If we have URL fragments, we need to manually process them
         if (isMagicLinkFragment) {
           console.log("[Options] Processing URL fragments manually...");
-          
+
           // Parse the URL hash to extract tokens
           const hashParams = new URLSearchParams(urlHash.substring(1)); // Remove the # character
-          const accessToken = hashParams.get('access_token');
-          const refreshToken = hashParams.get('refresh_token');
-          const tokenType = hashParams.get('token_type');
-          const expiresIn = hashParams.get('expires_in');
-          
+          const accessToken = hashParams.get("access_token");
+          const refreshToken = hashParams.get("refresh_token");
+          const tokenType = hashParams.get("token_type");
+          const expiresIn = hashParams.get("expires_in");
+
           console.log("[Options] URL hash details:", {
             originalHash: urlHash,
             hashWithoutSymbol: urlHash.substring(1),
             hashLength: urlHash.length,
-            allHashParams: Array.from(hashParams.entries())
+            allHashParams: Array.from(hashParams.entries()),
           });
-          
+
           console.log("[Options] Extracted tokens:", {
             hasAccessToken: !!accessToken,
             hasRefreshToken: !!refreshToken,
             tokenType,
             expiresIn,
             accessTokenLength: accessToken?.length,
-            refreshTokenLength: refreshToken?.length
+            refreshTokenLength: refreshToken?.length,
           });
-          
+
           if (accessToken && refreshToken) {
-            console.log("[Options] Setting session manually with extracted tokens...");
-            
+            console.log(
+              "[Options] Setting session manually with extracted tokens...",
+            );
+
             // Set the session manually using Supabase's setSession method
-            const { data: { session }, error: sessionError } = await supabaseClient.auth.setSession({
+            const {
+              data: { session },
+              error: sessionError,
+            } = await supabaseClient.auth.setSession({
               access_token: accessToken,
-              refresh_token: refreshToken
+              refresh_token: refreshToken,
             });
-            
-            console.log("[Options] Manual session result:", { 
-              session: !!session, 
-              user: session?.user?.email, 
-              error: sessionError 
+
+            console.log("[Options] Manual session result:", {
+              session: !!session,
+              user: session?.user?.email,
+              error: sessionError,
             });
-            
+
             if (sessionError) {
               console.error("[Options] Error setting session:", sessionError);
               throw sessionError;
             }
-            
+
             if (session && session.user) {
-              console.log("[Options] Magic link authentication successful:", session.user.email);
+              console.log(
+                "[Options] Magic link authentication successful:",
+                session.user.email,
+              );
               updateAuthUI(session.user);
               await chrome.storage.local.set({ supabase_session: session });
-              
-              showAuthStatus("✅ Authentication successful! You now have 25 free credits.", "success");
-              
+
+              showAuthStatus(
+                "✅ Authentication successful! You now have 25 free credits.",
+                "success",
+              );
+
               // Load and display credits
               setTimeout(() => {
                 loadAndDisplayCredits();
               }, 1000);
-              
+
               // Clean up URL after successful authentication
               console.log("[Options] Cleaning up URL hash after success");
-              window.history.replaceState({}, document.title, window.location.pathname);
+              window.history.replaceState(
+                {},
+                document.title,
+                window.location.pathname,
+              );
               return; // Early return on success
             }
           } else {
             console.warn("[Options] Missing required tokens in URL hash");
-            showAuthStatus("Invalid magic link tokens. Please try signing up manually.", "error");
+            showAuthStatus(
+              "Invalid magic link tokens. Please try signing up manually.",
+              "error",
+            );
           }
         }
-        
+
         // Fallback: Try to get existing session (for query parameter method)
         console.log("[Options] Getting session from Supabase...");
-        const { data: { session }, error } = await supabaseClient.auth.getSession();
-        
-        console.log("[Options] Session result:", { session: !!session, user: session?.user?.email, error });
-        
+        const {
+          data: { session },
+          error,
+        } = await supabaseClient.auth.getSession();
+
+        console.log("[Options] Session result:", {
+          session: !!session,
+          user: session?.user?.email,
+          error,
+        });
+
         if (error) {
           console.error("[Options] Magic link session error:", error);
           throw error;
         }
-        
+
         if (session && session.user) {
-          console.log("[Options] Magic link authentication successful:", session.user.email);
+          console.log(
+            "[Options] Magic link authentication successful:",
+            session.user.email,
+          );
           updateAuthUI(session.user);
           await chrome.storage.local.set({ supabase_session: session });
-          
-          showAuthStatus("✅ Authentication successful! You now have 25 free credits.", "success");
-          
+
+          showAuthStatus(
+            "✅ Authentication successful! You now have 25 free credits.",
+            "success",
+          );
+
           // Load and display credits
           setTimeout(() => {
             loadAndDisplayCredits();
           }, 1000);
-          
         } else {
           console.warn("[Options] No session found after magic link");
-          showAuthStatus("Magic link authentication failed. Please try signing up manually.", "error");
+          showAuthStatus(
+            "Magic link authentication failed. Please try signing up manually.",
+            "error",
+          );
         }
-        
+
         // Clean up URL regardless of success/failure
         if (isMagicLinkFragment) {
           // For URL fragments, clear the hash
           console.log("[Options] Cleaning up URL hash");
-          window.history.replaceState({}, document.title, window.location.pathname);
+          window.history.replaceState(
+            {},
+            document.title,
+            window.location.pathname,
+          );
         } else {
           // For query parameters, clear the search
           console.log("[Options] Cleaning up URL search");
-          window.history.replaceState({}, document.title, window.location.pathname);
+          window.history.replaceState(
+            {},
+            document.title,
+            window.location.pathname,
+          );
         }
-        
       } catch (error) {
         console.error("[Options] Magic link auth error:", error);
-        showAuthStatus("Authentication error: " + (error.message || "Please try again."), "error");
-        
+        showAuthStatus(
+          "Authentication error: " + (error.message || "Please try again."),
+          "error",
+        );
+
         // Clean up URL on error too
-        window.history.replaceState({}, document.title, window.location.pathname);
+        window.history.replaceState(
+          {},
+          document.title,
+          window.location.pathname,
+        );
       }
     } else {
       console.log("[Options] No magic link parameters detected");
@@ -260,10 +311,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const { createClient } = window.supabase; // Destructure createClient from the global supabase object
       supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       console.log("Supabase client initialized successfully.");
-      
+
       // Call magic link handler AFTER Supabase client is initialized
       handleMagicLinkAuth();
-      
     } catch (error) {
       console.error("Error initializing Supabase client:", error);
       if (authStatusDiv) {
@@ -368,12 +418,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // --- V2 Credits Logic ---
   let isLoadingCredits = false; // Prevent multiple simultaneous credit loads
-  
+
   async function loadAndDisplayCredits() {
     console.log("[loadAndDisplayCredits] Starting to load credits...");
 
     if (isLoadingCredits) {
-      console.log("[loadAndDisplayCredits] Already loading credits, skipping...");
+      console.log(
+        "[loadAndDisplayCredits] Already loading credits, skipping...",
+      );
       return;
     }
 
@@ -703,7 +755,7 @@ document.addEventListener("DOMContentLoaded", () => {
               } else {
                 resolve(response);
               }
-            }
+            },
           );
         });
 
@@ -711,7 +763,10 @@ document.addEventListener("DOMContentLoaded", () => {
           showAuthStatus(response.message, "success");
           emailInput.value = ""; // Clear email field
         } else {
-          showAuthStatus(response.error || "Failed to send magic link", "error");
+          showAuthStatus(
+            response.error || "Failed to send magic link",
+            "error",
+          );
         }
       } catch (error) {
         console.error("Magic link error:", error);
