@@ -75,7 +75,7 @@ export async function callOpenAI(
           `[apiClient] Supabase function error (${response.status}):`,
           errorBody,
         );
-      } catch (parseError) {
+      } catch (_parseError) {
         try {
           const errorText = await response.text();
           console.error(

@@ -246,24 +246,30 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 // from content/messageHandler.js, enabling service worker persistence and advanced features
 chrome.runtime.onConnect.addListener((port) => {
   if (port.name === "enhancer") {
-    console.log("[Background] Enhancement port connected - service worker staying alive");
-    
+    console.log(
+      "[Background] Enhancement port connected - service worker staying alive",
+    );
+
     port.onMessage.addListener(async (request) => {
       if (request.type === "ENHANCE_PROMPT") {
-        console.log("[Background] Processing ENHANCE_PROMPT via port:", request.requestId);
-        
+        console.log(
+          "[Background] Processing ENHANCE_PROMPT via port:",
+          request.requestId,
+        );
+
         const userPrompt = request.prompt;
         const contextData = request.conversationContext;
         const systemInstruction = request.systemInstruction;
         const requestId = request.requestId;
-        
+
         // Format conversation context if available
         const formattedContext = formatConversationContext(contextData);
-        
+
         // Use provided system instruction, or fallback to MAIN_SYSTEM_INSTRUCTION
         // This enables the sophisticated prompt enhancement with context awareness
-        let systemInstructionForApi = systemInstruction || MAIN_SYSTEM_INSTRUCTION;
-        
+        let systemInstructionForApi =
+          systemInstruction || MAIN_SYSTEM_INSTRUCTION;
+
         // Append formatted conversation context to system instruction if available
         if (formattedContext) {
           systemInstructionForApi += `\n\n${formattedContext}`;
@@ -285,14 +291,18 @@ chrome.runtime.onConnect.addListener((port) => {
           const userAccessToken = session?.access_token || null;
 
           if (DEBUG) {
-            console.log("[Background] Port: User Access Token present:", !!userAccessToken);
+            console.log(
+              "[Background] Port: User Access Token present:",
+              !!userAccessToken,
+            );
           }
 
           if (!userAccessToken) {
             console.log("[Background] Port: No user authentication found");
             port.postMessage({
               type: "CoPromptErrorResponse",
-              error: "Authentication required. Please sign up to get 25 free credits.",
+              error:
+                "Authentication required. Please sign up to get 25 free credits.",
               authRequired: true,
               requestId: requestId,
             });
@@ -321,7 +331,10 @@ chrome.runtime.onConnect.addListener((port) => {
           );
 
           if (DEBUG) {
-            console.log("[Background] Port: OpenAI response received for:", requestId);
+            console.log(
+              "[Background] Port: OpenAI response received for:",
+              requestId,
+            );
           }
 
           // Send success response via port
@@ -336,7 +349,6 @@ chrome.runtime.onConnect.addListener((port) => {
           if (response.usage) {
             storeTokenUsageWithDeviceId(response.usage);
           }
-
         } catch (error) {
           console.error("[Background] Port: Enhancement error:", error);
           port.postMessage({
@@ -349,7 +361,9 @@ chrome.runtime.onConnect.addListener((port) => {
     });
 
     port.onDisconnect.addListener(() => {
-      console.log("[Background] Enhancement port disconnected - service worker can go dormant");
+      console.log(
+        "[Background] Enhancement port disconnected - service worker can go dormant",
+      );
     });
   }
 });
@@ -437,7 +451,7 @@ chrome.runtime.onInstalled.addListener((details) => {
 });
 
 // Handle magic link redirects that get blocked
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, _tab) => {
   if (changeInfo.url && changeInfo.url.includes("supabase.co/auth/v1/verify")) {
     // Extract the redirect_to parameter from the Supabase verification URL
     try {
@@ -458,10 +472,10 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   }
 });
 
-self.addEventListener("activate", (event) => {
+self.addEventListener("activate", (_event) => {
   console.log("[Background] Service worker activated.");
 });
 
-self.addEventListener("install", (event) => {
+self.addEventListener("install", (_event) => {
   console.log("[Background] Service worker installed.");
 });
