@@ -5,6 +5,7 @@
 // import { makeDraggable } from "./content/interactionHandler.js"; // Not used directly here
 // import { handleWindowMessage } from "./content/messageHandler.js"; // This is the current file
 import { getConversationContext } from "../content.js"; // Import the function
+import { MAIN_SYSTEM_INSTRUCTION } from "../utils/constants.js"; // Import sophisticated system prompt
 
 // Flag for enabling debug logs specifically in this module
 // Set this to true manually for local debugging, should be false in production builds
@@ -179,7 +180,7 @@ export async function handleWindowMessage(event) {
         port.postMessage({
           type: "ENHANCE_PROMPT",
           prompt: prompt, // Use prompt from event data
-          // systemInstruction: null, // Explicitly null or omit if background defaults correctly
+          systemInstruction: MAIN_SYSTEM_INSTRUCTION, // ✅ Send sophisticated system prompt!
           conversationContext: context, // Use context from event data
           requestId: requestId,
         });
