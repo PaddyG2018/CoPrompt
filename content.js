@@ -6,11 +6,9 @@
 const DEBUG = false; // Set true for development logs
 
 // Inject `injected.js` into the page properly
-let injectedScriptReady = false; // Track when injected script is loaded
 const script = document.createElement("script");
 script.src = chrome.runtime.getURL("injected.js");
 script.onload = function () {
-  injectedScriptReady = true;
   // this.remove(); // Keep script in DOM for continued access
 };
 script.onerror = function () {
@@ -352,7 +350,7 @@ async function createFloatingButton() {
       // ✅ Don't check expires_at here - let background script handle session refresh
       // The background script will catch expired sessions during actual API calls
       // This matches the logic in popup.js and options.js which work correctly
-      
+
       return true;
     } catch (error) {
       console.error("[CoPrompt Debug] Error checking authentication:", error);
@@ -922,8 +920,6 @@ async function createFloatingButton() {
         : targetInputElement.textContent
       : "";
 
-    
-
     if (!promptText || !promptText.trim()) {
       // Check for null/undefined as well
       console.error("CoPrompt: Prompt text is empty or invalid.");
@@ -1047,34 +1043,42 @@ async function createFloatingButton() {
 
   // --- Helper function to wait for injected script ---
   const waitForInjectedScript = async (timeoutMs = 2000) => {
-    console.log("[CoPrompt Debug] waitForInjectedScript: Starting cross-context check...");
-    
+    console.log(
+      "[CoPrompt Debug] waitForInjectedScript: Starting cross-context check...",
+    );
+
     // Use postMessage to check if window.enhancePrompt exists in page context
     return new Promise((resolve) => {
       const startTime = Date.now();
       let checkCount = 0;
       let responseReceived = false;
-      
+
       // Listen for response from page context
       const messageHandler = (event) => {
-        if (event.source === window && event.data?.type === "CoPromptFunctionCheckResponse") {
+        if (
+          event.source === window &&
+          event.data?.type === "CoPromptFunctionCheckResponse"
+        ) {
           responseReceived = true;
           window.removeEventListener("message", messageHandler);
           clearInterval(checkInterval);
           resolve(event.data.available);
         }
       };
-      
+
       window.addEventListener("message", messageHandler);
-      
+
       const checkInterval = setInterval(() => {
         checkCount++;
         // Ask page context if window.enhancePrompt exists
-        window.postMessage({
-          type: "CoPromptFunctionCheck",
-          timestamp: Date.now()
-        }, "*");
-        
+        window.postMessage(
+          {
+            type: "CoPromptFunctionCheck",
+            timestamp: Date.now(),
+          },
+          "*",
+        );
+
         if (Date.now() - startTime > timeoutMs) {
           window.removeEventListener("message", messageHandler);
           clearInterval(checkInterval);
@@ -1103,8 +1107,6 @@ async function createFloatingButton() {
         ? targetInputElement.value
         : targetInputElement.textContent
       : "";
-
-
 
     if (!promptText || !promptText.trim()) {
       console.error("CoPrompt: Prompt text is empty or invalid.");
@@ -1139,25 +1141,28 @@ async function createFloatingButton() {
       const conversationContext = getConversationContext();
 
       // Wait for injected script to be ready, then try sophisticated enhancement
-      
+
       const scriptReady = await waitForInjectedScript(2000); // Wait up to 2 seconds
-      
+
       if (scriptReady) {
         // ✅ Port-based flow: Cross-context call → window.enhancePrompt → messageHandler.js → port → MAIN_SYSTEM_INSTRUCTION
-        
+
         // Use cross-context messaging to call window.enhancePrompt in page context
-        window.postMessage({
-          type: "CoPromptExecuteEnhance",
-          prompt: promptText,
-          context: conversationContext,
-          requestId: reqId
-        }, "*");
+        window.postMessage(
+          {
+            type: "CoPromptExecuteEnhance",
+            prompt: promptText,
+            context: conversationContext,
+            requestId: reqId,
+          },
+          "*",
+        );
       } else {
         // ⚠️ Fallback to simple flow if injected script not ready
         console.warn(
-          "[CoPrompt Warn] window.enhancePrompt not available, falling back to simple enhancement flow"
+          "[CoPrompt Warn] window.enhancePrompt not available, falling back to simple enhancement flow",
         );
-        
+
         // Use simple message flow as fallback (still better than failure)
         chrome.runtime.sendMessage(
           {
@@ -1168,7 +1173,6 @@ async function createFloatingButton() {
             targetInputId: targetInputElement?.id,
           },
           (response) => {
-            
             if (chrome.runtime.lastError) {
               console.error(
                 "CoPrompt: Error in fallback enhancement:",
@@ -1187,7 +1191,10 @@ async function createFloatingButton() {
                 updateInputElement(targetInputElement, response.enhancedPrompt);
               }
             } else if (response && response.type === "ENHANCE_PROMPT_ERROR") {
-              console.error("CoPrompt: Fallback enhancement failed:", response.error);
+              console.error(
+                "CoPrompt: Fallback enhancement failed:",
+                response.error,
+              );
               if (response.authRequired && buttonElement) {
                 showAuthModal(buttonElement, reqId, targetInputElement);
                 return;
@@ -1197,7 +1204,7 @@ async function createFloatingButton() {
             if (buttonElement) {
               resetButtonState(buttonElement);
             }
-          }
+          },
         );
       }
     } catch (error) {
