@@ -6,13 +6,17 @@
 const DEBUG = false; // Set true for development logs
 
 // Inject `injected.js` into the page properly
+let injectedScriptReady = false; // Track when injected script is loaded
 const script = document.createElement("script");
-// Point to the correct path relative to the manifest/dist root
 script.src = chrome.runtime.getURL("injected.js");
-// script.type = "module"; // Keep this commented out for now
 script.onload = function () {
-  // this.remove(); // Temporarily disable removing the script tag after load
-}; // Remove once loaded
+  injectedScriptReady = true;
+  console.log("[CoPrompt Debug] Injected script loaded successfully");
+  // this.remove(); // Keep script in DOM for continued access
+};
+script.onerror = function () {
+  console.error("[CoPrompt Error] Failed to load injected script");
+};
 (document.head || document.documentElement).appendChild(script);
 
 // --- Imports ---
@@ -335,7 +339,7 @@ async function createFloatingButton() {
   buttonContainer.appendChild(enhanceButton);
   document.body.appendChild(buttonContainer);
 
-  // V2A-02: Authentication check function
+  // V2A-02: Authentication check function (simplified to match background logic)
   async function checkUserAuthentication() {
     try {
       // Check if we have a stored Supabase session
@@ -347,13 +351,10 @@ async function createFloatingButton() {
         return false;
       }
 
-      // Check if session is still valid (not expired)
-      const now = Math.floor(Date.now() / 1000);
-      if (session.expires_at && session.expires_at <= now) {
-        console.log("[CoPrompt Debug] Session expired");
-        return false;
-      }
-
+      // ✅ Don't check expires_at here - let background script handle session refresh
+      // The background script will catch expired sessions during actual API calls
+      // This matches the logic in popup.js and options.js which work correctly
+      
       console.log("[CoPrompt Debug] User is authenticated");
       return true;
     } catch (error) {
@@ -1077,12 +1078,205 @@ async function createFloatingButton() {
     }
   };
 
-  // Attach drag handler AND pass the new click handler
-  // Update the callback signature to match handleEnhanceClick
+  // --- Helper function to wait for injected script ---
+  const waitForInjectedScript = async (timeoutMs = 2000) => {
+    console.log("[CoPrompt Debug] waitForInjectedScript: Starting cross-context check...");
+    
+    // Use postMessage to check if window.enhancePrompt exists in page context
+    return new Promise((resolve) => {
+      const startTime = Date.now();
+      let checkCount = 0;
+      let responseReceived = false;
+      
+      // Listen for response from page context
+      const messageHandler = (event) => {
+        if (event.source === window && event.data?.type === "CoPromptFunctionCheckResponse") {
+          responseReceived = true;
+          console.log("[CoPrompt Debug] waitForInjectedScript: Function check response:", event.data.available);
+          window.removeEventListener("message", messageHandler);
+          clearInterval(checkInterval);
+          resolve(event.data.available);
+        }
+      };
+      
+      window.addEventListener("message", messageHandler);
+      
+      const checkInterval = setInterval(() => {
+        checkCount++;
+        console.log(`[CoPrompt Debug] waitForInjectedScript: Cross-context check #${checkCount}`);
+        
+        // Ask page context if window.enhancePrompt exists
+        window.postMessage({
+          type: "CoPromptFunctionCheck",
+          timestamp: Date.now()
+        }, "*");
+        
+        if (Date.now() - startTime > timeoutMs) {
+          console.log(`[CoPrompt Debug] waitForInjectedScript: Timeout after ${timeoutMs}ms and ${checkCount} checks`);
+          window.removeEventListener("message", messageHandler);
+          clearInterval(checkInterval);
+          resolve(false); // Timeout - fall back to simple flow
+        }
+      }, 100); // Check every 100ms (less frequent for cross-context)
+    });
+  };
+
+  // --- Port-based enhancement handler (uses sophisticated MAIN_SYSTEM_INSTRUCTION) ---
+  const handlePortBasedEnhanceClick = async (
+    buttonElement,
+    reqId,
+    targetInputElement,
+  ) => {
+    console.log("[CoPrompt Debug] handlePortBasedEnhanceClick: Starting port-based enhancement", {
+      buttonElement,
+      reqId,
+      targetInputElement,
+    });
+
+    // V2A-02: Check authentication before proceeding
+    const isAuthenticated = await checkUserAuthentication();
+    if (!isAuthenticated) {
+      console.log(
+        "[CoPrompt Debug] User not authenticated, showing auth modal",
+      );
+      showAuthModal(buttonElement, reqId, targetInputElement);
+      return;
+    }
+
+    // Extract the prompt text from the active input field
+    const promptText = targetInputElement
+      ? targetInputElement.value !== undefined
+        ? targetInputElement.value
+        : targetInputElement.textContent
+      : "";
+
+    console.log(
+      "[CoPrompt Debug] handlePortBasedEnhanceClick: Prompt text:",
+      promptText,
+    );
+
+    if (!promptText || !promptText.trim()) {
+      console.error("CoPrompt: Prompt text is empty or invalid.");
+      if (buttonElement) {
+        resetButtonState(buttonElement);
+      }
+      return;
+    }
+
+    if (!reqId) {
+      console.error("CoPrompt: Button is missing request ID.");
+      return;
+    }
+
+    // Set loading state
+    if (buttonElement) {
+      buttonElement.disabled = true;
+      buttonElement.style.cursor = "wait";
+      buttonElement.classList.add("coprompt-loading");
+      buttonElement.innerHTML = `
+        <div class="coprompt-loading-dots-container">
+          <div class="coprompt-loading-dot"></div>
+          <div class="coprompt-loading-dot"></div>
+          <div class="coprompt-loading-dot"></div>
+        </div>
+        <span>${ENHANCING_LABEL}</span> 
+      `;
+    }
+
+    try {
+      // Get conversation context
+      const conversationContext = getConversationContext();
+      console.log(
+        "[CoPrompt Debug] handlePortBasedEnhanceClick: Context captured:",
+        conversationContext,
+      );
+
+      // Wait for injected script to be ready, then try sophisticated enhancement
+      console.log(
+        "[CoPrompt Debug] handlePortBasedEnhanceClick: Waiting for injected script...",
+      );
+      
+      const scriptReady = await waitForInjectedScript(2000); // Wait up to 2 seconds
+      
+      if (scriptReady) {
+        // ✅ Port-based flow: Cross-context call → window.enhancePrompt → messageHandler.js → port → MAIN_SYSTEM_INSTRUCTION
+        console.log("[CoPrompt Debug] Using sophisticated port-based enhancement");
+        
+        // Use cross-context messaging to call window.enhancePrompt in page context
+        window.postMessage({
+          type: "CoPromptExecuteEnhance",
+          prompt: promptText,
+          context: conversationContext,
+          requestId: reqId
+        }, "*");
+      } else {
+        // ⚠️ Fallback to simple flow if injected script not ready
+        console.warn(
+          "[CoPrompt Warn] window.enhancePrompt not available, falling back to simple enhancement flow"
+        );
+        
+        // Use simple message flow as fallback (still better than failure)
+        chrome.runtime.sendMessage(
+          {
+            type: "ENHANCE_PROMPT_REQUEST",
+            prompt: promptText,
+            context: conversationContext,
+            requestId: reqId,
+            targetInputId: targetInputElement?.id,
+          },
+          (response) => {
+            console.log(
+              "[CoPrompt Debug] Fallback: Received response from simple flow:",
+              response,
+            );
+            
+            if (chrome.runtime.lastError) {
+              console.error(
+                "CoPrompt: Error in fallback enhancement:",
+                chrome.runtime.lastError.message,
+              );
+              if (buttonElement) {
+                resetButtonState(buttonElement);
+                buttonElement.title = "Enhancement failed. Please try again.";
+              }
+              return;
+            }
+
+            // Handle response same as simple flow
+            if (response && response.type === "ENHANCE_PROMPT_RESPONSE") {
+              if (response.enhancedPrompt && targetInputElement) {
+                updateInputElement(targetInputElement, response.enhancedPrompt);
+              }
+            } else if (response && response.type === "ENHANCE_PROMPT_ERROR") {
+              console.error("CoPrompt: Fallback enhancement failed:", response.error);
+              if (response.authRequired && buttonElement) {
+                showAuthModal(buttonElement, reqId, targetInputElement);
+                return;
+              }
+            }
+
+            if (buttonElement) {
+              resetButtonState(buttonElement);
+            }
+          }
+        );
+      }
+    } catch (error) {
+      console.error("CoPrompt: Error in handlePortBasedEnhanceClick:", error);
+      if (buttonElement) {
+        resetButtonState(buttonElement);
+        buttonElement.title = "Error during enhancement. Please try again.";
+        buttonElement.classList.add("coprompt-error");
+      }
+    }
+  };
+
+  // Attach drag handler AND pass the correct click handler
+  // Use window.enhancePrompt (port-based) instead of handleEnhanceClick (simple message)
   makeDraggable(
     buttonContainer,
     (btnElement, rId, targetInput) =>
-      handleEnhanceClick(btnElement, rId, targetInput),
+      handlePortBasedEnhanceClick(btnElement, rId, targetInput),
     enhanceButton,
   );
 
