@@ -241,6 +241,119 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   // Note: No need to return true for synchronous handlers above
 });
 
+// --- Port-based Communication Handler ---
+// This handler receives ENHANCE_PROMPT messages sent via chrome.runtime.connect()
+// from content/messageHandler.js, enabling service worker persistence and advanced features
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name === "enhancer") {
+    console.log("[Background] Enhancement port connected - service worker staying alive");
+    
+    port.onMessage.addListener(async (request) => {
+      if (request.type === "ENHANCE_PROMPT") {
+        console.log("[Background] Processing ENHANCE_PROMPT via port:", request.requestId);
+        
+        const userPrompt = request.prompt;
+        const contextData = request.conversationContext;
+        const systemInstruction = request.systemInstruction;
+        const requestId = request.requestId;
+        
+        // Format conversation context if available
+        const formattedContext = formatConversationContext(contextData);
+        
+        // Use provided system instruction, or fallback to MAIN_SYSTEM_INSTRUCTION
+        // This enables the sophisticated prompt enhancement with context awareness
+        let systemInstructionForApi = systemInstruction || MAIN_SYSTEM_INSTRUCTION;
+        
+        // Append formatted conversation context to system instruction if available
+        if (formattedContext) {
+          systemInstructionForApi += `\n\n${formattedContext}`;
+        }
+
+        if (!userPrompt) {
+          port.postMessage({
+            type: "ENHANCE_PROMPT_ERROR",
+            error: "Prompt was missing in the request.",
+            requestId: requestId,
+          });
+          return;
+        }
+
+        try {
+          // Get user authentication (same logic as simple message handler)
+          const data = await chrome.storage.local.get("supabase_session");
+          const session = data.supabase_session;
+          const userAccessToken = session?.access_token || null;
+
+          if (DEBUG) {
+            console.log("[Background] Port: User Access Token present:", !!userAccessToken);
+          }
+
+          if (!userAccessToken) {
+            console.log("[Background] Port: No user authentication found");
+            port.postMessage({
+              type: "ENHANCE_PROMPT_ERROR",
+              error: "Authentication required. Please sign up to get 25 free credits.",
+              authRequired: true,
+              requestId: requestId,
+            });
+            return;
+          }
+
+          // Check session expiry
+          const now = Math.floor(Date.now() / 1000);
+          if (session.expires_at && session.expires_at <= now) {
+            console.log("[Background] Port: User session expired");
+            port.postMessage({
+              type: "ENHANCE_PROMPT_ERROR",
+              error: "Session expired. Please log in again.",
+              authRequired: true,
+              requestId: requestId,
+            });
+            return;
+          }
+
+          // Call OpenAI with the sophisticated system instruction + context
+          const response = await callOpenAI(
+            null,
+            systemInstructionForApi, // ✅ MAIN_SYSTEM_INSTRUCTION with context!
+            userPrompt,
+            userAccessToken,
+          );
+
+          if (DEBUG) {
+            console.log("[Background] Port: OpenAI response received for:", requestId);
+          }
+
+          // Send success response via port
+          port.postMessage({
+            type: "ENHANCE_PROMPT_RESPONSE",
+            enhancedPrompt: response.enhancedPrompt,
+            usage: response.usage,
+            requestId: requestId,
+          });
+
+          // Store analytics (same as simple message handler)
+          if (response.usage) {
+            storeTokenUsageWithDeviceId(response.usage);
+          }
+
+        } catch (error) {
+          console.error("[Background] Port: Enhancement error:", error);
+          port.postMessage({
+            type: "ENHANCE_PROMPT_ERROR",
+            error: error.message,
+            requestId: requestId,
+          });
+        }
+      }
+    });
+
+    port.onDisconnect.addListener(() => {
+      console.log("[Background] Enhancement port disconnected - service worker can go dormant");
+    });
+  }
+});
+
 // --- Token usage tracking (V2 analytics) ---
 async function storeTokenUsageWithDeviceId(usage) {
   try {
