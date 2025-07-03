@@ -28,10 +28,13 @@ const ENHANCING_LABEL = "Enhancing...";
 // Assume production logging unless specifically enabled for debug builds
 const DEBUG = false;
 
-// console.log("[CoPrompt Injected] Reached point before enhancePrompt definition."); // <-- REMOVE log before
+console.log("[CoPrompt Injected] Script execution started...");
 
-// Modified enhancePrompt: Sends request TO content script, doesn't handle response directly
-window.enhancePrompt = async (promptText, conversationContext, requestId) => {
+try {
+  console.log("[CoPrompt Injected] About to define window.enhancePrompt...");
+  
+  // Modified enhancePrompt: Sends request TO content script, doesn't handle response directly
+  window.enhancePrompt = async (promptText, conversationContext, requestId) => {
   // Removed port parameter
   if (DEBUG)
     console.log(
@@ -85,6 +88,16 @@ window.addEventListener("message", (event) => {
   const { type, payload, requestId } = event.data;
 
   switch (type) {
+    case "CoPromptFunctionCheck": // Respond to cross-context function availability checks
+      console.log("[CoPrompt Injected] Function availability check requested");
+      const available = typeof window.enhancePrompt === "function";
+      console.log("[CoPrompt Injected] window.enhancePrompt available:", available);
+      window.postMessage({
+        type: "CoPromptFunctionCheckResponse",
+        available: available,
+        timestamp: event.data.timestamp
+      }, "*");
+      break;
     case "CoPromptExecuteEnhance": // Listen for trigger from content script
       // console.log("[Injected Listener] Received CoPromptExecuteEnhance, calling enhancePrompt..."); // REMOVE log
       // Ensure enhancePrompt is available (should be, as this script defines it)
@@ -139,7 +152,7 @@ window.addEventListener("message", (event) => {
       }
 
       // Process successful response
-      const enhancedPrompt = event.data.data;
+      const enhancedPrompt = event.data.enhancedPrompt;
       // console.log(`[Injected Listener] Got enhancedPrompt (length: ${enhancedPrompt?.length}) for ID ${responseRequestId}`); // REMOVE log
       if (enhancedPrompt) {
         // console.log(`[Injected Listener] Finding active input element for ID ${responseRequestId}...`); // REMOVE log
@@ -228,7 +241,7 @@ function updateInputElement(element, text) {
       // *** FIX: Select existing content before inserting ***
       document.execCommand("selectAll", false, null);
       // *** END FIX ***
-      // console.log("[UPDATE_INPUT_DEBUG] Calling execCommand('insertText')...); // REMOVE log
+      // console.log("[UPDATE_INPUT_DEBUG] Calling execCommand('insertText')..."); // REMOVE log
       const success = document.execCommand("insertText", false, text);
       // console.log(`[UPDATE_INPUT_DEBUG] execCommand success: ${success}`); // REMOVE log
       if (success) {
@@ -475,5 +488,10 @@ function findActiveInputElement() {
 // Initial check for input fields on script load
 // ... (initial check logic) ...
 
-// --- FINAL CONFIRMATION LOG ---
-// console.log("[CoPrompt Injected] Script execution completed. window.enhancePrompt should be defined.");
+  console.log("[CoPrompt Injected] ✅ Script execution completed successfully!");
+  console.log("[CoPrompt Injected] window.enhancePrompt defined:", typeof window.enhancePrompt);
+
+} catch (error) {
+  console.error("[CoPrompt Injected] ❌ Script execution failed:", error);
+  console.error("[CoPrompt Injected] Error stack:", error.stack);
+}

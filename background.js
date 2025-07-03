@@ -271,7 +271,7 @@ chrome.runtime.onConnect.addListener((port) => {
 
         if (!userPrompt) {
           port.postMessage({
-            type: "ENHANCE_PROMPT_ERROR",
+            type: "CoPromptErrorResponse",
             error: "Prompt was missing in the request.",
             requestId: requestId,
           });
@@ -291,7 +291,7 @@ chrome.runtime.onConnect.addListener((port) => {
           if (!userAccessToken) {
             console.log("[Background] Port: No user authentication found");
             port.postMessage({
-              type: "ENHANCE_PROMPT_ERROR",
+              type: "CoPromptErrorResponse",
               error: "Authentication required. Please sign up to get 25 free credits.",
               authRequired: true,
               requestId: requestId,
@@ -304,7 +304,7 @@ chrome.runtime.onConnect.addListener((port) => {
           if (session.expires_at && session.expires_at <= now) {
             console.log("[Background] Port: User session expired");
             port.postMessage({
-              type: "ENHANCE_PROMPT_ERROR",
+              type: "CoPromptErrorResponse",
               error: "Session expired. Please log in again.",
               authRequired: true,
               requestId: requestId,
@@ -326,7 +326,7 @@ chrome.runtime.onConnect.addListener((port) => {
 
           // Send success response via port
           port.postMessage({
-            type: "ENHANCE_PROMPT_RESPONSE",
+            type: "CoPromptEnhanceResponse",
             enhancedPrompt: response.enhancedPrompt,
             usage: response.usage,
             requestId: requestId,
@@ -340,7 +340,7 @@ chrome.runtime.onConnect.addListener((port) => {
         } catch (error) {
           console.error("[Background] Port: Enhancement error:", error);
           port.postMessage({
-            type: "ENHANCE_PROMPT_ERROR",
+            type: "CoPromptErrorResponse",
             error: error.message,
             requestId: requestId,
           });
