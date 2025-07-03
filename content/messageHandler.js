@@ -28,7 +28,6 @@ function logMessageHandlerDebug(...args) {
  * @param {object} errorDetail The error detail object from the message.
  */
 function _forwardErrorToBackground(errorDetail) {
-  // logMessageHandlerDebug("Forwarding error to background script:", errorDetail); // REMOVE log
   chrome.runtime.sendMessage(
     {
       type: "REPORT_ERROR_FROM_CONTENT",
@@ -40,8 +39,6 @@ function _forwardErrorToBackground(errorDetail) {
           "[CoPrompt MH Error] Error sending error report to background:",
           chrome.runtime.lastError.message,
         );
-      } else {
-        // logMessageHandlerDebug("Error report sent to background successfully.", response); // REMOVE log
       }
     },
   );
@@ -222,6 +219,3 @@ export async function handleWindowMessage(event) {
       logMessageHandlerDebug("Ignoring unknown message type:", type);
   }
 }
-
-// Initial log to confirm script loading
-// console.log("CoPrompt: messageHandler.js loaded and listener attached."); // REMOVE log

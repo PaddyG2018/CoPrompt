@@ -11,7 +11,6 @@ const script = document.createElement("script");
 script.src = chrome.runtime.getURL("injected.js");
 script.onload = function () {
   injectedScriptReady = true;
-  console.log("[CoPrompt Debug] Injected script loaded successfully");
   // this.remove(); // Keep script in DOM for continued access
 };
 script.onerror = function () {
@@ -347,7 +346,6 @@ async function createFloatingButton() {
       const session = result.supabase_session;
 
       if (!session || !session.access_token) {
-        console.log("[CoPrompt Debug] No session found in storage");
         return false;
       }
 
@@ -355,7 +353,6 @@ async function createFloatingButton() {
       // The background script will catch expired sessions during actual API calls
       // This matches the logic in popup.js and options.js which work correctly
       
-      console.log("[CoPrompt Debug] User is authenticated");
       return true;
     } catch (error) {
       console.error("[CoPrompt Debug] Error checking authentication:", error);
@@ -903,18 +900,9 @@ async function createFloatingButton() {
     reqId,
     targetInputElement,
   ) => {
-    console.log("[CoPrompt Debug] handleEnhanceClick: Entered", {
-      buttonElement,
-      reqId,
-      targetInputElement,
-    }); // DEBUG
-
     // V2A-02: Check authentication before proceeding
     const isAuthenticated = await checkUserAuthentication();
     if (!isAuthenticated) {
-      console.log(
-        "[CoPrompt Debug] User not authenticated, showing auth modal",
-      );
       showAuthModal(buttonElement, reqId, targetInputElement);
       return; // Don't proceed with enhancement
     }
@@ -934,10 +922,7 @@ async function createFloatingButton() {
         : targetInputElement.textContent
       : "";
 
-    console.log(
-      "[CoPrompt Debug] handleEnhanceClick: Prompt text:",
-      promptText,
-    ); // DEBUG
+    
 
     if (!promptText || !promptText.trim()) {
       // Check for null/undefined as well
@@ -975,22 +960,8 @@ async function createFloatingButton() {
       // that specific branching logic would need to be restored here, using isAllowedHostname.
       // For now, this restores the simple call as indicated by the diff.
       conversationContext = getConversationContext();
-      console.log(
-        "[CoPrompt Debug] handleEnhanceClick: Context captured:",
-        JSON.stringify(conversationContext),
-      ); // DEBUG
 
       // 2. Send message to background script
-      console.log(
-        "[CoPrompt Debug] handleEnhanceClick: About to send message to background script",
-        {
-          type: "ENHANCE_PROMPT_REQUEST",
-          reqId,
-          promptText,
-          context: conversationContext,
-          targetInputId: targetInputElement?.id,
-        },
-      ); // DEBUG
       chrome.runtime.sendMessage(
         {
           type: "ENHANCE_PROMPT_REQUEST", // Action type
@@ -1002,10 +973,6 @@ async function createFloatingButton() {
         // NO second argument like "*" here for background script messages
         (response) => {
           // Add response handler callback
-          console.log(
-            "[CoPrompt Debug] handleEnhanceClick: Received response from background script:",
-            response,
-          );
           if (chrome.runtime.lastError) {
             console.error(
               "CoPrompt: Error sending message to background script or receiving response:",
@@ -1049,7 +1016,7 @@ async function createFloatingButton() {
             }
           } else {
             console.warn(
-              "[CoPrompt Debug] handleEnhanceClick: Received unexpected response structure from background:",
+              "CoPrompt: Received unexpected response structure from background:",
               response,
             );
           }
@@ -1092,7 +1059,6 @@ async function createFloatingButton() {
       const messageHandler = (event) => {
         if (event.source === window && event.data?.type === "CoPromptFunctionCheckResponse") {
           responseReceived = true;
-          console.log("[CoPrompt Debug] waitForInjectedScript: Function check response:", event.data.available);
           window.removeEventListener("message", messageHandler);
           clearInterval(checkInterval);
           resolve(event.data.available);
@@ -1103,8 +1069,6 @@ async function createFloatingButton() {
       
       const checkInterval = setInterval(() => {
         checkCount++;
-        console.log(`[CoPrompt Debug] waitForInjectedScript: Cross-context check #${checkCount}`);
-        
         // Ask page context if window.enhancePrompt exists
         window.postMessage({
           type: "CoPromptFunctionCheck",
@@ -1112,7 +1076,6 @@ async function createFloatingButton() {
         }, "*");
         
         if (Date.now() - startTime > timeoutMs) {
-          console.log(`[CoPrompt Debug] waitForInjectedScript: Timeout after ${timeoutMs}ms and ${checkCount} checks`);
           window.removeEventListener("message", messageHandler);
           clearInterval(checkInterval);
           resolve(false); // Timeout - fall back to simple flow
@@ -1127,18 +1090,9 @@ async function createFloatingButton() {
     reqId,
     targetInputElement,
   ) => {
-    console.log("[CoPrompt Debug] handlePortBasedEnhanceClick: Starting port-based enhancement", {
-      buttonElement,
-      reqId,
-      targetInputElement,
-    });
-
     // V2A-02: Check authentication before proceeding
     const isAuthenticated = await checkUserAuthentication();
     if (!isAuthenticated) {
-      console.log(
-        "[CoPrompt Debug] User not authenticated, showing auth modal",
-      );
       showAuthModal(buttonElement, reqId, targetInputElement);
       return;
     }
@@ -1150,10 +1104,7 @@ async function createFloatingButton() {
         : targetInputElement.textContent
       : "";
 
-    console.log(
-      "[CoPrompt Debug] handlePortBasedEnhanceClick: Prompt text:",
-      promptText,
-    );
+
 
     if (!promptText || !promptText.trim()) {
       console.error("CoPrompt: Prompt text is empty or invalid.");
@@ -1186,21 +1137,13 @@ async function createFloatingButton() {
     try {
       // Get conversation context
       const conversationContext = getConversationContext();
-      console.log(
-        "[CoPrompt Debug] handlePortBasedEnhanceClick: Context captured:",
-        conversationContext,
-      );
 
       // Wait for injected script to be ready, then try sophisticated enhancement
-      console.log(
-        "[CoPrompt Debug] handlePortBasedEnhanceClick: Waiting for injected script...",
-      );
       
       const scriptReady = await waitForInjectedScript(2000); // Wait up to 2 seconds
       
       if (scriptReady) {
         // ✅ Port-based flow: Cross-context call → window.enhancePrompt → messageHandler.js → port → MAIN_SYSTEM_INSTRUCTION
-        console.log("[CoPrompt Debug] Using sophisticated port-based enhancement");
         
         // Use cross-context messaging to call window.enhancePrompt in page context
         window.postMessage({
@@ -1225,10 +1168,6 @@ async function createFloatingButton() {
             targetInputId: targetInputElement?.id,
           },
           (response) => {
-            console.log(
-              "[CoPrompt Debug] Fallback: Received response from simple flow:",
-              response,
-            );
             
             if (chrome.runtime.lastError) {
               console.error(
