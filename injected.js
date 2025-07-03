@@ -70,7 +70,7 @@ try {
   }
 };
 
-// console.log("[CoPrompt Injected] Reached point AFTER enhancePrompt definition."); // <-- REMOVE log after
+
 
 // --- Global Message Listener ---
 // (Combine with existing listener if any, e.g., from getAPIKeyFromContentScript)
@@ -99,7 +99,6 @@ window.addEventListener("message", (event) => {
       }, "*");
       break;
     case "CoPromptExecuteEnhance": // Listen for trigger from content script
-      // console.log("[Injected Listener] Received CoPromptExecuteEnhance, calling enhancePrompt..."); // REMOVE log
       // Ensure enhancePrompt is available (should be, as this script defines it)
       if (typeof enhancePrompt === "function") {
         // Call enhancePrompt with data from content script's message
@@ -116,7 +115,6 @@ window.addEventListener("message", (event) => {
       break;
 
     case "CoPromptEnhanceResponse":
-      // console.log("[Injected Listener] Handling CoPromptEnhanceResponse"); // REMOVE log
       const responseRequestId = event.data.requestId;
       if (!responseRequestId) {
         console.error(
@@ -127,7 +125,6 @@ window.addEventListener("message", (event) => {
         // updateInputElement(findActiveInputElement(), event.data.enhancedPrompt);
         return; // Cannot reliably reset button
       }
-      // console.log(`[Injected Listener] Response received for Request ID: ${responseRequestId}`); // REMOVE log
 
       // Find the specific button associated with this request
       const buttonToReset = document.querySelector(
@@ -146,21 +143,16 @@ window.addEventListener("message", (event) => {
           event.data.error,
         );
         alert(`Enhancement failed: ${event.data.error}`);
-        // console.log(`[Injected Listener] Calling resetButtonState for button ID ${responseRequestId} after error.`); // REMOVE log
         resetButtonState(buttonToReset); // Pass the found button (or null if not found)
         return;
       }
 
       // Process successful response
       const enhancedPrompt = event.data.enhancedPrompt;
-      // console.log(`[Injected Listener] Got enhancedPrompt (length: ${enhancedPrompt?.length}) for ID ${responseRequestId}`); // REMOVE log
       if (enhancedPrompt) {
-        // console.log(`[Injected Listener] Finding active input element for ID ${responseRequestId}...`); // REMOVE log
         const inputElement = findActiveInputElement(); // Input finding is independent of button ID
         if (inputElement) {
-          // console.log(`[Injected Listener] Input element found. Calling updateInputElement for ID ${responseRequestId}...`); // REMOVE log
           updateInputElement(inputElement, enhancedPrompt);
-          // console.log(`[Injected Listener] updateInputElement finished for ID ${responseRequestId}.`); // REMOVE log
         } else {
           console.error(
             `[Injected Listener] Could not find active input element to update for ID ${responseRequestId}.`,
@@ -184,13 +176,10 @@ window.addEventListener("message", (event) => {
         );
         alert("Enhancement resulted in an empty prompt.");
       }
-      // console.log(`[Injected Listener] Calling resetButtonState for button ID ${responseRequestId} after success/empty response.`); // REMOVE log
       resetButtonState(buttonToReset); // Pass the found button (or null if not found)
-      // console.log(`[Injected Listener] resetButtonState finished for ID ${responseRequestId}.`); // REMOVE log
       break;
 
     case "CoPromptErrorResponse": // Ensure error responses also have requestId
-      // console.log("[Injected Listener] Handling CoPromptErrorResponse"); // REMOVE log
       const errorRequestId = event.data.requestId; // Use consistent destructuring
       // Find button by errorRequestId, show error, reset button
       const errorButtonToReset = document.querySelector(
@@ -215,37 +204,27 @@ window.addEventListener("message", (event) => {
 
 // Function to update the input field (Handles different input types)
 function updateInputElement(element, text) {
-  // console.log(`[UPDATE_INPUT_DEBUG] Attempting to update element with text (length: ${text.length})`, element); // REMOVE log
   if (!element) {
-    // console.warn("[UPDATE_INPUT_DEBUG] Update failed: Element is null."); // REMOVE log
     return;
   }
 
   try {
-    // console.log(`[UPDATE_INPUT_DEBUG] Element tagName: ${element.tagName}, isContentEditable: ${element.isContentEditable}`); // REMOVE log
     // Check if the element is a standard input or textarea
     if (element.tagName === "INPUT" || element.tagName === "TEXTAREA") {
-      // console.log("[UPDATE_INPUT_DEBUG] Updating INPUT/TEXTAREA value."); // REMOVE log
       element.value = text;
       // Dispatch input event to trigger any framework listeners (React, Vue, etc.)
-      // console.log("[UPDATE_INPUT_DEBUG] Dispatching input event for INPUT/TEXTAREA."); // REMOVE log
       element.dispatchEvent(
         new Event("input", { bubbles: true, cancelable: true }),
       );
-      // console.log("[UPDATE_INPUT_DEBUG] INPUT/TEXTAREA update complete."); // REMOVE log
     }
     // Check if the element is contenteditable
     else if (element.isContentEditable) {
-      // console.log("[UPDATE_INPUT_DEBUG] Element is contenteditable. Focusing..."); // REMOVE log
       element.focus();
       // *** FIX: Select existing content before inserting ***
       document.execCommand("selectAll", false, null);
       // *** END FIX ***
-      // console.log("[UPDATE_INPUT_DEBUG] Calling execCommand('insertText')..."); // REMOVE log
       const success = document.execCommand("insertText", false, text);
-      // console.log(`[UPDATE_INPUT_DEBUG] execCommand success: ${success}`); // REMOVE log
       if (success) {
-        // console.log("[UPDATE_INPUT_DEBUG] execCommand succeeded."); // REMOVE log
       } else {
         console.error(
           "[UPDATE_INPUT_DEBUG] execCommand returned false. Falling back to textContent.",
@@ -263,18 +242,15 @@ function updateInputElement(element, text) {
           "*",
         );
         element.textContent = text;
-        // console.log("[UPDATE_INPUT_DEBUG] Dispatching input event for fallback."); // REMOVE log
         element.dispatchEvent(
           new Event("input", { bubbles: true, cancelable: true }),
         );
-        // console.log("[UPDATE_INPUT_DEBUG] textContent fallback complete."); // REMOVE log
       }
     } else {
       console.warn(
         "[UPDATE_INPUT_DEBUG] Element is not an input, textarea, or contenteditable.",
       ); // Keep Warn
     }
-    // console.log("[UPDATE_INPUT_DEBUG] Try block finished successfully."); // REMOVE log
   } catch (error) {
     console.error(
       "[UPDATE_INPUT_DEBUG] Error occurred during updateInputElement:",
@@ -303,16 +279,11 @@ function findActiveInputElementValue() {
 
 // Function to reset the button state - ACCEPTS BUTTON ELEMENT
 function resetButtonState(button) {
-  // const logResetDebug = (...args) => DEBUG && console.log('[RESET_BUTTON_DEBUG]', ...args); // REMOVE debug helper
-  // const logWarnDebug = (...args) => console.warn('[RESET_BUTTON_WARN]', ...args); // REMOVE debug helper
   const logResetError = (...args) =>
     console.error("[RESET_BUTTON_ERROR]", ...args); // Keep Error helper or replace with direct console.error
 
-  // logResetDebug(`resetButtonState called for button:`, button); // REMOVE log
-
   if (button && button.tagName === "BUTTON") {
     try {
-      // logResetDebug("Valid button passed. Attempting reset..."); // REMOVE log
       // Reset the specific button passed as argument
       button.disabled = false;
       button.style.cursor = "pointer";
@@ -370,8 +341,6 @@ function resetButtonState(button) {
       button.appendChild(svg);
       button.appendChild(textNode);
       // --- Reconstruct content safely --- END ---
-
-      // logResetDebug(`Button reset complete: Disabled=false, Content set programmatically.`); // REMOVE log
     } catch (error) {
       logResetError(
         `[CoPrompt Injected Error] E_BUTTON_RESET_FAILED: Error resetting button state: ${error.message}`,
@@ -405,7 +374,6 @@ function resetButtonState(button) {
 
 // Function to find the currently focused or relevant input/textarea
 function findActiveInputElement() {
-  // console.log("[FIND_INPUT_DEBUG] Attempting to find active input element..."); // REMOVE log
   try {
     // Use a broader set of selectors, matching domUtils.js logic if possible
     // *** UPDATED SELECTOR to include Gemini's structure ***
@@ -460,7 +428,6 @@ function findActiveInputElement() {
       // return null; // Decide if offsetParent check should prevent return
     }
 
-    // console.log("[FIND_INPUT_DEBUG] Found potential element with refined selector:", element); // REMOVE log
     return element;
   } catch (error) {
     console.error(
