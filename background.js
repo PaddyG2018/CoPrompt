@@ -5,6 +5,10 @@ const SUPABASE_URL = "https://evfuyrixpjgfytwfijpx.supabase.co";
 const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2ZnV5cml4cGpnZnl0d2ZpanB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwODA0MDIsImV4cCI6MjA1OTY1NjQwMn0.GD6oTrvjKMdqSK4LgyRmD0E1k0zbKFg79sAlXy-fLyc";
 
+// Request deduplication for magic links
+const recentMagicLinkRequests = new Map();
+const REQUEST_COOLDOWN = 10000; // 10 seconds cooldown
+
 import {
   DEFAULT_SYSTEM_INSTRUCTION,
   MAIN_SYSTEM_INSTRUCTION,
@@ -191,10 +195,39 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.type === "SEND_MAGIC_LINK") {
     // V2A-02: Handle magic link sending with proper Supabase authentication
     console.log("[Background] Sending magic link for:", request.email);
+    
+    // Check for recent duplicate requests
+    const now = Date.now();
+    const lastRequest = recentMagicLinkRequests.get(request.email);
+    
+    if (lastRequest && (now - lastRequest) < REQUEST_COOLDOWN) {
+      console.log("[Background] Duplicate magic link request blocked for:", request.email);
+      sendResponse({
+        success: false,
+        error: "Please wait before requesting another magic link for this email."
+      });
+      return;
+    }
+    
+    // Record this request
+    recentMagicLinkRequests.set(request.email, now);
+    
+    // Clean up old entries (older than cooldown period)
+    for (const [email, timestamp] of recentMagicLinkRequests.entries()) {
+      if (now - timestamp > REQUEST_COOLDOWN) {
+        recentMagicLinkRequests.delete(email);
+      }
+    }
 
     // Send actual magic link via Supabase Auth
     const sendMagicLink = async () => {
       try {
+        // Get current extension ID dynamically (works in both dev and production)
+        const currentExtensionId = chrome.runtime.id;
+        const redirectUrl = `chrome-extension://${currentExtensionId}/options.html`;
+        
+        console.log("[Background] Using redirect URL:", redirectUrl);
+        
         const response = await fetch(SUPABASE_URL + "/auth/v1/magiclink", {
           method: "POST",
           headers: {
@@ -204,7 +237,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           body: JSON.stringify({
             email: request.email,
             options: {
-              redirectTo: chrome.runtime.getURL("options.html"),
+              redirectTo: redirectUrl,
             },
           }),
         });
