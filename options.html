@@ -712,7 +712,11 @@
         gap: 20px;
         margin-bottom: 32px;
         padding: 24px;
-        background: linear-gradient(135deg, var(--coprompt-blue-light) 0%, rgba(142, 36, 170, 0.1) 100%);
+        background: linear-gradient(
+          135deg,
+          var(--coprompt-blue-light) 0%,
+          rgba(142, 36, 170, 0.1) 100%
+        );
         border-radius: 12px;
         border: 1px solid var(--coprompt-blue);
       }
@@ -720,7 +724,11 @@
       .welcome-icon {
         width: 64px;
         height: 64px;
-        background: linear-gradient(135deg, var(--coprompt-blue) 0%, var(--coprompt-purple) 100%);
+        background: linear-gradient(
+          135deg,
+          var(--coprompt-blue) 0%,
+          var(--coprompt-purple) 100%
+        );
         border-radius: 50%;
         display: flex;
         align-items: center;
@@ -844,11 +852,11 @@
           flex-direction: column;
           text-align: center;
         }
-        
+
         .account-grid {
           grid-template-columns: 1fr;
         }
-        
+
         .benefits-grid {
           grid-template-columns: 1fr;
         }
@@ -868,14 +876,17 @@
         <!-- Get Started / Account Overview Section -->
         <div class="feature-card" id="getStartedSection">
           <!-- For New Users (shown when not logged in) -->
-          <div id="newUserWelcome" style="display: none;">
+          <div id="newUserWelcome" style="display: none">
             <!-- First-time user onboarding -->
             <div id="firstTimeUserWelcome">
               <div class="welcome-header">
                 <div class="welcome-icon">🚀</div>
                 <div class="welcome-content">
                   <h2 class="welcome-title">Get 25 Free Credits!</h2>
-                  <p class="welcome-subtitle">Sign up now and start enhancing your prompts with AI-powered suggestions</p>
+                  <p class="welcome-subtitle">
+                    Sign up now and start enhancing your prompts with AI-powered
+                    suggestions
+                  </p>
                 </div>
               </div>
 
@@ -886,22 +897,28 @@
                 </div>
                 <div class="benefit-item">
                   <span class="benefit-icon">🔒</span>
-                  <span class="benefit-text">Secure magic link - no passwords</span>
+                  <span class="benefit-text"
+                    >Secure magic link - no passwords</span
+                  >
                 </div>
                 <div class="benefit-item">
                   <span class="benefit-icon">⚡</span>
-                  <span class="benefit-text">Works on ChatGPT, Claude & more</span>
+                  <span class="benefit-text"
+                    >Works on ChatGPT, Claude & more</span
+                  >
                 </div>
               </div>
             </div>
 
             <!-- Returning user sign-in -->
-            <div id="returningUserWelcome" style="display: none;">
+            <div id="returningUserWelcome" style="display: none">
               <div class="welcome-header">
                 <div class="welcome-icon">👋</div>
                 <div class="welcome-content">
                   <h2 class="welcome-title">Welcome Back!</h2>
-                  <p class="welcome-subtitle">Sign in to access your CoPrompt account and credits</p>
+                  <p class="welcome-subtitle">
+                    Sign in to access your CoPrompt account and credits
+                  </p>
                 </div>
               </div>
 
@@ -912,7 +929,9 @@
                 </div>
                 <div class="benefit-item">
                   <span class="benefit-icon">🔒</span>
-                  <span class="benefit-text">Secure magic link - no passwords</span>
+                  <span class="benefit-text"
+                    >Secure magic link - no passwords</span
+                  >
                 </div>
                 <div class="benefit-item">
                   <span class="benefit-icon">🎯</span>
@@ -936,15 +955,22 @@
                 <span id="magicLinkButtonText">📬 Get My Free Credits</span>
               </button>
               <p class="auth-help-text">
-                <span id="authHelpText">We'll send you a secure magic link to sign in. No password required! ✨</span>
+                <span id="authHelpText"
+                  >We'll send you a secure magic link to sign in. No password
+                  required! ✨</span
+                >
               </p>
             </div>
 
-            <div id="authStatus" class="status-message" style="display: none"></div>
+            <div
+              id="authStatus"
+              class="status-message"
+              style="display: none"
+            ></div>
           </div>
 
           <!-- For Existing Users (shown when logged in) -->
-          <div id="existingUserOverview" style="display: none;">
+          <div id="existingUserOverview" style="display: none">
             <div class="section-header">
               <div class="section-icon">💳</div>
               <h2 class="section-title">Account Overview</h2>
@@ -954,7 +980,9 @@
               <div class="credits-display">
                 <div class="credits-icon">⚡</div>
                 <div class="credits-info">
-                  <div class="credits-balance" id="creditsBalance">Loading...</div>
+                  <div class="credits-balance" id="creditsBalance">
+                    Loading...
+                  </div>
                   <div class="credits-label">AVAILABLE CREDITS</div>
                 </div>
                 <div class="credits-actions">
@@ -970,17 +998,24 @@
                   <div class="stat-label">Email Address</div>
                 </div>
                 <div class="account-stat">
-                  <div class="stat-value status" id="userStatus">Loading...</div>
+                  <div class="stat-value status" id="userStatus">
+                    Loading...
+                  </div>
                   <div class="stat-label">Account Status</div>
                 </div>
-                <button id="logoutButton" class="coprompt-button secondary" style="display: none; margin-top: 12px;">
+                <button
+                  id="logoutButton"
+                  class="coprompt-button secondary"
+                  style="display: none; margin-top: 12px"
+                >
                   🚪 Logout
                 </button>
               </div>
             </div>
 
             <p style="color: var(--coprompt-gray-600); margin-top: 16px">
-              Credits are used for AI-powered prompt enhancement. Each enhancement typically uses 1 credit.
+              Credits are used for AI-powered prompt enhancement. Each
+              enhancement typically uses 1 credit.
             </p>
           </div>
         </div>

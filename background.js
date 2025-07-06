@@ -195,23 +195,27 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.type === "SEND_MAGIC_LINK") {
     // V2A-02: Handle magic link sending with proper Supabase authentication
     console.log("[Background] Sending magic link for:", request.email);
-    
+
     // Check for recent duplicate requests
     const now = Date.now();
     const lastRequest = recentMagicLinkRequests.get(request.email);
-    
-    if (lastRequest && (now - lastRequest) < REQUEST_COOLDOWN) {
-      console.log("[Background] Duplicate magic link request blocked for:", request.email);
+
+    if (lastRequest && now - lastRequest < REQUEST_COOLDOWN) {
+      console.log(
+        "[Background] Duplicate magic link request blocked for:",
+        request.email,
+      );
       sendResponse({
         success: false,
-        error: "Please wait before requesting another magic link for this email."
+        error:
+          "Please wait before requesting another magic link for this email.",
       });
       return;
     }
-    
+
     // Record this request
     recentMagicLinkRequests.set(request.email, now);
-    
+
     // Clean up old entries (older than cooldown period)
     for (const [email, timestamp] of recentMagicLinkRequests.entries()) {
       if (now - timestamp > REQUEST_COOLDOWN) {
@@ -225,9 +229,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // Get current extension ID dynamically (works in both dev and production)
         const currentExtensionId = chrome.runtime.id;
         const redirectUrl = `chrome-extension://${currentExtensionId}/options.html`;
-        
+
         console.log("[Background] Using redirect URL:", redirectUrl);
-        
+
         const response = await fetch(SUPABASE_URL + "/auth/v1/magiclink", {
           method: "POST",
           headers: {

@@ -3,9 +3,9 @@ name: Build Verification
 # This workflow verifies the extension build process
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 # Add permissions at the workflow level
 permissions:
@@ -17,68 +17,68 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    - name: Use Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '20.x'
-        cache: 'npm'
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "20.x"
+          cache: "npm"
 
-    - name: Install dependencies
-      run: |
-        npm install -g web-ext
-        if [ -f package.json ]; then
-          npm install
-        fi
+      - name: Install dependencies
+        run: |
+          npm install -g web-ext
+          if [ -f package.json ]; then
+            npm install
+          fi
 
-    - name: Build extension
-      run: |
-        web-ext build --overwrite-dest
+      - name: Build extension
+        run: |
+          web-ext build --overwrite-dest
 
-    - name: Verify package structure
-      run: |
-        if [ ! -d "web-ext-artifacts" ]; then
-          echo "Build directory not found!"
-          exit 1
-        fi
-        
-        # Check if the ZIP file exists
-        if [ ! -f "web-ext-artifacts/"*.zip ]; then
-          echo "Extension package not found!"
-          exit 1
-        fi
-        
-        # List contents of the ZIP file
-        unzip -l web-ext-artifacts/*.zip
-        
-        # Verify essential files
-        REQUIRED_FILES=("manifest.json" "background.js" "content.js" "popup.html" "options.html")
-        ZIP_FILE=$(ls web-ext-artifacts/*.zip)
-        
-        for file in "${REQUIRED_FILES[@]}"; do
-          if ! unzip -l "$ZIP_FILE" | grep -q "$file"; then
-            echo "Missing required file: $file"
+      - name: Verify package structure
+        run: |
+          if [ ! -d "web-ext-artifacts" ]; then
+            echo "Build directory not found!"
             exit 1
           fi
-        done
 
-    - name: Upload artifact
-      run: |
-        # Get the artifact file
-        ARTIFACT_FILE=$(ls web-ext-artifacts/*.zip)
-        ARTIFACT_NAME=$(basename "$ARTIFACT_FILE")
-        
-        # Create a release
-        RELEASE_ID=$(curl -s -X POST \
-          -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-          -H "Content-Type: application/json" \
-          "https://api.github.com/repos/${{ github.repository }}/releases" \
-          -d "{\"tag_name\": \"v${{ github.run_number }}\", \"name\": \"Build ${{ github.run_number }}\", \"draft\": true}" | jq -r .id)
-        
-        # Upload the artifact
-        curl -s -X POST \
-          -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-          -H "Content-Type: application/zip" \
-          "https://uploads.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID/assets?name=$ARTIFACT_NAME" \
-          --data-binary "@$ARTIFACT_FILE" 
+          # Check if the ZIP file exists
+          if [ ! -f "web-ext-artifacts/"*.zip ]; then
+            echo "Extension package not found!"
+            exit 1
+          fi
+
+          # List contents of the ZIP file
+          unzip -l web-ext-artifacts/*.zip
+
+          # Verify essential files
+          REQUIRED_FILES=("manifest.json" "background.js" "content.js" "popup.html" "options.html")
+          ZIP_FILE=$(ls web-ext-artifacts/*.zip)
+
+          for file in "${REQUIRED_FILES[@]}"; do
+            if ! unzip -l "$ZIP_FILE" | grep -q "$file"; then
+              echo "Missing required file: $file"
+              exit 1
+            fi
+          done
+
+      - name: Upload artifact
+        run: |
+          # Get the artifact file
+          ARTIFACT_FILE=$(ls web-ext-artifacts/*.zip)
+          ARTIFACT_NAME=$(basename "$ARTIFACT_FILE")
+
+          # Create a release
+          RELEASE_ID=$(curl -s -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            "https://api.github.com/repos/${{ github.repository }}/releases" \
+            -d "{\"tag_name\": \"v${{ github.run_number }}\", \"name\": \"Build ${{ github.run_number }}\", \"draft\": true}" | jq -r .id)
+
+          # Upload the artifact
+          curl -s -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/zip" \
+            "https://uploads.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID/assets?name=$ARTIFACT_NAME" \
+            --data-binary "@$ARTIFACT_FILE"

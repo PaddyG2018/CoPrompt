@@ -181,10 +181,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 "[Options] Magic link authentication successful:",
                 session.user.email,
               );
-              
+
               // Mark user as signed up on successful authentication
               await markUserAsSignedUp();
-              
+
               updateAuthUI(session.user);
               await chrome.storage.local.set({ supabase_session: session });
 
@@ -239,10 +239,10 @@ document.addEventListener("DOMContentLoaded", () => {
             "[Options] Magic link authentication successful:",
             session.user.email,
           );
-          
+
           // Mark user as signed up on successful authentication
           await markUserAsSignedUp();
-          
+
           updateAuthUI(session.user);
           await chrome.storage.local.set({ supabase_session: session });
 
@@ -668,17 +668,17 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // --- Smart User State Detection ---
-  
+
   /**
    * Check if user has signed up before
    */
   async function hasUserSignedUpBefore() {
     try {
       // Check local storage for signup flag
-      const result = await chrome.storage.local.get(['user_has_signed_up']);
+      const result = await chrome.storage.local.get(["user_has_signed_up"]);
       return result.user_has_signed_up === true;
     } catch (error) {
-      console.error('Error checking user signup status:', error);
+      console.error("Error checking user signup status:", error);
       return false;
     }
   }
@@ -689,9 +689,9 @@ document.addEventListener("DOMContentLoaded", () => {
   async function markUserAsSignedUp() {
     try {
       await chrome.storage.local.set({ user_has_signed_up: true });
-      console.log('User marked as signed up');
+      console.log("User marked as signed up");
     } catch (error) {
-      console.error('Error marking user as signed up:', error);
+      console.error("Error marking user as signed up:", error);
     }
   }
 
@@ -699,28 +699,37 @@ document.addEventListener("DOMContentLoaded", () => {
    * Update the welcome section based on user state
    */
   async function updateWelcomeSection() {
-    const firstTimeWelcome = document.getElementById('firstTimeUserWelcome');
-    const returningWelcome = document.getElementById('returningUserWelcome');
-    const magicLinkButtonText = document.getElementById('magicLinkButtonText');
-    const authHelpText = document.getElementById('authHelpText');
+    const firstTimeWelcome = document.getElementById("firstTimeUserWelcome");
+    const returningWelcome = document.getElementById("returningUserWelcome");
+    const magicLinkButtonText = document.getElementById("magicLinkButtonText");
+    const authHelpText = document.getElementById("authHelpText");
 
     const hasSignedUp = await hasUserSignedUpBefore();
-    
+
     if (hasSignedUp) {
       // Returning user
-      if (firstTimeWelcome) firstTimeWelcome.style.display = 'none';
-      if (returningWelcome) returningWelcome.style.display = 'block';
-      if (magicLinkButtonText) magicLinkButtonText.textContent = '📬 Send Magic Link';
-      if (authHelpText) authHelpText.textContent = 'We\'ll send you a secure magic link to sign back in. No password required! ✨';
+      if (firstTimeWelcome) firstTimeWelcome.style.display = "none";
+      if (returningWelcome) returningWelcome.style.display = "block";
+      if (magicLinkButtonText)
+        magicLinkButtonText.textContent = "📬 Send Magic Link";
+      if (authHelpText)
+        authHelpText.textContent =
+          "We'll send you a secure magic link to sign back in. No password required! ✨";
     } else {
       // First-time user
-      if (firstTimeWelcome) firstTimeWelcome.style.display = 'block';
-      if (returningWelcome) returningWelcome.style.display = 'none';
-      if (magicLinkButtonText) magicLinkButtonText.textContent = '📬 Get My Free Credits';
-      if (authHelpText) authHelpText.textContent = 'We\'ll send you a secure magic link to sign in. No password required! ✨';
+      if (firstTimeWelcome) firstTimeWelcome.style.display = "block";
+      if (returningWelcome) returningWelcome.style.display = "none";
+      if (magicLinkButtonText)
+        magicLinkButtonText.textContent = "📬 Get My Free Credits";
+      if (authHelpText)
+        authHelpText.textContent =
+          "We'll send you a secure magic link to sign in. No password required! ✨";
     }
 
-    console.log('[updateWelcomeSection] User state:', hasSignedUp ? 'returning' : 'first-time');
+    console.log(
+      "[updateWelcomeSection] User state:",
+      hasSignedUp ? "returning" : "first-time",
+    );
   }
 
   // --- Auth Logic (PX-07) ---
@@ -732,18 +741,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Get the new section elements
     const newUserWelcome = document.getElementById("newUserWelcome");
-    const existingUserOverview = document.getElementById("existingUserOverview");
+    const existingUserOverview = document.getElementById(
+      "existingUserOverview",
+    );
     const creditsPurchaseEl = document.getElementById("creditsPurchase");
 
     if (user) {
       // User is logged in - show existing user overview
       if (newUserWelcome) newUserWelcome.style.display = "none";
       if (existingUserOverview) existingUserOverview.style.display = "block";
-      
+
       // Update user info in the new structure
       if (userStatusEl) userStatusEl.textContent = "Logged In";
       if (userEmailEl) userEmailEl.textContent = user.email;
-      
+
       // Hide the old auth form if it exists
       if (authForm) authForm.style.display = "none";
 
@@ -774,14 +785,14 @@ document.addEventListener("DOMContentLoaded", () => {
       // User is not logged in - show new user welcome
       if (newUserWelcome) newUserWelcome.style.display = "block";
       if (existingUserOverview) existingUserOverview.style.display = "none";
-      
+
       // Update welcome section based on user state (first-time vs returning)
       updateWelcomeSection();
-      
+
       // Update user info in the new structure
       if (userStatusEl) userStatusEl.textContent = "Not logged in";
       if (userEmailEl) userEmailEl.textContent = "N/A";
-      
+
       // Show the old auth form if it exists
       if (authForm) authForm.style.display = "block";
 
@@ -814,7 +825,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Send Magic Link (unified authentication method)
   if (sendMagicLinkButton && emailInput && supabaseClient) {
     // Add listener protection to prevent multiple attachments
-    if (!sendMagicLinkButton.hasAttribute('data-listener-attached')) {
+    if (!sendMagicLinkButton.hasAttribute("data-listener-attached")) {
       sendMagicLinkButton.addEventListener("click", async () => {
         const email = emailInput.value.trim();
         if (!email) {
@@ -838,46 +849,51 @@ document.addEventListener("DOMContentLoaded", () => {
           sendMagicLinkButton.textContent = "Sending...";
           sendMagicLinkButton.disabled = true;
 
-        // Send magic link via background script
-        const response = await new Promise((resolve, reject) => {
-          chrome.runtime.sendMessage(
-            { type: "SEND_MAGIC_LINK", email: email },
-            (response) => {
-              if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError.message));
-              } else {
-                resolve(response);
-              }
-            },
-          );
-        });
+          // Send magic link via background script
+          const response = await new Promise((resolve, reject) => {
+            chrome.runtime.sendMessage(
+              { type: "SEND_MAGIC_LINK", email: email },
+              (response) => {
+                if (chrome.runtime.lastError) {
+                  reject(new Error(chrome.runtime.lastError.message));
+                } else {
+                  resolve(response);
+                }
+              },
+            );
+          });
 
-        if (response.success) {
-          showAuthStatus(response.message, "success");
-          emailInput.value = ""; // Clear email field
-          if (response.isFirstTimeUser) {
-            await markUserAsSignedUp();
+          if (response.success) {
+            showAuthStatus(response.message, "success");
+            emailInput.value = ""; // Clear email field
+            if (response.isFirstTimeUser) {
+              await markUserAsSignedUp();
+            }
+          } else {
+            showAuthStatus(
+              response.error || "Failed to send magic link",
+              "error",
+            );
           }
-        } else {
+        } catch (error) {
+          console.error("Magic link error:", error);
           showAuthStatus(
-            response.error || "Failed to send magic link",
+            "Failed to send magic link. Please try again.",
             "error",
           );
+        } finally {
+          // Restore button text based on user state
+          const hasSignedUp = await hasUserSignedUpBefore();
+          const buttonText = hasSignedUp
+            ? "📬 Send Magic Link"
+            : "📬 Get My Free Credits";
+          sendMagicLinkButton.textContent = buttonText;
+          sendMagicLinkButton.disabled = false;
         }
-      } catch (error) {
-        console.error("Magic link error:", error);
-        showAuthStatus("Failed to send magic link. Please try again.", "error");
-      } finally {
-        // Restore button text based on user state
-        const hasSignedUp = await hasUserSignedUpBefore();
-        const buttonText = hasSignedUp ? "📬 Send Magic Link" : "📬 Get My Free Credits";
-        sendMagicLinkButton.textContent = buttonText;
-        sendMagicLinkButton.disabled = false;
-      }
-    });
-    
-    // Mark button as having listener attached
-    sendMagicLinkButton.setAttribute('data-listener-attached', 'true');
+      });
+
+      // Mark button as having listener attached
+      sendMagicLinkButton.setAttribute("data-listener-attached", "true");
     }
   }
 
