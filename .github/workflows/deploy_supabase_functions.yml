@@ -5,7 +5,7 @@ on:
     branches:
       - main # Or your preferred deployment branch
     paths:
-      - 'supabase/functions/**' # Only run if functions change
+      - "supabase/functions/**" # Only run if functions change
 
 jobs:
   deploy_enhance_function:
@@ -30,4 +30,4 @@ jobs:
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }} # Often required for linking or other operations
         run: |
-          supabase functions deploy enhance --project-ref $SUPABASE_PROJECT_ID --no-verify-jwt 
+          supabase functions deploy enhance --project-ref $SUPABASE_PROJECT_ID --no-verify-jwt

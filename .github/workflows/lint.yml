@@ -2,44 +2,44 @@ name: Lint
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   lint:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    - name: Use Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '20.x'
-        cache: 'npm'
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "20.x"
+          cache: "npm"
 
-    - name: Install dependencies
-      run: |
-        if [ -f package.json ]; then
-          npm ci
-        fi
-        # Install web-ext globally if needed for the lint command, or use npx
-        # If web-ext lint step is uncommented, install it: npm install -g web-ext@latest
-        # Verify web-ext version if installed globally:
-        # web-ext --version
+      - name: Install dependencies
+        run: |
+          if [ -f package.json ]; then
+            npm ci
+          fi
+          # Install web-ext globally if needed for the lint command, or use npx
+          # If web-ext lint step is uncommented, install it: npm install -g web-ext@latest
+          # Verify web-ext version if installed globally:
+          # web-ext --version
 
-    - name: Lint JavaScript/TypeScript
-      run: |
-        # Use npm run lint to match local development environment
-        npm run lint
+      - name: Lint JavaScript/TypeScript
+        run: |
+          # Use npm run lint to match local development environment
+          npm run lint
 
-    # - name: Validate manifest.json
-    #   run: |
-    #     # Use npx to ensure the locally installed web-ext is used if you uncomment this
-    #     npx web-ext lint
+      # - name: Validate manifest.json
+      #   run: |
+      #     # Use npx to ensure the locally installed web-ext is used if you uncomment this
+      #     npx web-ext lint
 
-    - name: Check formatting
-      run: |
-        # Use npx to ensure the locally installed prettier is used
-        npx prettier --check "**/*.{js,ts,json,html,css,md}"
+      - name: Check formatting
+        run: |
+          # Use npx to ensure the locally installed prettier is used
+          npx prettier --check "**/*.{js,ts,json,html,css,md}"

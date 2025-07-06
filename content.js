@@ -813,20 +813,20 @@ async function createFloatingButton() {
     }
 
     // Submit on button click
-    if (!submitBtn.hasAttribute('data-listener-attached')) {
+    if (!submitBtn.hasAttribute("data-listener-attached")) {
       submitBtn.addEventListener("click", handleEmailSubmit);
-      submitBtn.setAttribute('data-listener-attached', 'true');
+      submitBtn.setAttribute("data-listener-attached", "true");
     }
 
     // Submit on Enter key
-    if (!emailInput.hasAttribute('data-keypress-attached')) {
+    if (!emailInput.hasAttribute("data-keypress-attached")) {
       emailInput.addEventListener("keypress", (e) => {
         if (e.key === "Enter") {
           e.preventDefault();
           handleEmailSubmit();
         }
       });
-      emailInput.setAttribute('data-keypress-attached', 'true');
+      emailInput.setAttribute("data-keypress-attached", "true");
     }
 
     // Cancel button
