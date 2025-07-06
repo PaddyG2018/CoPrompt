@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign in to CoPrompt</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            line-height: 1.6;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .header {
+            background: linear-gradient(to right, #E1F0FF, #F3E5F5);
+            padding: 40px 30px;
+            text-align: center;
+        }
+        
+        .logo {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .logo-icon {
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 0.75rem;
+            background: linear-gradient(to bottom right, #0070F3, #8E24AA);
+            display: inline-block;
+            text-align: center;
+            line-height: 2.5rem;
+            color: white;
+            font-weight: 700;
+        }
+        
+        .logo-icon span {
+            font-size: 1.25rem;
+        }
+        
+        .logo-text {
+            font-size: 28px;
+            font-weight: 800;
+            background: linear-gradient(to right, #0070F3, #8E24AA);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            color: transparent;
+            letter-spacing: -0.5px;
+        }
+        
+        .header-title {
+            color: #1f2937;
+            font-size: 24px;
+            font-weight: 600;
+            margin: 0;
+            opacity: 0.95;
+        }
+        
+        .content {
+            padding: 40px 30px;
+            text-align: center;
+        }
+        
+        .greeting {
+            font-size: 18px;
+            color: #1f2937;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        
+        .message {
+            font-size: 16px;
+            color: #6b7280;
+            margin-bottom: 35px;
+            line-height: 1.7;
+        }
+        
+        .login-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #4F46E5, #7C3AED);
+            color: white !important;
+            text-decoration: none !important;
+            padding: 16px 32px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 16px;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 20px rgba(79, 70, 229, 0.3);
+            transition: all 0.2s ease;
+            border: none;
+        }
+        
+        .login-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 24px rgba(79, 70, 229, 0.4);
+            color: white !important;
+            text-decoration: none !important;
+        }
+        
+        .security-notice {
+            margin-top: 35px;
+            padding: 20px;
+            background-color: #f3f4f6;
+            border-radius: 8px;
+            border-left: 4px solid #fbbf24;
+        }
+        
+        .security-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #92400e;
+            margin-bottom: 8px;
+        }
+        
+        .security-text {
+            font-size: 13px;
+            color: #78716c;
+            line-height: 1.5;
+        }
+        
+        .footer {
+            background-color: #f9fafb;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        .footer-text {
+            font-size: 13px;
+            color: #9ca3af;
+            margin: 0 0 12px 0;
+        }
+        
+        .footer-links {
+            margin-top: 16px;
+        }
+        
+        .footer-link {
+            color: #4F46E5;
+            text-decoration: none;
+            font-size: 13px;
+            margin: 0 12px;
+        }
+        
+        .footer-link:hover {
+            text-decoration: underline;
+        }
+        
+        .expires-notice {
+            margin-top: 25px;
+            font-size: 14px;
+            color: #ef4444;
+            font-weight: 500;
+        }
+        
+        @media (max-width: 600px) {
+            .email-container {
+                margin: 10px;
+                border-radius: 8px;
+            }
+            
+            .header, .content, .footer {
+                padding: 25px 20px;
+            }
+            
+            .logo-text {
+                font-size: 24px;
+            }
+            
+            .logo-icon span {
+                font-size: 1rem;
+            }
+            
+            .header-title {
+                font-size: 20px;
+            }
+            
+            .greeting {
+                font-size: 16px;
+            }
+            
+            .message {
+                font-size: 15px;
+            }
+            
+            .login-button {
+                padding: 14px 28px;
+                font-size: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div style="padding: 40px 20px;">
+        <div class="email-container">
+            <!-- Header with CoPrompt Branding -->
+            <div class="header">
+                <div class="logo">
+                    <div class="logo-icon">
+                        <span>C</span>
+                    </div>
+                    <div class="logo-text">CoPrompt</div>
+                </div>
+                <h1 class="header-title">Welcome back!</h1>
+            </div>
+            
+            <!-- Main Content -->
+            <div class="content">
+                <div class="greeting">
+                    ✨ Ready to transform your AI interactions?
+                </div>
+                
+                <div class="message">
+                    Click the button below to securely sign in to your CoPrompt account. You'll be redirected to your dashboard where you can manage your credits and settings.
+                </div>
+                
+                <!-- Magic Link Button -->
+                <a href="{{ .ConfirmationURL }}" class="login-button" style="color: white !important; text-decoration: none !important;">
+                    🚀 Sign In to CoPrompt
+                </a>
+                
+                <div class="expires-notice">
+                    ⏰ This link expires in 1 hour for your security
+                </div>
+                
+                <!-- Security Notice -->
+                <div class="security-notice">
+                    <div class="security-title">🔒 Security Notice</div>
+                    <div class="security-text">
+                        This email was sent because someone requested access to your CoPrompt account. 
+                        If this wasn't you, you can safely ignore this email.
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div class="footer">
+                <div class="footer-text">
+                    You're receiving this email because you signed up for CoPrompt.
+                </div>
+                <div class="footer-text">
+                    Transform your AI interactions with intelligent prompt enhancement.
+                </div>
+                
+                <div class="footer-links">
+                    <a href="https://www.coprompt.app" class="footer-link">Website</a>
+                    <a href="https://www.coprompt.app/contact" class="footer-link">Support</a>
+                    <a href="https://www.coprompt.app/privacy" class="footer-link">Privacy</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 

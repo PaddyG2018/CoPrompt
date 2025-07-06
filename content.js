@@ -813,15 +813,21 @@ async function createFloatingButton() {
     }
 
     // Submit on button click
-    submitBtn.addEventListener("click", handleEmailSubmit);
+    if (!submitBtn.hasAttribute('data-listener-attached')) {
+      submitBtn.addEventListener("click", handleEmailSubmit);
+      submitBtn.setAttribute('data-listener-attached', 'true');
+    }
 
     // Submit on Enter key
-    emailInput.addEventListener("keypress", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        handleEmailSubmit();
-      }
-    });
+    if (!emailInput.hasAttribute('data-keypress-attached')) {
+      emailInput.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          handleEmailSubmit();
+        }
+      });
+      emailInput.setAttribute('data-keypress-attached', 'true');
+    }
 
     // Cancel button
     cancelBtn.addEventListener("click", () => {
