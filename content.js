@@ -358,7 +358,7 @@ async function createFloatingButton() {
     }
   }
 
-  // Enhanced error notification system
+  // Enhanced error notification system - used in error handling below
   function showEnhancementError(buttonElement, errorMessage) {
     // Remove any existing error notification
     const existingNotification = document.getElementById("coprompt-error-notification");
