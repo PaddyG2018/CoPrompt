@@ -361,7 +361,9 @@ async function createFloatingButton() {
   // Enhanced error notification system - used in error handling below
   function showEnhancementError(buttonElement, errorMessage) {
     // Remove any existing error notification
-    const existingNotification = document.getElementById("coprompt-error-notification");
+    const existingNotification = document.getElementById(
+      "coprompt-error-notification",
+    );
     if (existingNotification) {
       existingNotification.remove();
     }
@@ -390,22 +392,28 @@ async function createFloatingButton() {
       cursor: pointer !important;
       border-left: 4px solid #c0392b !important;
     `;
-    
+
     // Determine the appropriate message and icon based on error content
     let icon = "⚠️";
     let title = "Enhancement Failed";
-    
+
     if (errorMessage.toLowerCase().includes("session")) {
       icon = "🔐";
       title = "Session Issue";
-    } else if (errorMessage.toLowerCase().includes("network") || errorMessage.toLowerCase().includes("connection")) {
+    } else if (
+      errorMessage.toLowerCase().includes("network") ||
+      errorMessage.toLowerCase().includes("connection")
+    ) {
       icon = "🌐";
       title = "Connection Error";
-    } else if (errorMessage.toLowerCase().includes("service") || errorMessage.toLowerCase().includes("temporarily")) {
+    } else if (
+      errorMessage.toLowerCase().includes("service") ||
+      errorMessage.toLowerCase().includes("temporarily")
+    ) {
       icon = "⏰";
       title = "Service Unavailable";
     }
-    
+
     notification.innerHTML = `
       <div style="display: flex; align-items: flex-start; gap: 12px;">
         <span style="font-size: 18px; line-height: 1;">${icon}</span>

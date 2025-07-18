@@ -4,7 +4,8 @@
 
 **Objective**: Implement robust, automatic session management that eliminates user friction caused by expired authentication tokens.
 
-**Key Outcomes**: 
+**Key Outcomes**:
+
 - Zero user intervention for token refresh in 90%+ of cases
 - Clear error paths when refresh fails
 - Improved reliability and user experience
@@ -34,6 +35,7 @@
 **Deliverable**: Create `utils/sessionManager.js` - centralized session management
 
 **Key Features**:
+
 - Centralized session validation logic
 - Automatic token refresh with retry logic
 - Circuit breaker pattern for failed refreshes
@@ -41,9 +43,11 @@
 - Comprehensive error handling and logging
 
 **Files to Create**:
+
 - ✅ `utils/sessionManager.js`
 
 **Acceptance Criteria**:
+
 - [x] Session expiry detection (5-minute buffer)
 - [x] Automatic refresh with exponential backoff
 - [x] Concurrent request handling (mutex/promise sharing)
@@ -57,15 +61,18 @@
 **Deliverable**: Replace current session handling with SessionManager
 
 **Key Changes**:
+
 - Remove hardcoded session expiry check
 - Integrate SessionManager for all auth requests
 - Add message handler for session refresh requests
 - Implement proper error propagation
 
 **Files to Modify**:
+
 - ✅ `background.js` (lines 110-140)
 
 **Acceptance Criteria**:
+
 - [x] Background script uses SessionManager exclusively
 - [x] No direct session expiry checks in background.js
 - [x] Proper error handling and user feedback
@@ -84,16 +91,19 @@
 **Strategy**: Keep content script lightweight - background script handles heavy lifting
 
 **Key Features**:
+
 - Background script uses SessionManager for all validation
 - Content script remains lightweight with simple existence check
 - Clear separation of concerns
 - Minimal performance impact
 
 **Files to Modify**:
+
 - ✅ `content.js` (kept lightweight by design)
 - ✅ `background.js` (enhanced with SessionManager)
 
 **Acceptance Criteria**:
+
 - [x] Session validation handled by background script
 - [x] Enhanced error feedback with visual indicators
 - [x] Clear error messages for auth failures
@@ -106,12 +116,14 @@
 **Deliverable**: Improved user feedback during auth operations
 
 **Key Features**:
+
 - Enhanced error notification system
 - Visual feedback with button states
 - Smart error categorization with icons
 - Non-intrusive toast notifications
 
 **Files to Modify**:
+
 - ✅ `content.css` (added session refresh states and error animations)
 - ✅ `content.js` (enhanced error notification system)
 
@@ -128,23 +140,28 @@
 **Test Categories**:
 
 #### Unit Tests (Completed)
+
 - ✅ `test/session_management/session_manager.test.js` (comprehensive test suite)
 
 #### Integration Tests (Pending)
+
 - ⏳ `test/integration/session_end_to_end.test.js`
 - ⏳ `test/integration/cross_tab_session.test.js`
 
 #### Performance Tests (Pending)
+
 - ⏳ `test/performance/session_performance.test.js`
 - ⏳ `test/performance/memory_usage.test.js`
 
 #### Edge Case Tests (Covered in Unit Tests)
+
 - ✅ Circuit breaker functionality
 - ✅ Race condition prevention
 - ✅ Network failure handling
 - ✅ Invalid session scenarios
 
 **Test Scenarios Covered**:
+
 - [x] **Happy Path**: Valid session, immediate enhancement
 - [x] **Auto Refresh**: Expired session, successful refresh
 - [x] **Refresh Failure**: Network issues, fallback to re-auth
@@ -159,6 +176,7 @@
 **Deliverable**: Real-world usage testing and UX validation
 
 **Testing Plan**:
+
 - Internal testing across different network conditions
 - Beta user testing with session management scenarios
 - Performance benchmarking
@@ -175,6 +193,7 @@
 **Deliverable**: Safe production rollout with monitoring
 
 **Deployment Strategy**:
+
 - Feature flag for gradual rollout
 - A/B testing against current implementation
 - Real-time monitoring and alerting
@@ -187,6 +206,7 @@
 **Deliverable**: Comprehensive monitoring and analytics
 
 **Key Metrics**:
+
 - Session refresh success rate
 - Time to enhancement (including refresh)
 - User error rates
@@ -197,28 +217,33 @@
 ## User Experience Flows
 
 ### Scenario 1: Active User with Valid Session
+
 ```
 User opens ChatGPT → Types prompt → Clicks CoPrompt button
    ↓
 Button shows "Enhancing..." (no delay)
-   ↓ 
+   ↓
 Enhanced prompt appears (1-2 seconds)
 ```
+
 **UX**: Seamless, zero friction. User doesn't know any auth checking happened.
 
 ### Scenario 2: User with Session About to Expire
+
 ```
 User opens ChatGPT → Types prompt → Clicks CoPrompt button
    ↓
-Button shows "Enhancing..." 
+Button shows "Enhancing..."
    ↓
 Background: Quick token refresh (1-2 seconds)
    ↓
 Enhanced prompt appears (2-3 seconds total)
 ```
+
 **UX**: Slightly longer wait, but still feels like normal processing.
 
 ### Scenario 3: User with Expired Session (Refresh Succeeds)
+
 ```
 User opens ChatGPT → Types prompt → Clicks CoPrompt button
    ↓
@@ -228,9 +253,11 @@ Button shows "Enhancing..."
    ↓
 Enhanced prompt appears (4-5 seconds total)
 ```
+
 **UX**: Clear feedback about what's happening, still automatic.
 
 ### Scenario 4: Refresh Fails (Graceful Fallback)
+
 ```
 User opens ChatGPT → Types prompt → Clicks CoPrompt button
    ↓
@@ -238,6 +265,7 @@ Button shows "Refreshing session..." (3-4 seconds)
    ↓
 Modal: "Please log in again to continue enhancing prompts" [Open Settings]
 ```
+
 **UX**: Clear next steps, single click to resolve.
 
 ---
@@ -247,11 +275,13 @@ Modal: "Please log in again to continue enhancing prompts" [Open Settings]
 ### High Risk Items
 
 1. **Race Conditions**
+
    - **Risk**: Multiple tabs causing concurrent refresh attempts
    - **Mitigation**: Mutex implementation with promise sharing
    - **Testing**: Comprehensive concurrency tests
 
 2. **Service Worker Lifecycle**
+
    - **Risk**: Background script termination during refresh
    - **Mitigation**: Robust state persistence and recovery
    - **Testing**: Service worker lifecycle simulation
@@ -264,6 +294,7 @@ Modal: "Please log in again to continue enhancing prompts" [Open Settings]
 ### Medium Risk Items
 
 1. **Performance Impact**
+
    - **Risk**: Session checking slowing down page interactions
    - **Mitigation**: Lazy loading, efficient caching
    - **Testing**: Performance benchmarking
@@ -278,11 +309,13 @@ Modal: "Please log in again to continue enhancing prompts" [Open Settings]
 ## Success Metrics
 
 ### Primary KPIs
+
 - **User Error Rate**: < 5% (down from current ~25%)
 - **Enhancement Success Rate**: > 95% (up from current ~75%)
 - **Time to Enhancement**: < 3 seconds (including refresh scenarios)
 
 ### Secondary KPIs
+
 - **Session Refresh Success Rate**: > 90%
 - **User Support Tickets**: 50% reduction in auth-related issues
 - **Performance Impact**: < 100ms additional latency
@@ -292,11 +325,13 @@ Modal: "Please log in again to continue enhancing prompts" [Open Settings]
 ## Dependencies & Requirements
 
 ### Technical Dependencies
+
 - Supabase client library (existing)
 - Chrome Extension Manifest V3 (existing)
 - Testing framework (Jest/similar)
 
 ### External Dependencies
+
 - Supabase service availability
 - Stable network connectivity for users
 - Chrome/Edge browser compatibility
@@ -306,11 +341,13 @@ Modal: "Please log in again to continue enhancing prompts" [Open Settings]
 ## Rollback Plan
 
 ### Immediate Rollback Triggers
+
 - User error rate > 15%
 - Enhancement success rate < 60%
 - Critical performance degradation
 
 ### Rollback Process
+
 1. Disable feature flag
 2. Revert to previous session handling
 3. Notify users of temporary service restoration
@@ -321,11 +358,13 @@ Modal: "Please log in again to continue enhancing prompts" [Open Settings]
 ## Post-Implementation
 
 ### Maintenance Plan
+
 - Weekly monitoring review
 - Monthly performance analysis
 - Quarterly user experience assessment
 
 ### Future Enhancements
+
 - Predictive session refresh
 - Cross-device session synchronization
 - Advanced retry strategies
@@ -335,6 +374,7 @@ Modal: "Please log in again to continue enhancing prompts" [Open Settings]
 ## File Checklist
 
 ### New Files to Create
+
 - [ ] `utils/sessionManager.js`
 - [ ] `test/session_management/session_manager.test.js`
 - [ ] `test/session_management/session_refresh.test.js`
@@ -348,6 +388,7 @@ Modal: "Please log in again to continue enhancing prompts" [Open Settings]
 - [ ] `test/edge_cases/clock_skew.test.js`
 
 ### Files to Modify
+
 - [ ] `background.js` (session handling logic)
 - [ ] `content.js` (enhancement trigger logic)
 - [ ] `content/messageHandler.js` (session validation)
@@ -361,4 +402,4 @@ Modal: "Please log in again to continue enhancing prompts" [Open Settings]
 
 **Document Version**: 1.0
 **Last Updated**: [Current Date]
-**Next Review**: Weekly during implementation 
+**Next Review**: Weekly during implementation
