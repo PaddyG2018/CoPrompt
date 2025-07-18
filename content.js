@@ -970,7 +970,6 @@ async function createFloatingButton() {
 
         // Show success message briefly
         if (buttonElement) {
-          const originalText = buttonElement.innerHTML;
           buttonElement.innerHTML = "✅ Authenticated! Enhancing...";
 
           // Proceed with original enhancement
@@ -1147,8 +1146,6 @@ async function createFloatingButton() {
     // Use postMessage to check if window.enhancePrompt exists in page context
     return new Promise((resolve) => {
       const startTime = Date.now();
-      let checkCount = 0;
-      let responseReceived = false;
 
       // Listen for response from page context
       const messageHandler = (event) => {
@@ -1579,7 +1576,7 @@ if (typeof handleWindowMessage === "function") {
   console.log("CoPrompt: Window message handler registered successfully.");
 
   // Listener for messages/responses FROM background script
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  chrome.runtime.onMessage.addListener((message, _sender, _sendResponse) => {
     logInteractionHandlerDebug(
       "[Content Script] Received message from background:",
       message,

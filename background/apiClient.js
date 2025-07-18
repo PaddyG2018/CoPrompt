@@ -12,10 +12,10 @@ const DEBUG = false; // Or find a way to share this flag
  *                           Example: { enhancedPrompt: "response text", usage: { prompt_tokens: X, completion_tokens: Y, total_tokens: Z } }
  */
 export async function callOpenAI(
-  apiKey,
-  systemInstruction,
-  userPrompt,
-  userAccessToken,
+  /** @type {string} */ apiKey,
+  /** @type {string} */ systemInstruction,
+  /** @type {string} */ userPrompt,
+  /** @type {string} */ userAccessToken,
 ) {
   if (DEBUG)
     console.log(
@@ -75,7 +75,7 @@ export async function callOpenAI(
           `[apiClient] Supabase function error (${response.status}):`,
           errorBody,
         );
-      } catch (_parseError) {
+      } catch {
         try {
           const errorText = await response.text();
           console.error(
