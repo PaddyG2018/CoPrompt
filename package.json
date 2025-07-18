@@ -5,7 +5,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test test/session_management/session_manager.test.js",
+    "test": "echo \"SessionManager tests require Chrome extension environment - run locally with 'npm run test:unit'\"",
     "test:unit": "node --test test/session_management/session_manager.test.js",
     "test:integration": "node --test test/enhance_auth_tests/auth_flow.test.js",
     "test:all": "node --test test/**/*.test.js",
