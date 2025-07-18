@@ -358,6 +358,97 @@ async function createFloatingButton() {
     }
   }
 
+  // Enhanced error notification system
+  function showEnhancementError(buttonElement, errorMessage) {
+    // Remove any existing error notification
+    const existingNotification = document.getElementById("coprompt-error-notification");
+    if (existingNotification) {
+      existingNotification.remove();
+    }
+
+    // Create error notification
+    const notification = document.createElement("div");
+    notification.id = "coprompt-error-notification";
+    notification.style.cssText = `
+      position: fixed !important;
+      top: 20px !important;
+      right: 20px !important;
+      max-width: 400px !important;
+      padding: 16px 20px !important;
+      background: #e74c3c !important;
+      color: white !important;
+      border-radius: 8px !important;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+      font-size: 14px !important;
+      font-weight: 500 !important;
+      line-height: 1.4 !important;
+      z-index: 10000 !important;
+      opacity: 0 !important;
+      transform: translateX(100%) !important;
+      transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
+      cursor: pointer !important;
+      border-left: 4px solid #c0392b !important;
+    `;
+    
+    // Determine the appropriate message and icon based on error content
+    let icon = "⚠️";
+    let title = "Enhancement Failed";
+    
+    if (errorMessage.toLowerCase().includes("session")) {
+      icon = "🔐";
+      title = "Session Issue";
+    } else if (errorMessage.toLowerCase().includes("network") || errorMessage.toLowerCase().includes("connection")) {
+      icon = "🌐";
+      title = "Connection Error";
+    } else if (errorMessage.toLowerCase().includes("service") || errorMessage.toLowerCase().includes("temporarily")) {
+      icon = "⏰";
+      title = "Service Unavailable";
+    }
+    
+    notification.innerHTML = `
+      <div style="display: flex; align-items: flex-start; gap: 12px;">
+        <span style="font-size: 18px; line-height: 1;">${icon}</span>
+        <div style="flex: 1;">
+          <div style="font-weight: 600; margin-bottom: 4px;">${title}</div>
+          <div style="font-weight: 400; font-size: 13px; opacity: 0.95;">${errorMessage}</div>
+          <div style="font-size: 11px; opacity: 0.8; margin-top: 6px;">Click to dismiss</div>
+        </div>
+      </div>
+    `;
+
+    // Add click to dismiss
+    notification.addEventListener("click", () => {
+      hideErrorNotification(notification);
+    });
+
+    // Add to page
+    document.body.appendChild(notification);
+
+    // Animate in
+    requestAnimationFrame(() => {
+      notification.style.opacity = "1";
+      notification.style.transform = "translateX(0)";
+    });
+
+    // Auto dismiss after 8 seconds
+    setTimeout(() => {
+      if (notification.parentNode) {
+        hideErrorNotification(notification);
+      }
+    }, 8000);
+  }
+
+  function hideErrorNotification(notification) {
+    notification.style.opacity = "0";
+    notification.style.transform = "translateX(100%)";
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.remove();
+      }
+    }, 300);
+  }
+
   // V2A-02: Show authentication modal
   function showAuthModal(buttonElement, reqId, targetInputElement) {
     // Remove any existing modal
@@ -1568,9 +1659,17 @@ if (typeof handleWindowMessage === "function") {
         // Show authentication modal instead of error alert
         showAuthModal(buttonElement, requestId, inputElement);
       } else {
-        // Regular error handling
-        alert(`Enhancement failed: ${error || "Unknown error"}`);
-        if (buttonElement) resetButtonState(buttonElement);
+        // Enhanced error handling with better user feedback
+        showEnhancementError(buttonElement, error || "Unknown error");
+        if (buttonElement) {
+          resetButtonState(buttonElement);
+          // Add error class for visual feedback
+          buttonElement.classList.add("coprompt-error");
+          // Remove error class after animation
+          setTimeout(() => {
+            buttonElement.classList.remove("coprompt-error");
+          }, 2000);
+        }
       }
       return false;
     }
