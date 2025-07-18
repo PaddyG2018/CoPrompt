@@ -8,16 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.1.1] - 2025-07-07
 
 ### Added
+
 - Smart onboarding UX: Distinguishes between first-time users and returning users (logged in/out) for a seamless experience
 - Professional, branded magic link email template matching website design
 - Triple-layer duplicate magic link prevention (event listener, button state, backend deduplication)
 
 ### Changed
+
 - Unified and modernized the options page layout for clearer onboarding and account management
 - Dynamic extension ID detection for magic link authentication (works in both dev and production)
 - Improved credit/account overview for logged-in users
 
 ### Fixed
+
 - Magic link redirect issues for local development and production
 - Resolved confusion for returning users seeing "Get 25 Free Credits" after already signing up
 - Fixed all Prettier formatting and lint errors for CI/CD compliance

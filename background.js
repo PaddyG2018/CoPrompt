@@ -87,13 +87,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
 
     // PX-07.A-05: Enhanced session management with automatic refresh
-    sessionManager.ensureValidSession()
+    sessionManager
+      .ensureValidSession()
       .then((sessionResult) => {
         if (DEBUG) {
           console.log("[Background] Session validation result:", {
             success: sessionResult.success,
             hasSession: !!sessionResult.session,
-            error: sessionResult.error
+            error: sessionResult.error,
           });
         }
 
@@ -101,9 +102,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (!sessionResult.success) {
           console.log(
             "[Background] Session validation failed:",
-            sessionResult.error
+            sessionResult.error,
           );
-          
+
           // Send authentication error to content script
           chrome.tabs.sendMessage(tabIdFromSender, {
             type: "ENHANCE_PROMPT_ERROR",
@@ -322,17 +323,20 @@ chrome.runtime.onConnect.addListener((port) => {
         try {
           // Enhanced session management with automatic refresh (port-based)
           const sessionResult = await sessionManager.ensureValidSession();
-          
+
           if (DEBUG) {
             console.log("[Background] Port: Session validation result:", {
               success: sessionResult.success,
               hasSession: !!sessionResult.session,
-              error: sessionResult.error
+              error: sessionResult.error,
             });
           }
 
           if (!sessionResult.success) {
-            console.log("[Background] Port: Session validation failed:", sessionResult.error);
+            console.log(
+              "[Background] Port: Session validation failed:",
+              sessionResult.error,
+            );
             port.postMessage({
               type: "CoPromptErrorResponse",
               error: sessionResult.error,
