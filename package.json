@@ -5,8 +5,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test test/**/*.test.js",
-    "test:watch": "node --test --watch test/**/*.test.js",
+    "test": "node --test test/session_management/**/*.test.js",
+    "test:unit": "node --test test/session_management/**/*.test.js",
+    "test:integration": "node --test test/enhance_auth_tests/**/*.test.js",
+    "test:all": "node --test test/**/*.test.js",
+    "test:watch": "node --test --watch test/session_management/**/*.test.js",
     "lint": "eslint . --max-warnings 100",
     "format": "prettier --write \"**/*.{js,json,html,css,md}\"",
     "start": "web-ext run --target=chromium",
@@ -21,8 +24,10 @@
     "supabase:logs": "supabase functions logs"
   },
   "devDependencies": {
+    "@supabase/supabase-js": "^2.52.0",
     "@typescript-eslint/eslint-plugin": "^7.1.0",
     "@typescript-eslint/parser": "^7.1.0",
+    "axios": "^1.10.0",
     "copy-webpack-plugin": "^13.0.0",
     "dotenv": "^16.5.0",
     "eslint": "^8.57.0",

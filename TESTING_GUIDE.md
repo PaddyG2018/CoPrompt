@@ -21,18 +21,41 @@ Follow the detailed test plan in `test/session_management_test_plan.md`
 ## Development Commands
 
 ```bash
-# Run automated tests
+# Run unit tests (recommended for CI/development)
 npm test
+
+# Run unit tests only
+npm run test:unit
+
+# Run integration tests (requires local Supabase instance)
+npm run test:integration
+
+# Run all tests
+npm run test:all
+
+# Watch for changes during development
+npm run test:watch
 
 # Build for development testing
 npm run build:dev
 
 # Build for production
 npm run build:prod
-
-# Watch for changes during development
-npm run build:watch
 ```
+
+## Test Structure
+
+### Unit Tests ✅
+- **Location**: `test/session_management/`
+- **Purpose**: Core SessionManager functionality
+- **Environment**: Node.js with mocked Chrome APIs
+- **CI Ready**: Yes - runs in GitHub Actions
+
+### Integration Tests 🔄
+- **Location**: `test/enhance_auth_tests/`
+- **Purpose**: End-to-end authentication flows
+- **Environment**: Requires local Supabase instance
+- **CI Ready**: No - excluded from main CI pipeline
 
 ## Key Files Modified
 - `utils/sessionManager.js` - Core session management logic

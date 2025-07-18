@@ -60,7 +60,17 @@ global.fetch = async (url, options) => {
 };
 
 // Import SessionManager after setting up mocks
-const { SessionManager } = await import('../../utils/sessionManager.js');
+let SessionManager;
+try {
+  const sessionManagerModule = await import('../../utils/sessionManager.js');
+  SessionManager = sessionManagerModule.SessionManager;
+  if (!SessionManager) {
+    throw new Error('SessionManager not found in module exports');
+  }
+} catch (error) {
+  console.error('Failed to import SessionManager:', error);
+  throw error;
+}
 
 describe('SessionManager', () => {
   let sessionManager;
