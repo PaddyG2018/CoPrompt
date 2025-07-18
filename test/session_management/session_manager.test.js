@@ -1,6 +1,12 @@
 import { test, describe, beforeEach } from 'node:test';
 import assert from 'node:assert';
 import { setTimeout } from 'node:timers/promises';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
+// Get current file directory for reliable imports
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Global storage mock state
 let mockStorage = {};
@@ -36,14 +42,14 @@ global.chrome = {
     }
   },
   runtime: {
-    sendMessage: async (message) => {
+    sendMessage: async (_message) => {
       return { success: true };
     }
   }
 };
 
 // Mock fetch for testing token refresh
-global.fetch = async (url, options) => {
+global.fetch = async (url, _options) => {
   if (url.includes('/auth/v1/token')) {
     return {
       ok: true,
@@ -59,23 +65,22 @@ global.fetch = async (url, options) => {
   return { ok: false };
 };
 
-// Import SessionManager after setting up mocks
-let SessionManager;
-try {
-  const sessionManagerModule = await import('../../utils/sessionManager.js');
-  SessionManager = sessionManagerModule.SessionManager;
-  if (!SessionManager) {
-    throw new Error('SessionManager not found in module exports');
-  }
-} catch (error) {
-  console.error('Failed to import SessionManager:', error);
-  throw error;
-}
-
 describe('SessionManager', () => {
+  let SessionManager;
   let sessionManager;
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    // Import SessionManager dynamically inside the test
+    if (!SessionManager) {
+      const sessionManagerPath = join(__dirname, '../../utils/sessionManager.js');
+      const sessionManagerModule = await import(sessionManagerPath);
+      SessionManager = sessionManagerModule.SessionManager;
+      
+      if (!SessionManager) {
+        throw new Error('SessionManager not found in module exports');
+      }
+    }
+
     // Reset mock storage
     mockStorage = {
       supabase_session: {
@@ -95,7 +100,7 @@ describe('SessionManager', () => {
     sessionManager.circuitBreakerResetTime = null;
 
     // Reset fetch mock
-    global.fetch = async (url, options) => {
+    global.fetch = async (url, _options) => {
       if (url.includes('/auth/v1/token')) {
         return {
           ok: true,
@@ -188,7 +193,7 @@ describe('SessionManager', () => {
     };
 
     // Add delay to fetch to simulate slower network
-    global.fetch = async (url, options) => {
+    global.fetch = async (url, _options) => {
       if (url.includes('/auth/v1/token')) {
         await setTimeout(100); // Small delay
         return {
