@@ -16,9 +16,13 @@ import {
 } from "./utils/constants.js";
 import { callOpenAI } from "./background/apiClient.js";
 import { createLogger } from "./utils/logger.js"; // Import createLogger
+import { SessionManager } from "./utils/sessionManager.js"; // Import SessionManager
 
 // Instantiate logger for background context
 const backgroundLogger = createLogger("background");
+
+// Initialize SessionManager
+const sessionManager = new SessionManager();
 
 // Helper function to format conversation context
 function formatConversationContext(context) {
@@ -82,29 +86,28 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       return true;
     }
 
-    // PX-07.A-05: Get User JWT (deviceId now only for analytics)
-    chrome.storage.local
-      .get("supabase_session")
-      .then((data) => {
-        const session = data.supabase_session;
-        const userAccessToken = session?.access_token || null;
+    // PX-07.A-05: Enhanced session management with automatic refresh
+    sessionManager.ensureValidSession()
+      .then((sessionResult) => {
+        if (DEBUG) {
+          console.log("[Background] Session validation result:", {
+            success: sessionResult.success,
+            hasSession: !!sessionResult.session,
+            error: sessionResult.error
+          });
+        }
 
-        if (DEBUG)
+        // V2A-06: Check if session validation succeeded
+        if (!sessionResult.success) {
           console.log(
-            "[Background] Retrieved User Access Token present:",
-            !!userAccessToken,
+            "[Background] Session validation failed:",
+            sessionResult.error
           );
-
-        // V2A-06: Check if user is authenticated before making API call
-        if (!userAccessToken) {
-          console.log(
-            "[Background] No user authentication found, prompting for signup",
-          );
-          // Send authentication required error to content script
+          
+          // Send authentication error to content script
           chrome.tabs.sendMessage(tabIdFromSender, {
             type: "ENHANCE_PROMPT_ERROR",
-            error:
-              "Authentication required. Please sign up to get 25 free credits.",
+            error: sessionResult.error,
             authRequired: true, // Flag to trigger auth modal
             targetInputId: targetInputIdFromRequest,
             requestId: request.requestId,
@@ -112,20 +115,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           return;
         }
 
-        // Check if session is expired
-        const now = Math.floor(Date.now() / 1000);
-        if (session.expires_at && session.expires_at <= now) {
+        // Extract validated session and access token
+        const session = sessionResult.session;
+        const userAccessToken = session.access_token;
+
+        if (DEBUG) {
           console.log(
-            "[Background] User session expired, prompting for re-authentication",
+            "[Background] Using validated session with access token present:",
+            !!userAccessToken,
           );
-          chrome.tabs.sendMessage(tabIdFromSender, {
-            type: "ENHANCE_PROMPT_ERROR",
-            error: "Session expired. Please log in again.",
-            authRequired: true, // Flag to trigger auth modal
-            targetInputId: targetInputIdFromRequest,
-            requestId: request.requestId,
-          });
-          return;
         }
 
         // V2A-05: Call API with valid user JWT
@@ -322,41 +320,37 @@ chrome.runtime.onConnect.addListener((port) => {
         }
 
         try {
-          // Get user authentication (same logic as simple message handler)
-          const data = await chrome.storage.local.get("supabase_session");
-          const session = data.supabase_session;
-          const userAccessToken = session?.access_token || null;
+          // Enhanced session management with automatic refresh (port-based)
+          const sessionResult = await sessionManager.ensureValidSession();
+          
+          if (DEBUG) {
+            console.log("[Background] Port: Session validation result:", {
+              success: sessionResult.success,
+              hasSession: !!sessionResult.session,
+              error: sessionResult.error
+            });
+          }
+
+          if (!sessionResult.success) {
+            console.log("[Background] Port: Session validation failed:", sessionResult.error);
+            port.postMessage({
+              type: "CoPromptErrorResponse",
+              error: sessionResult.error,
+              authRequired: true,
+              requestId: requestId,
+            });
+            return;
+          }
+
+          // Extract validated session and access token
+          const session = sessionResult.session;
+          const userAccessToken = session.access_token;
 
           if (DEBUG) {
             console.log(
-              "[Background] Port: User Access Token present:",
+              "[Background] Port: Using validated session with access token present:",
               !!userAccessToken,
             );
-          }
-
-          if (!userAccessToken) {
-            console.log("[Background] Port: No user authentication found");
-            port.postMessage({
-              type: "CoPromptErrorResponse",
-              error:
-                "Authentication required. Please sign up to get 25 free credits.",
-              authRequired: true,
-              requestId: requestId,
-            });
-            return;
-          }
-
-          // Check session expiry
-          const now = Math.floor(Date.now() / 1000);
-          if (session.expires_at && session.expires_at <= now) {
-            console.log("[Background] Port: User session expired");
-            port.postMessage({
-              type: "CoPromptErrorResponse",
-              error: "Session expired. Please log in again.",
-              authRequired: true,
-              requestId: requestId,
-            });
-            return;
           }
 
           // Call OpenAI with the sophisticated system instruction + context

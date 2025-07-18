@@ -5,7 +5,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "echo \"No tests configured yet\" && exit 0",
+    "test": "node --test test/**/*.test.js",
+    "test:watch": "node --test --watch test/**/*.test.js",
     "lint": "eslint . --max-warnings 100",
     "format": "prettier --write \"**/*.{js,json,html,css,md}\"",
     "start": "web-ext run --target=chromium",
@@ -29,6 +30,7 @@
     "eslint-plugin-json": "^3.1.0",
     "eslint-plugin-security": "^2.1.1",
     "globals": "^16.0.0",
+    "jest": "^30.0.4",
     "prettier": "^3.2.5",
     "replace-in-file": "^7.1.0",
     "rimraf": "^5.0.5",
