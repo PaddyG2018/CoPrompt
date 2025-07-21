@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2025-07-15
+
+### Added
+
+- **Automatic Session Management**: Eliminates "Session expired" errors and manual authentication steps
+  - Proactive token refresh when sessions are near expiry (5-minute buffer)
+  - Automatic retry with exponential backoff for failed refresh attempts
+  - Circuit breaker pattern to prevent cascading failures
+  - Race condition protection for concurrent refresh requests
+- Enhanced user experience with seamless authentication flow
+- Custom error notifications with improved visual feedback
+- Comprehensive session management test suite
+
+### Changed
+
+- Background script now handles all session validation and refresh logic automatically
+- Content script provides better error feedback with custom toast notifications
+- Improved reliability and reduced user friction during prompt enhancement
+
+### Technical
+
+- New `SessionManager` class with robust error handling and logging
+- Updated Chrome extension architecture for better session handling
+- Added comprehensive unit tests for session management functionality
+
 ## [1.1.1] - 2025-07-07
 
 ### Added
