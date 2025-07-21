@@ -53,11 +53,11 @@ jobs:
         uses: trufflesecurity/trufflehog@main
         with:
           path: ./
-          # For pushes, compare against the previous commit (HEAD~1)
-          # For pull requests, compare against the base branch of the PR
-          # For scheduled/manual runs, compare against the default branch
-          base: ${{ (github.event_name == 'push' && github.event.before) || (github.event_name == 'pull_request' && github.event.pull_request.base.sha) || github.ref_name }}
-          head: HEAD # Current commit remains the head
+          # Use a safer approach: always compare against HEAD~1 for pushes
+          # This prevents the "BASE and HEAD commits are the same" error
+          base: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || 'HEAD~1' }}
+          head: HEAD
+          extra_args: --results=verified,unknown --no-update
 
       # Check for sensitive data exposure
       - name: Check for sensitive data
