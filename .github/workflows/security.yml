@@ -57,7 +57,7 @@ jobs:
           # This prevents the "BASE and HEAD commits are the same" error
           base: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || 'HEAD~1' }}
           head: HEAD
-          extra_args: --results=verified,unknown --no-update
+          extra_args: --results=verified,unknown
 
       # Check for sensitive data exposure
       - name: Check for sensitive data
