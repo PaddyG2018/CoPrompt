@@ -12,9 +12,10 @@ import { MAIN_SYSTEM_INSTRUCTION } from "../utils/constants.js"; // Import sophi
 const DEBUG_MSG_HANDLER = false;
 
 function logMessageHandlerDebug(...args) {
-  // if (DEBUG_MSG_HANDLER) { // Keep conditional logic if desired, but comment out the log itself for now
-  //   console.log("[CoPrompt MH Debug]", ...args);
-  // }
+  if (DEBUG_MSG_HANDLER) {
+    // Keep conditional logic if desired, but comment out the log itself for now
+    console.log("[CoPrompt MH Debug]", ...args);
+  }
 }
 
 // --- Internal Helpers ---
@@ -54,6 +55,17 @@ export async function handleWindowMessage(event) {
   }
 
   const { type, prompt, context, requestId, key, error, detail } = event.data;
+
+  // CRITICAL FIX: Ignore response messages that are being sent TO the injected script
+  // These are messages we forward from background script, not messages FROM injected script
+  if (type === "CoPromptEnhanceResponse" || type === "CoPromptErrorResponse") {
+    logMessageHandlerDebug(
+      "Ignoring response message being forwarded to injected script:",
+      type,
+    );
+    return;
+  }
+
   logMessageHandlerDebug(
     "Received message from injected script:",
     type,
