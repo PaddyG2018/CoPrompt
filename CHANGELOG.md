@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2025-07-15
+
+### Fixed
+
+- **CRITICAL HOTFIX**: Button injection failure in production
+  - Removed ES6 import statements from content.js that were causing "Cannot use import statement outside a module" error
+  - Updated manifest.json to load utility scripts in correct order before content.js
+  - Functions now available globally without imports: findActiveInputElement, updateInputElement, makeDraggable, handleWindowMessage, generateUniqueId, ENHANCING_LABEL, shouldShowOnCurrentSite, initializeSitePreferences
+  - Restores button injection functionality on ChatGPT and Claude.ai
+
+### Technical
+
+- Converted content script from ES6 modules back to global script loading
+- Maintained all session management functionality from v1.2.0
+- No functional changes to core features - purely a module loading fix
+
 ## [1.2.0] - 2025-07-15
 
 ### Added

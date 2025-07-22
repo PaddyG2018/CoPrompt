@@ -18,18 +18,9 @@ script.onerror = function () {
 
 // --- Imports ---
 // REMOVED import { DEBUG } from "./config.js";
-import {
-  /* findActiveInputElementValue, */ findActiveInputElement,
-  updateInputElement,
-} from "./utils/domUtils.js";
-import { makeDraggable } from "./content/interactionHandler.js";
-import { handleWindowMessage } from "./content/messageHandler.js"; // Ensure this name matches export
-import { generateUniqueId } from "./utils/helpers.js";
-import { ENHANCING_LABEL } from "./utils/constants.js"; // Add this import
-import {
-  shouldShowOnCurrentSite,
-  initializeSitePreferences,
-} from "./utils/sitePreferences.js"; // Add site preferences import
+// Utility functions are now loaded via manifest.json content_scripts order
+// Functions available globally: findActiveInputElement, updateInputElement, makeDraggable, 
+// handleWindowMessage, generateUniqueId, ENHANCING_LABEL, shouldShowOnCurrentSite, initializeSitePreferences
 
 // --- Utility Functions ---
 // Debounce function to prevent rapid-fire executions
