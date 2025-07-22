@@ -10,8 +10,6 @@ module.exports = {
     background: "./background.js",
     content: "./content.js",
     injected: "./injected.js", // Add injected.js back as an entry point
-    // If content.js uses imports that need resolving, add it here.
-    // content: './content.js',
     // If options.js uses imports, add it here.
     // options: './options.js',
     // If popup.js uses imports, add it here.
@@ -44,9 +42,13 @@ module.exports = {
         { from: "icons", to: "icons" },
         // Copy the lib directory
         { from: "lib", to: "lib" },
+        // Copy directories needed by other scripts (background.js imports, email templates)
+        { from: "background", to: "background" },
+        { from: "email-templates", to: "email-templates" },
         // Copy scripts that *don't* need bundling
         { from: "options.js", to: "." },
         { from: "popup.js", to: "." },
+        { from: "privacy.html", to: "." },
         // Copy background script dependencies IF NOT imported directly by background.js
         // Example: { from: "background/apiClient.js", to: "background/apiClient.js" }, // Only if apiClient isn't imported by background.js
       ],

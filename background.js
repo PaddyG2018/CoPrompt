@@ -286,6 +286,10 @@ chrome.runtime.onConnect.addListener((port) => {
       "[Background] Enhancement port connected - service worker staying alive",
     );
 
+    // Track port connection status and active requests
+    let isPortConnected = true;
+    const activeRequests = new Set();
+
     port.onMessage.addListener(async (request) => {
       if (request.type === "ENHANCE_PROMPT") {
         console.log(
@@ -293,10 +297,12 @@ chrome.runtime.onConnect.addListener((port) => {
           request.requestId,
         );
 
+        const requestId = request.requestId;
+        activeRequests.add(requestId);
+
         const userPrompt = request.prompt;
         const contextData = request.conversationContext;
         const systemInstruction = request.systemInstruction;
-        const requestId = request.requestId;
 
         // Format conversation context if available
         const formattedContext = formatConversationContext(contextData);
@@ -312,17 +318,30 @@ chrome.runtime.onConnect.addListener((port) => {
         }
 
         if (!userPrompt) {
-          port.postMessage({
-            type: "CoPromptErrorResponse",
-            error: "Prompt was missing in the request.",
-            requestId: requestId,
-          });
+          if (isPortConnected) {
+            port.postMessage({
+              type: "CoPromptErrorResponse",
+              error: "Prompt was missing in the request.",
+              requestId: requestId,
+            });
+          }
+          activeRequests.delete(requestId);
           return;
         }
 
         try {
           // Enhanced session management with automatic refresh (port-based)
           const sessionResult = await sessionManager.ensureValidSession();
+
+          // Check if port is still connected before proceeding
+          if (!isPortConnected || !activeRequests.has(requestId)) {
+            console.log(
+              "[Background] Port disconnected during session validation, aborting request:",
+              requestId,
+            );
+            activeRequests.delete(requestId);
+            return;
+          }
 
           if (DEBUG) {
             console.log("[Background] Port: Session validation result:", {
@@ -337,12 +356,15 @@ chrome.runtime.onConnect.addListener((port) => {
               "[Background] Port: Session validation failed:",
               sessionResult.error,
             );
-            port.postMessage({
-              type: "CoPromptErrorResponse",
-              error: sessionResult.error,
-              authRequired: true,
-              requestId: requestId,
-            });
+            if (isPortConnected) {
+              port.postMessage({
+                type: "CoPromptErrorResponse",
+                error: sessionResult.error,
+                authRequired: true,
+                requestId: requestId,
+              });
+            }
+            activeRequests.delete(requestId);
             return;
           }
 
@@ -357,6 +379,16 @@ chrome.runtime.onConnect.addListener((port) => {
             );
           }
 
+          // Check if port is still connected before making API call
+          if (!isPortConnected || !activeRequests.has(requestId)) {
+            console.log(
+              "[Background] Port disconnected before API call, aborting request:",
+              requestId,
+            );
+            activeRequests.delete(requestId);
+            return;
+          }
+
           // Call OpenAI with the sophisticated system instruction + context
           const response = await callOpenAI(
             null,
@@ -364,6 +396,16 @@ chrome.runtime.onConnect.addListener((port) => {
             userPrompt,
             userAccessToken,
           );
+
+          // CRITICAL: Check if port is still connected before sending response
+          if (!isPortConnected || !activeRequests.has(requestId)) {
+            console.log(
+              "[Background] Port disconnected during API call, discarding response for:",
+              requestId,
+            );
+            activeRequests.delete(requestId);
+            return;
+          }
 
           if (DEBUG) {
             console.log(
@@ -373,24 +415,55 @@ chrome.runtime.onConnect.addListener((port) => {
           }
 
           // Send success response via port
-          port.postMessage({
-            type: "CoPromptEnhanceResponse",
-            enhancedPrompt: response.enhancedPrompt,
-            usage: response.usage,
-            requestId: requestId,
-          });
+          if (DEBUG) {
+            console.log(
+              "[Background] Port: Sending CoPromptEnhanceResponse via port:",
+              {
+                type: "CoPromptEnhanceResponse",
+                enhancedPrompt:
+                  response.enhancedPrompt?.substring(0, 100) + "...",
+                requestId: requestId,
+              },
+            );
+          }
+
+          try {
+            port.postMessage({
+              type: "CoPromptEnhanceResponse",
+              enhancedPrompt: response.enhancedPrompt,
+              usage: response.usage,
+              requestId: requestId,
+            });
+          } catch (postError) {
+            console.warn(
+              "[Background] Failed to send response via port (likely disconnected):",
+              postError.message,
+            );
+          }
 
           // Store analytics (same as simple message handler)
           if (response.usage) {
             storeTokenUsageWithDeviceId(response.usage);
           }
+
+          activeRequests.delete(requestId);
         } catch (error) {
           console.error("[Background] Port: Enhancement error:", error);
-          port.postMessage({
-            type: "CoPromptErrorResponse",
-            error: error.message,
-            requestId: requestId,
-          });
+          if (isPortConnected) {
+            try {
+              port.postMessage({
+                type: "CoPromptErrorResponse",
+                error: error.message,
+                requestId: requestId,
+              });
+            } catch (postError) {
+              console.warn(
+                "[Background] Failed to send error response via port (likely disconnected):",
+                postError.message,
+              );
+            }
+          }
+          activeRequests.delete(requestId);
         }
       }
     });
@@ -399,6 +472,8 @@ chrome.runtime.onConnect.addListener((port) => {
       console.log(
         "[Background] Enhancement port disconnected - service worker can go dormant",
       );
+      isPortConnected = false;
+      activeRequests.clear();
     });
   }
 });

@@ -1,10 +1,8 @@
 // DOM Utility functions for CoPrompt
 
 /**
- * Finds the currently active/targetable input element (textarea or contenteditable)
- * on known chat platforms.
- * Uses multiple strategies to increase robustness.
- * @returns {HTMLElement | null} The found input element or null.
+ * Finds the currently active input element for CoPrompt enhancement
+ * @returns {HTMLElement|null} The active text area, input field, or content editable element
  */
 export function findActiveInputElement() {
   let inputField = null;
@@ -140,11 +138,9 @@ function simpleFallback(alertReason) {
 }
 
 /**
- * Updates the value/content of a target input element (textarea or contenteditable).
- * Handles different element types and dispatches necessary events.
- * Includes fallback alert if update fails.
- * @param {HTMLElement | null} element The input element to update, or null to trigger fallback.
- * @param {string} text The text to insert.
+ * Updates an input element with new text content
+ * @param {HTMLElement} element - The target input element
+ * @param {string} text - The new text content
  */
 export function updateInputElement(element, text) {
   // console.log("[domUtils] Entered updateInputElement. Element:", element); // Quieted for now

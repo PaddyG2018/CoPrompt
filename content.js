@@ -1,6 +1,17 @@
-// REMOVED import { createLogger } from './utils/logger.js';
-
-// REMOVED const logger = createLogger('content');
+// --- Imports ---
+// REMOVED import { DEBUG } from "./config.js";
+import {
+  findActiveInputElement,
+  updateInputElement,
+} from "./utils/domUtils.js";
+import { makeDraggable } from "./content/interactionHandler.js";
+import { handleWindowMessage } from "./content/messageHandler.js";
+import { generateUniqueId } from "./utils/helpers.js";
+import { ENHANCING_LABEL } from "./utils/constants.js";
+import {
+  shouldShowOnCurrentSite,
+  initializeSitePreferences,
+} from "./utils/sitePreferences.js";
 
 // Re-add simple DEBUG flag
 const DEBUG = false; // Set true for development logs
@@ -15,12 +26,6 @@ script.onerror = function () {
   console.error("[CoPrompt Error] Failed to load injected script");
 };
 (document.head || document.documentElement).appendChild(script);
-
-// --- Imports ---
-// REMOVED import { DEBUG } from "./config.js";
-// Utility functions are now loaded via manifest.json content_scripts order
-// Functions available globally: findActiveInputElement, updateInputElement, makeDraggable, 
-// handleWindowMessage, generateUniqueId, ENHANCING_LABEL, shouldShowOnCurrentSite, initializeSitePreferences
 
 // --- Utility Functions ---
 // Debounce function to prevent rapid-fire executions
@@ -1145,6 +1150,8 @@ async function createFloatingButton() {
     // Use postMessage to check if window.enhancePrompt exists in page context
     return new Promise((resolve) => {
       const startTime = Date.now();
+      let checkCount = 0;
+      let responseReceived = false;
 
       // Listen for response from page context
       const messageHandler = (event) => {

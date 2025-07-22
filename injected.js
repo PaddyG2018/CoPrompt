@@ -79,9 +79,9 @@ try {
     }
 
     // Log relevant messages if debugging
-    // if (DEBUG && event.data.type?.startsWith('CoPrompt')) { // Keep conditional DEBUG log
-    //   console.log("[Injected Listener] Received:", event.data);
-    // }
+    if (DEBUG && event.data.type?.startsWith("CoPrompt")) {
+      console.log("[Injected Listener] Received:", event.data);
+    }
 
     const { type, payload, requestId } = event.data;
 
@@ -121,6 +121,13 @@ try {
         break;
 
       case "CoPromptEnhanceResponse":
+        if (DEBUG) {
+          console.log(
+            "[Injected Listener] Processing CoPromptEnhanceResponse:",
+            event.data,
+          );
+        }
+
         const responseRequestId = event.data.requestId;
         if (!responseRequestId) {
           console.error(
@@ -130,6 +137,13 @@ try {
           // Might still try to update input if possible?
           // updateInputElement(findActiveInputElement(), event.data.enhancedPrompt);
           return; // Cannot reliably reset button
+        }
+
+        if (DEBUG) {
+          console.log(
+            "[Injected Listener] Looking for button with request ID:",
+            responseRequestId,
+          );
         }
 
         // Find the specific button associated with this request
@@ -155,10 +169,30 @@ try {
 
         // Process successful response
         const enhancedPrompt = event.data.enhancedPrompt;
+        if (DEBUG) {
+          console.log(
+            "[Injected Listener] Enhanced prompt received, length:",
+            enhancedPrompt?.length || 0,
+          );
+        }
+
         if (enhancedPrompt) {
+          if (DEBUG) {
+            console.log("[Injected Listener] Finding active input element...");
+          }
           const inputElement = findActiveInputElement(); // Input finding is independent of button ID
           if (inputElement) {
+            if (DEBUG) {
+              console.log(
+                "[Injected Listener] Found input element, updating with enhanced prompt...",
+              );
+            }
             updateInputElement(inputElement, enhancedPrompt);
+            if (DEBUG) {
+              console.log(
+                "[Injected Listener] Successfully updated input element!",
+              );
+            }
           } else {
             console.error(
               `[Injected Listener] Could not find active input element to update for ID ${responseRequestId}.`,
@@ -210,31 +244,101 @@ try {
 
   // Function to update the input field (Handles different input types)
   function updateInputElement(element, text) {
+    if (DEBUG) {
+      console.log(
+        "[Injected updateInputElement] Called with element:",
+        element,
+      );
+      console.log(
+        "[Injected updateInputElement] Element tag:",
+        element?.tagName,
+      );
+      console.log("[Injected updateInputElement] Element type:", element?.type);
+      console.log(
+        "[Injected updateInputElement] Is contentEditable:",
+        element?.isContentEditable,
+      );
+      console.log(
+        "[Injected updateInputElement] Current value/content:",
+        element?.value || element?.textContent || element?.innerText,
+      );
+      console.log(
+        "[Injected updateInputElement] Text to insert (length):",
+        text?.length || 0,
+      );
+    }
+
     if (!element) {
+      if (DEBUG)
+        console.log("[Injected updateInputElement] No element provided!");
       return;
     }
 
     try {
       // Check if the element is a standard input or textarea
       if (element.tagName === "INPUT" || element.tagName === "TEXTAREA") {
+        if (DEBUG)
+          console.log("[Injected updateInputElement] Updating INPUT/TEXTAREA");
+        const oldValue = element.value;
         element.value = text;
+        if (DEBUG)
+          console.log(
+            "[Injected updateInputElement] Value changed from:",
+            oldValue,
+            "to:",
+            element.value,
+          );
+
         // Dispatch input event to trigger any framework listeners (React, Vue, etc.)
         element.dispatchEvent(
           new Event("input", { bubbles: true, cancelable: true }),
         );
+        if (DEBUG)
+          console.log(
+            "[Injected updateInputElement] Dispatched input event for INPUT/TEXTAREA",
+          );
       }
       // Check if the element is contenteditable
       else if (element.isContentEditable) {
+        if (DEBUG)
+          console.log(
+            "[Injected updateInputElement] Updating contentEditable element",
+          );
+        const oldContent = element.textContent;
+
         element.focus();
+        if (DEBUG) console.log("[Injected updateInputElement] Focused element");
+
         // *** FIX: Select existing content before inserting ***
         document.execCommand("selectAll", false, null);
+        if (DEBUG)
+          console.log("[Injected updateInputElement] Selected all content");
+
         // *** END FIX ***
         const success = document.execCommand("insertText", false, text);
+        if (DEBUG)
+          console.log(
+            "[Injected updateInputElement] execCommand insertText success:",
+            success,
+          );
+        if (DEBUG)
+          console.log(
+            "[Injected updateInputElement] Content after execCommand:",
+            element.textContent,
+          );
+
         if (success) {
+          if (DEBUG)
+            console.log("[Injected updateInputElement] execCommand succeeded");
         } else {
           console.error(
             "[UPDATE_INPUT_DEBUG] execCommand returned false. Falling back to textContent.",
           ); // Keep Error
+          if (DEBUG)
+            console.log(
+              "[Injected updateInputElement] Falling back to textContent",
+            );
+
           const errorMsg = "execCommand('insertText') returned false.";
           window.postMessage(
             {
@@ -248,14 +352,51 @@ try {
             "*",
           );
           element.textContent = text;
+          if (DEBUG)
+            console.log(
+              "[Injected updateInputElement] Set textContent to:",
+              text,
+            );
+          if (DEBUG)
+            console.log(
+              "[Injected updateInputElement] Actual textContent now:",
+              element.textContent,
+            );
+
           element.dispatchEvent(
             new Event("input", { bubbles: true, cancelable: true }),
           );
+          if (DEBUG)
+            console.log(
+              "[Injected updateInputElement] Dispatched input event for contentEditable fallback",
+            );
         }
+
+        // Additional React-specific events
+        if (DEBUG)
+          console.log(
+            "[Injected updateInputElement] Dispatching additional React events...",
+          );
+        element.dispatchEvent(new Event("change", { bubbles: true }));
+        element.dispatchEvent(new Event("blur", { bubbles: true }));
+        element.dispatchEvent(new Event("focus", { bubbles: true }));
+        if (DEBUG)
+          console.log(
+            "[Injected updateInputElement] Final content:",
+            element.textContent,
+          );
       } else {
         console.warn(
           "[UPDATE_INPUT_DEBUG] Element is not an input, textarea, or contenteditable.",
         ); // Keep Warn
+        if (DEBUG) {
+          console.log("[Injected updateInputElement] Element details:");
+          console.log("- tagName:", element.tagName);
+          console.log("- contentEditable:", element.contentEditable);
+          console.log("- isContentEditable:", element.isContentEditable);
+          console.log("- className:", element.className);
+          console.log("- id:", element.id);
+        }
       }
     } catch (error) {
       console.error(
@@ -382,14 +523,15 @@ try {
   function findActiveInputElement() {
     try {
       // Use a broader set of selectors, matching domUtils.js logic if possible
-      // *** UPDATED SELECTOR to include Gemini's structure ***
+      // *** UPDATED SELECTOR to prioritize visible elements and reject hidden ones ***
       const element = document.querySelector(
-        '#prompt-textarea[contenteditable="true"], ' + // ChatGPT ID
-          'div.ProseMirror[contenteditable="true"], ' + // ChatGPT Class & Claude Class
+        "div#prompt-textarea, " + // ChatGPT ID (visible div - PRIORITY)
+          'div.ProseMirror[contenteditable="true"], ' + // Claude Class
           'div.ql-editor[contenteditable="true"], ' + // Gemini Class
-          'textarea[placeholder*="ask"], textarea[placeholder*="prompt"], textarea[placeholder*="chat"], ' + // Lovable placeholders
-          ".chat-input textarea, .prompt-input textarea, .message-input textarea, " + // Lovable class patterns
-          '[data-testid*="chat-input"], [data-testid*="prompt-input"], ' + // Lovable test IDs
+          '#prompt-textarea[contenteditable="true"], ' + // ChatGPT ID (contenteditable fallback)
+          'textarea[placeholder*="ask"]:not([style*="display: none"]), textarea[placeholder*="prompt"]:not([style*="display: none"]), textarea[placeholder*="chat"]:not([style*="display: none"]), ' + // Lovable placeholders (visible only)
+          '.chat-input textarea:not([style*="display: none"]), .prompt-input textarea:not([style*="display: none"]), .message-input textarea:not([style*="display: none"]), ' + // Lovable class patterns (visible only)
+          '[data-testid*="chat-input"]:not([style*="display: none"]), [data-testid*="prompt-input"]:not([style*="display: none"]), ' + // Lovable test IDs (visible only)
           'textarea:not([style*="display: none"]):not([disabled])', // General fallback (visible, enabled textarea)
       );
 
@@ -399,20 +541,29 @@ try {
         ); // Keep Error
         // Try a simpler fallback just in case? (Might re-introduce the original issue)
         const fallbackElement = document.querySelector(
-          '#prompt-textarea, textarea, div[contenteditable="true"]',
-        ); // Broader fallback
+          'div#prompt-textarea, #prompt-textarea, textarea:not([style*="display: none"]), div[contenteditable="true"]',
+        ); // Broader fallback with visibility check
         if (fallbackElement) {
           console.warn(
             "[FIND_INPUT_DEBUG] Refined selector failed, but found an element with fallback selector:",
             fallbackElement,
           ); // Keep Warn
-          // Basic visibility check for fallback
+
+          // Enhanced visibility check for fallback
+          const computedStyle = window.getComputedStyle(fallbackElement);
           if (
-            fallbackElement.offsetParent === null &&
-            fallbackElement.tagName !== "TEXTAREA"
+            computedStyle.display === "none" ||
+            computedStyle.visibility === "hidden" ||
+            fallbackElement.offsetParent === null
           ) {
             console.warn(
-              "[FIND_INPUT_DEBUG] Fallback element might be hidden (offsetParent is null). Rejecting fallback.",
+              "[FIND_INPUT_DEBUG] Fallback element is hidden (display/visibility/offsetParent). Rejecting fallback.",
+              {
+                display: computedStyle.display,
+                visibility: computedStyle.visibility,
+                offsetParent: fallbackElement.offsetParent,
+                element: fallbackElement,
+              },
             ); // Keep Warn
             return null;
           }
@@ -424,8 +575,47 @@ try {
         }
       }
 
-      // Add visibility check if needed (inline style check is now part of selector)
-      // Offset parent check can still be useful for other forms of hiding
+      // Enhanced visibility check for primary element
+      const computedStyle = window.getComputedStyle(element);
+      if (
+        computedStyle.display === "none" ||
+        computedStyle.visibility === "hidden"
+      ) {
+        console.warn(
+          "[FIND_INPUT_DEBUG] Found element is hidden (display/visibility). Looking for visible alternative.",
+          {
+            display: computedStyle.display,
+            visibility: computedStyle.visibility,
+            element: element,
+          },
+        ); // Keep Warn
+
+        // Try to find a visible alternative
+        const visibleAlternative = document.querySelector(
+          'div#prompt-textarea:not([style*="display: none"]), div.ProseMirror[contenteditable="true"]:not([style*="display: none"]), div.ql-editor[contenteditable="true"]:not([style*="display: none"])',
+        );
+
+        if (visibleAlternative) {
+          const altComputedStyle = window.getComputedStyle(visibleAlternative);
+          if (
+            altComputedStyle.display !== "none" &&
+            altComputedStyle.visibility !== "hidden"
+          ) {
+            console.log(
+              "[FIND_INPUT_DEBUG] Found visible alternative:",
+              visibleAlternative,
+            );
+            return visibleAlternative;
+          }
+        }
+
+        console.warn(
+          "[FIND_INPUT_DEBUG] No visible alternative found, using hidden element as last resort.",
+        );
+        // return null; // Uncomment to reject hidden elements entirely
+      }
+
+      // Add offsetParent check (less strict than before)
       if (element.offsetParent === null && element.tagName !== "TEXTAREA") {
         console.warn(
           "[FIND_INPUT_DEBUG] Found element, but offsetParent is null (might be hidden):",
