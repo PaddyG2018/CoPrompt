@@ -7,6 +7,7 @@
 export function getDefaultSitePreferences() {
   return {
     "chatgpt.com": { enabled: true },
+    "chat.openai.com": { enabled: true },
     "claude.ai": { enabled: true },
     "gemini.google.com": { enabled: true },
     "lovable.dev": { enabled: true },
