@@ -3,3 +3,88 @@ description:
 globs:
 alwaysApply: false
 ---
+# Database Column Naming Standard: User Credits
+
+## OFFICIAL STANDARD
+
+The user credits system MUST use the following column naming convention:
+
+### Table: `user_profiles`
+- **Column Name**: `credits` (int4/INTEGER)
+- **Purpose**: Stores the user's available credit balance for AI enhancement requests
+
+## Code Standards
+
+### Database Queries
+```sql
+-- ✅ CORRECT
+SELECT credits FROM user_profiles WHERE id = $1;
+UPDATE user_profiles SET credits = $1 WHERE id = $2;
+
+-- ❌ WRONG - DO NOT USE
+SELECT balance FROM user_profiles WHERE id = $1;
+UPDATE user_profiles SET balance = $1 WHERE id = $2;
+```
+
+### Supabase Client Queries
+```javascript
+// ✅ CORRECT
+.from('user_profiles')
+.select('credits')
+
+.from('user_profiles') 
+.update({ credits: newValue })
+
+// ❌ WRONG - DO NOT USE
+.from('user_profiles')
+.select('balance')
+
+.from('user_profiles')
+.update({ balance: newValue })
+```
+
+### Variable Naming
+```javascript
+// ✅ PREFERRED - Use credits when referring to the database value
+const currentCredits = profile?.credits || 0;
+const newCredits = currentCredits + purchasedCredits;
+
+// ✅ ACCEPTABLE - Use balance when referring to the current amount conceptually
+const currentBalance = profile?.credits || 0; // Still queries 'credits' column
+
+// ❌ WRONG - Don't mix terminology
+const currentBalance = profile?.balance || 0; // Column 'balance' doesn't exist
+```
+
+## Rationale
+
+1. **Database Reality**: The production `user_profiles` table uses `credits` column
+2. **Semantic Clarity**: "Credits" clearly represents purchasable units for AI requests  
+3. **Consistency**: All migration files and original code used `credits`
+4. **Minimal Disruption**: Changing code is easier than changing production database schema
+
+## Migration History Context
+
+- Migration `20250624104554_add_user_credits_system.sql` creates `balance` column
+- Migration `20250624143439_fix_user_trigger.sql` references `credits` column  
+- **Production database actually has `credits` column** (likely from manual schema changes)
+
+## Enforcement
+
+- All new code MUST use `credits` column name
+- All existing code referencing `balance` column MUST be updated to use `credits`
+- Database migrations should be consistent with this standard
+- Code reviews MUST verify correct column naming
+
+## Files That Must Use This Standard
+
+- `popup.js` - Credit display queries
+- `options.js` - Credit display and purchase flows
+- `supabase/functions/enhance/index.ts` - Credit deduction
+- `supabase/functions/stripe-webhook/index.ts` - Credit addition from purchases
+- Any future database migrations involving user credits
+- Any future API endpoints or functions involving user credits
+
+## Last Updated
+Date: 2025-01-25
+Reason: Resolve ongoing confusion between 'credits' and 'balance' column naming

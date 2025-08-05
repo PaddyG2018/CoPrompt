@@ -2,7 +2,7 @@
 
 # Set these variables before running
 echo "Please edit this script to set your SUPABASE_URL and JWTs before running."
-SUPABASE_URL="https://your-supabase-url/functions/v1/enhance"
+SUPABASE_URL="http://127.0.0.1:54321/functions/v1/enhance"
 VALID_JWT_WITH_KEY="<your_valid_jwt_with_api_key>"
 VALID_JWT_NO_KEY="<your_valid_jwt_without_api_key>"
 
