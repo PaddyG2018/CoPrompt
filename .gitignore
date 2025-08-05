@@ -67,6 +67,11 @@ test/**/*_credentials.*
 *.backup
 *_backup.*
 
+# Security documentation (keep local only)
+CRITICAL_ISSUES.md
+SECURITY_REVIEW_REPORT.md
+REMEDIATION_PLAN.md
+
 # Other
 *.log
 *.tmp

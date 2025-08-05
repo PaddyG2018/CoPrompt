@@ -89,7 +89,7 @@ serve(async (req) => {
   );
 
   const signature = req.headers.get("stripe-signature");
-  const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
+  const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET_KEY");
 
   console.log("Stripe-Signature header:", signature);
   console.log("Webhook secret exists:", !!webhookSecret);
