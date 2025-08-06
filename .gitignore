@@ -75,4 +75,7 @@ REMEDIATION_PLAN.md
 # Other
 *.log
 *.tmp
-*.swp 
+*.swp
+
+# Claude AI assistant files
+.claude/ 
