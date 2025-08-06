@@ -129,7 +129,7 @@ function checkButtonVisibility() {
 }
 
 // Debounced observer callback
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// eslint-disable-next-line no-unused-vars
 const debouncedObserverCallback = debounce(async (_mutations) => {
   // Check if the active element is suitable for the button
   const inputField = findActiveInputElement();

@@ -71,3 +71,5 @@ test/**/*_credentials.*
 *.log
 *.tmp
 *.swp 
+# Claude AI assistant files
+.claude/

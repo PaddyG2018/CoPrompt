@@ -26,9 +26,8 @@
   },
   "devDependencies": {
     "@supabase/supabase-js": "^2.52.0",
-    "@typescript-eslint/eslint-plugin": "^7.1.0",
-    "@typescript-eslint/parser": "^7.1.0",
     "axios": "^1.10.0",
+    "node-fetch": "^3.3.2",
     "copy-webpack-plugin": "^13.0.0",
     "dotenv": "^16.5.0",
     "eslint": "^8.57.0",
@@ -36,12 +35,10 @@
     "eslint-plugin-json": "^3.1.0",
     "eslint-plugin-security": "^2.1.1",
     "globals": "^16.0.0",
-    "jest": "^30.0.4",
     "prettier": "^3.2.5",
     "replace-in-file": "^7.1.0",
     "rimraf": "^5.0.5",
     "snyk": "^1.1250.0",
-    "typescript-eslint": "^8.31.1",
     "web-ext": "^8.5.0",
     "webpack": "^5.99.7",
     "webpack-cli": "^6.0.1"
