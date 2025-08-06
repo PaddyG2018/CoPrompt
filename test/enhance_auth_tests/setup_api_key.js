@@ -1,5 +1,5 @@
 // Script to add API key for test user using direct JWT
-const { default: fetch } = require("node-fetch");
+import fetch from "node-fetch";
 
 const SUPABASE_URL = "http://127.0.0.1:54321";
 const SUPABASE_ANON_KEY = "REPLACE_WITH_YOUR_LOCAL_SUPABASE_ANON_KEY"; // Get from supabase status

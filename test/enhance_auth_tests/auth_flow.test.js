@@ -1,6 +1,6 @@
-const { createClient } = require("@supabase/supabase-js");
-const axios = require("axios");
-const assert = require("assert");
+import { createClient } from "@supabase/supabase-js";
+import axios from "axios";
+import assert from "assert";
 
 // CONFIGURE THESE - Replace with your actual keys
 const SUPABASE_URL = "http://127.0.0.1:54321";
